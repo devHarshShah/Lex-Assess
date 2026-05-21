@@ -1,7 +1,7 @@
-import { motion } from 'framer-motion'
-import { pipelineSteps } from './data'
-import { Button } from '@/components/ui/button'
-import { ChevronDown } from 'lucide-react'
+import { motion } from 'framer-motion';
+import { pipelineSteps } from './data';
+import { Button } from '@/components/ui/button';
+import { ChevronDown } from 'lucide-react';
 
 function PipelineStep({
   number,
@@ -10,11 +10,11 @@ function PipelineStep({
   description,
   index,
 }: {
-  number: string
-  pill: string
-  title: string
-  description: string
-  index: number
+  number: string;
+  pill: string;
+  title: string;
+  description: string;
+  index: number;
 }) {
   return (
     <motion.div
@@ -38,7 +38,7 @@ function PipelineStep({
         </p>
       </div>
     </motion.div>
-  )
+  );
 }
 
 export function HeroSection() {
@@ -48,15 +48,17 @@ export function HeroSection() {
         <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24 w-full">
           {/* Left Column: Headlines */}
           <div className="flex flex-col">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="mb-8"
             >
               <h1 className="text-[clamp(3.5rem,6vw,5.5rem)] font-extrabold leading-[1.05] tracking-tight text-foreground">
-                Prove It.<br />
-                Rank It.<br />
+                Prove It.
+                <br />
+                Rank It.
+                <br />
                 <span className="relative inline-block mt-2">
                   <span className="relative z-10 text-primary">Own It.</span>
                   <span className="absolute bottom-2 left-0 right-0 -z-10 h-3 bg-primary/20 rounded-full" />
@@ -70,7 +72,9 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="mb-10 max-w-md text-lg leading-relaxed text-muted-foreground"
             >
-              Legal Reckoning is where India's sharpest law students are assessed, ranked, and discovered. No shortcuts. No connections. Only performance.
+              LexAssess is where India&apos;s sharpest law students are
+              assessed, ranked, and discovered. No shortcuts. No connections.
+              Only performance.
             </motion.p>
 
             <motion.div
@@ -79,10 +83,17 @@ export function HeroSection() {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="flex flex-col sm:flex-row gap-4"
             >
-              <Button size="lg" className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm">
+              <Button
+                size="lg"
+                className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm"
+              >
                 Give the Assessment
               </Button>
-              <Button size="lg" variant="outline" className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm border-2 border-foreground/10 text-foreground hover:bg-foreground/5">
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm border-2 border-foreground/10 text-foreground hover:bg-foreground/5"
+              >
                 For Law Firms
               </Button>
             </motion.div>
@@ -106,15 +117,15 @@ export function HeroSection() {
           y: {
             repeat: Infinity,
             duration: 1.5,
-            ease: 'easeInOut'
-          }
+            ease: 'easeInOut',
+          },
         }}
         className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer pointer-events-auto z-20 group"
         onClick={() => {
           window.scrollTo({
             top: window.innerHeight,
-            behavior: 'smooth'
-          })
+            behavior: 'smooth',
+          });
         }}
       >
         <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
@@ -123,5 +134,5 @@ export function HeroSection() {
         <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
       </motion.div>
     </section>
-  )
+  );
 }

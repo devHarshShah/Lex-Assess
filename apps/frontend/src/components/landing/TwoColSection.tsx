@@ -1,6 +1,6 @@
-import { firmSteps, studentSteps } from './data'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
+import { firmSteps, studentSteps } from './data';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 
 function Column({
   tag,
@@ -10,12 +10,12 @@ function Column({
   buttonLabel,
   filled,
 }: {
-  tag: string
-  title: string
-  description: string
-  steps: string[]
-  buttonLabel: string
-  filled?: boolean
+  tag: string;
+  title: string;
+  description: string;
+  steps: string[];
+  buttonLabel: string;
+  filled?: boolean;
 }) {
   return (
     <Card className="flex flex-col h-full bg-card p-10 border-border/60 shadow-sm rounded-none border-x-0 border-t-0 md:border-r md:last:border-r-0 lg:border-t lg:border-x">
@@ -47,7 +47,7 @@ function Column({
         {buttonLabel}
       </Button>
     </Card>
-  )
+  );
 }
 
 export function TwoColSection() {
@@ -57,7 +57,7 @@ export function TwoColSection() {
         <Column
           tag="For Students"
           title="Stop Sending Cold Emails."
-          description="Your resume is not your ceiling. On Legal Reckoning, your score is your identity. Attempt the paper, earn your rank, clear the interview - and let top law firms discover you on merit alone."
+          description="Your resume is not your ceiling. On LexAssess, your score is your identity. Attempt the paper, earn your rank, clear the interview - and let top law firms discover you on merit alone."
           steps={studentSteps}
           buttonLabel="Begin Your Assessment"
           filled
@@ -71,5 +71,5 @@ export function TwoColSection() {
         />
       </div>
     </section>
-  )
+  );
 }

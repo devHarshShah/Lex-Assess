@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion'
-import { pillars } from './data'
+import { motion } from 'framer-motion';
+import { pillars } from './data';
 
 export function ConvictionSection() {
   return (
@@ -20,22 +20,24 @@ export function ConvictionSection() {
               </span>
             </div>
             <h2 className="mb-8 font-heading text-[clamp(2.5rem,4vw,3.5rem)] font-extrabold leading-tight tracking-tight text-foreground">
-              Built to Fix<br />
-              What Was<br />
+              Built to Fix
+              <br />
+              What Was
+              <br />
               <span className="text-primary">Always Broken.</span>
             </h2>
             <div className="space-y-6 text-lg leading-relaxed text-muted-foreground">
               <p>
-                The gap between legal talent and legal opportunity in India is not
-                accidental - it is structural. Resume-first hiring, college-name bias
-                and opaque internship processes have for decades kept genuinely
-                talented students invisible.
+                The gap between legal talent and legal opportunity in India is
+                not accidental - it is structural. Resume-first hiring,
+                college-name bias and opaque internship processes have for
+                decades kept genuinely talented students invisible.
               </p>
               <p>
-                Legal Reckoning is not a workaround. It is a replacement. A merit
-                pipeline from assessment to ranked profile to internship offer - where
-                every step is earned, every claim is verified, and every door is
-                opened by performance alone.
+                LexAssess is not a workaround. It is a replacement. A merit
+                pipeline from assessment to ranked profile to internship offer -
+                where every step is earned, every claim is verified, and every
+                door is opened by performance alone.
               </p>
             </div>
           </motion.div>
@@ -44,7 +46,7 @@ export function ConvictionSection() {
           <div>
             <div className="border-t border-border/60">
               {pillars.map((pillar, idx) => {
-                const Icon = pillar.icon
+                const Icon = pillar.icon;
                 return (
                   <motion.div
                     key={pillar.title}
@@ -66,12 +68,12 @@ export function ConvictionSection() {
                       </p>
                     </div>
                   </motion.div>
-                )
+                );
               })}
             </div>
           </div>
         </div>
       </div>
     </section>
-  )
+  );
 }
