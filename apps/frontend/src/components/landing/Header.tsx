@@ -1,16 +1,14 @@
 import { motion, useScroll, useTransform, useSpring } from 'framer-motion';
+import { Link } from '@tanstack/react-router';
 import { navItems } from './data';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { scrollY } = useScroll();
 
-  // Set up spring configuration for smooth physical feedback
   const springConfig = { mass: 0.1, stiffness: 100, damping: 20 };
   const smoothScrollY = useSpring(scrollY, springConfig);
 
-  // Map the smooth scroll value (from 0px to 150px scroll depth) to various styles
-  // On desktop: capped by maxWidth at 800px. On mobile: starts at 75% width. Both expand to 100% full-bleed.
   const width = useTransform(smoothScrollY, [0, 150], ['75%', '100%']);
   const maxWidth = useTransform(smoothScrollY, [0, 150], ['800px', '100%']);
   const borderRadius = useTransform(smoothScrollY, [0, 150], ['9999px', '0px']);
@@ -55,11 +53,7 @@ export function Header() {
         className="pointer-events-auto border backdrop-blur-md supports-[backdrop-filter]:bg-background/60 flex h-16 w-full items-center justify-between shadow-sm"
       >
         <div className="flex items-center gap-2.5">
-          <img
-            src="/logo.png"
-            alt="LexAssess logo"
-            className="h-9 w-11 object-contain"
-          />
+          <img src="/logo.png" alt="LexAssess logo" className="h-9 w-11 object-contain" />
           <span className="font-heading text-lg font-bold tracking-tight text-foreground">
             Lex<span className="text-primary">Assess</span>
           </span>
@@ -76,11 +70,12 @@ export function Header() {
           ))}
         </nav>
         <Button
+          asChild
           size="sm"
           variant="outline"
           className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border text-foreground hover:bg-muted rounded-full"
         >
-          Register
+          <Link to="/signup">Register</Link>
         </Button>
       </motion.header>
     </div>
