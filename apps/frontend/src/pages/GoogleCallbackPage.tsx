@@ -20,7 +20,10 @@ export function GoogleCallbackPage() {
       try {
         const auth = await exchangeGoogleCode(code)
         storeAuth(auth)
-        await navigate({ to: '/dashboard', replace: true })
+        await navigate({
+          to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/profile/setup' : '/dashboard',
+          replace: true,
+        })
       } catch {
         clearAuth()
         await navigate({ to: '/login', replace: true })

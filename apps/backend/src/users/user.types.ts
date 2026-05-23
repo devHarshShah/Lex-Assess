@@ -21,6 +21,9 @@ export interface UserProfileDto {
   degree: string;
   currentYear: string;
   specialization: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | null;
+  countryCode: string | null;
+  mobileNumber: string | null;
   linkedinUrl: string | null;
   resumeUrl: string | null;
   profilePhotoUrl: string | null;

@@ -160,6 +160,9 @@ export class UsersService {
       degree: profile.degree,
       currentYear: profile.currentYear,
       specialization: profile.specialization,
+      gender: profile.gender,
+      countryCode: profile.countryCode,
+      mobileNumber: profile.mobileNumber,
       linkedinUrl: profile.linkedinUrl,
       resumeUrl: profile.resumeUrl,
       profilePhotoUrl: profile.profilePhotoUrl,
@@ -177,12 +180,15 @@ export class UsersService {
       degree: string;
       currentYear: string;
       specialization: string;
+      gender: 'MALE' | 'FEMALE' | 'OTHER';
+      countryCode: string;
+      mobileNumber: string;
       linkedinUrl?: string | null;
       resumeUrl?: string | null;
       profilePhotoUrl?: string | null;
     },
   ): Promise<UserProfileDto> {
-    const profile = await this.prisma.userProfile.upsert({
+    await this.prisma.userProfile.upsert({
       where: { userId },
       update: {
         fullName: input.fullName.trim(),
@@ -190,6 +196,9 @@ export class UsersService {
         degree: input.degree.trim(),
         currentYear: input.currentYear.trim(),
         specialization: input.specialization.trim(),
+        gender: input.gender,
+        countryCode: input.countryCode.trim(),
+        mobileNumber: input.mobileNumber.trim(),
         linkedinUrl: input.linkedinUrl?.trim() || null,
         resumeUrl: input.resumeUrl?.trim() || null,
         profilePhotoUrl: input.profilePhotoUrl?.trim() || null,
@@ -201,6 +210,9 @@ export class UsersService {
         degree: input.degree.trim(),
         currentYear: input.currentYear.trim(),
         specialization: input.specialization.trim(),
+        gender: input.gender,
+        countryCode: input.countryCode.trim(),
+        mobileNumber: input.mobileNumber.trim(),
         linkedinUrl: input.linkedinUrl?.trim() || null,
         resumeUrl: input.resumeUrl?.trim() || null,
         profilePhotoUrl: input.profilePhotoUrl?.trim() || null,
@@ -275,5 +287,13 @@ export class UsersService {
       orderBy: { name: 'asc' },
       select: { name: true },
     });
+  }
+
+  async isProfileCompleted(userId: string): Promise<boolean> {
+    const profile = await this.prisma.userProfile.findUnique({
+      where: { userId },
+      select: { isComplete: true },
+    });
+    return profile?.isComplete ?? false;
   }
 }

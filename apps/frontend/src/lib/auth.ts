@@ -7,6 +7,7 @@ export interface AuthUser {
   role: Role
   roles?: Role[]
   avatarUrl: string | null
+  profileCompleted: boolean
 }
 
 export interface AuthResponse {
@@ -23,6 +24,32 @@ export interface ManagedUser {
   authProvider: 'EMAIL' | 'GOOGLE'
   createdAt: string
   updatedAt: string
+}
+
+export type VerificationType = 'ONGOING' | 'GRADUATED'
+
+export interface UserProfile {
+  fullName: string
+  college: string
+  degree: string
+  currentYear: string
+  specialization: string
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | null
+  countryCode: string | null
+  mobileNumber: string | null
+  linkedinUrl: string | null
+  resumeUrl: string | null
+  profilePhotoUrl: string | null
+  verificationType: VerificationType | null
+  verificationDocUrl: string | null
+  isComplete: boolean
+}
+
+export interface ProfileOptions {
+  colleges: string[]
+  degrees: string[]
+  years: string[]
+  specializations: string[]
 }
 
 const TOKEN_KEY = 'lexassess_access_token'
@@ -225,6 +252,132 @@ export async function assignAdminForSuperadmin(email: string): Promise<void> {
   if (!response.ok) {
     throw new Error('Failed to assign admin')
   }
+}
+
+export async function fetchProfileOptions(): Promise<ProfileOptions> {
+  const response = await fetch(`${API_BASE_URL}/profile/options`, {
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch profile options')
+  }
+
+  return response.json() as Promise<ProfileOptions>
+}
+
+export async function fetchMyProfile(): Promise<UserProfile | null> {
+  const response = await fetch(`${API_BASE_URL}/profile/me`, {
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch profile')
+  }
+
+  return response.json() as Promise<UserProfile | null>
+}
+
+export async function saveProfileStepOne(input: {
+  fullName: string
+  college: string
+  degree: string
+  currentYear: string
+  specialization: string
+  gender: 'MALE' | 'FEMALE' | 'OTHER'
+  countryCode: string
+  mobileNumber: string
+  linkedinUrl?: string
+  resumeUrl?: string
+  profilePhotoUrl?: string
+}) {
+  const response = await fetch(`${API_BASE_URL}/profile/me`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(input),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to save profile')
+  }
+
+  return response.json() as Promise<UserProfile>
+}
+
+export async function saveProfileVerification(input: { verificationType: VerificationType; verificationDocUrl: string }) {
+  const response = await fetch(`${API_BASE_URL}/profile/verification`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(input),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to save verification')
+  }
+
+  return response.json() as Promise<UserProfile>
+}
+
+export async function uploadProfileAsset(file: File, kind: 'profile_photo' | 'resume' | 'verification_doc') {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error('Missing token')
+  }
+
+  const formData = new FormData()
+  formData.append('kind', kind)
+  formData.append('file', file)
+
+  const response = await fetch(`${API_BASE_URL}/uploads`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error('Upload failed')
+  }
+
+  return response.json() as Promise<{ url: string; objectKey: string }>
+}
+
+export async function fetchSuperadminSpecializations(): Promise<{ id: string; name: string; isActive: boolean; sortOrder: number }[]> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/specializations`, {
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to fetch specializations')
+  return response.json() as Promise<{ id: string; name: string; isActive: boolean; sortOrder: number }[]>
+}
+
+export async function createSuperadminSpecialization(name: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/specializations`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error('Failed to create specialization')
+}
+
+export async function updateSuperadminSpecialization(
+  id: string,
+  input: { name?: string; isActive?: boolean; sortOrder?: number },
+) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/specializations/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(input),
+  })
+  if (!response.ok) throw new Error('Failed to update specialization')
+}
+
+export async function deleteSuperadminSpecialization(id: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/specializations/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to delete specialization')
 }
 
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {

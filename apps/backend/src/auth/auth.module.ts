@@ -10,6 +10,8 @@ import { RbacDemoController } from './rbac-demo.controller';
 import { SuperadminSpecializationsController } from './superadmin-specializations.controller';
 import { SuperadminUsersController } from './superadmin-users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { UploadsController } from './uploads.controller';
+import { UploadsService } from './uploads.service';
 
 @Module({
   imports: [
@@ -25,8 +27,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     RbacDemoController,
     SuperadminUsersController,
     SuperadminSpecializationsController,
+    UploadsController,
   ],
-  providers: [AuthService, UsersService, PrismaService, JwtStrategy],
+  providers: [AuthService, UsersService, PrismaService, JwtStrategy, UploadsService],
   exports: [AuthService],
 })
 export class AuthModule {}

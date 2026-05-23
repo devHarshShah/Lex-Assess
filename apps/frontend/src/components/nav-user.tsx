@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, UserCircle2 } from 'lucide-react'
 import { useNavigate } from '@tanstack/react-router'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -48,6 +48,14 @@ export function NavUser({
             align="end"
             sideOffset={4}
           >
+            <DropdownMenuItem
+              onClick={async () => {
+                await navigate({ to: '/dashboard/profile' })
+              }}
+            >
+              <UserCircle2 />
+              Profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={onLogout}>
               <LogOut />
               Log out

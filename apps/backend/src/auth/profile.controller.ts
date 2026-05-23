@@ -1,5 +1,4 @@
 import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
-import { VerificationType } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { ProfileStepOneDto } from './dto/profile-step-one.dto';
 import { ProfileVerificationDto } from './dto/profile-verification.dto';
@@ -40,7 +39,7 @@ export class ProfileController {
 
   @Get('verification-types')
   verificationTypes() {
-    return Object.values(VerificationType);
+    return ['ONGOING', 'GRADUATED'];
   }
 
   @Get('completion-status')

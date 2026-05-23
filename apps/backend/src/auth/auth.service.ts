@@ -53,7 +53,7 @@ export class AuthService {
       role,
     });
 
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, false);
   }
 
   async assignAdmin(email: string) {
@@ -135,6 +135,9 @@ export class AuthService {
           profile.degree &&
           profile.currentYear &&
           profile.specialization &&
+          profile.gender &&
+          profile.countryCode &&
+          profile.mobileNumber &&
           profile.profilePhotoUrl,
       ),
       step2Completed: Boolean(profile?.verificationType && profile?.verificationDocUrl),
@@ -163,6 +166,9 @@ export class AuthService {
       !profile.degree ||
       !profile.currentYear ||
       !profile.specialization ||
+      !profile.gender ||
+      !profile.countryCode ||
+      !profile.mobileNumber ||
       !profile.profilePhotoUrl
     ) {
       throw new BadRequestException('Complete profile step 1 first');
@@ -198,7 +204,8 @@ export class AuthService {
     const isValidPassword = await compare(password, user.passwordHash);
     if (!isValidPassword) throw new UnauthorizedException('Invalid email or password');
 
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl);
+    const profileCompleted = await this.usersService.isProfileCompleted(user.id);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted);
   }
 
   async loginWithGoogleCode(code: string): Promise<AuthResponseDto> {
@@ -299,7 +306,8 @@ export class AuthService {
       avatarUrl: tokenInfo.picture,
     });
 
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl);
+    const profileCompleted = await this.usersService.isProfileCompleted(user.id);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted);
   }
 
   private issueToken(
@@ -308,6 +316,7 @@ export class AuthService {
     role: Role,
     name: string,
     avatarUrl: string | null,
+    profileCompleted: boolean,
   ): AuthResponseDto {
     const accessToken = this.jwtService.sign({
       sub: id,
@@ -323,7 +332,7 @@ export class AuthService {
         role,
         name,
         avatarUrl,
-        profileCompleted: false,
+        profileCompleted,
       },
     };
   }

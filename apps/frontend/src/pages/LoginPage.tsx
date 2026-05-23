@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Scale, BriefcaseBusiness, FileCheck2, ShieldCheck } from 'lucide-react'
 import { AuthHeroArt } from '@/components/auth-hero-art'
@@ -32,7 +32,7 @@ export function LoginPage() {
     try {
       const auth = await loginWithPassword(email, password)
       storeAuth(auth)
-      await navigate({ to: '/dashboard' })
+      await navigate({ to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/profile/setup' : '/dashboard' })
     } catch (err) {
       clearAuth()
       setError(err instanceof Error ? err.message : 'Login failed')

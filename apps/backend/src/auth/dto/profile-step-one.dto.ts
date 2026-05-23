@@ -1,4 +1,7 @@
 import { IsOptional, IsString, IsUrl, MinLength } from 'class-validator';
+import { IsEnum } from 'class-validator';
+
+const GENDERS = ['MALE', 'FEMALE', 'OTHER'] as const;
 
 export class ProfileStepOneDto {
   @IsString()
@@ -20,6 +23,17 @@ export class ProfileStepOneDto {
   @IsString()
   @MinLength(2)
   specialization!: string;
+
+  @IsEnum(GENDERS)
+  gender!: 'MALE' | 'FEMALE' | 'OTHER';
+
+  @IsString()
+  @MinLength(1)
+  countryCode!: string;
+
+  @IsString()
+  @MinLength(7)
+  mobileNumber!: string;
 
   @IsOptional()
   @IsUrl()

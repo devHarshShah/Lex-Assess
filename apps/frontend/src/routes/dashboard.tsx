@@ -1,4 +1,4 @@
-import { createRoute, redirect } from '@tanstack/react-router'
+import { createRoute, isRedirect, redirect } from '@tanstack/react-router'
 import { rootRoute } from './root'
 import { DashboardLayout } from '../pages/DashboardLayout'
 import { DashboardPage } from '../pages/DashboardPage'
@@ -16,11 +16,17 @@ export const dashboardRoute = createRoute({
 
     try {
       const user = await fetchCurrentUser()
+      if (user.role === 'USER' && !user.profileCompleted) {
+        throw redirect({ to: '/profile/setup' })
+      }
       storeUser(user)
       return { user }
-    } catch {
+    } catch (error) {
+      if (isRedirect(error)) {
+        throw error
+      }
       const cachedUser = getStoredUser()
-      if (cachedUser) {
+      if (cachedUser && !(cachedUser.role === 'USER' && !cachedUser.profileCompleted)) {
         return { user: cachedUser }
       }
 
