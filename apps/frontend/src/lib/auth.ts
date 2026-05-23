@@ -5,6 +5,8 @@ export interface AuthUser {
   email: string
   name: string
   role: Role
+  roles?: Role[]
+  avatarUrl: string | null
 }
 
 export interface AuthResponse {
@@ -12,8 +14,20 @@ export interface AuthResponse {
   user: AuthUser
 }
 
+export interface ManagedUser {
+  id: string
+  email: string
+  name: string
+  role: Role
+  avatarUrl: string | null
+  authProvider: 'EMAIL' | 'GOOGLE'
+  createdAt: string
+  updatedAt: string
+}
+
 const TOKEN_KEY = 'lexassess_access_token'
 const USER_KEY = 'lexassess_user'
+const ACTIVE_ROLE_KEY = 'lexassess_active_role'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 export function getApiBaseUrl() {
@@ -35,18 +49,48 @@ export function getStoredUser(): AuthUser | null {
   }
 }
 
+export function getAvailableRoles(user: AuthUser): Role[] {
+  const roles = user.roles?.length ? user.roles : [user.role]
+  return [...new Set(roles)]
+}
+
+export function getActiveRole(user: AuthUser): Role {
+  const available = getAvailableRoles(user)
+  const stored = localStorage.getItem(ACTIVE_ROLE_KEY) as Role | null
+  if (stored && available.includes(stored)) {
+    return stored
+  }
+  return user.role
+}
+
+export function setActiveRole(role: Role) {
+  localStorage.setItem(ACTIVE_ROLE_KEY, role)
+}
+
+function syncActiveRole(user: AuthUser) {
+  const available = getAvailableRoles(user)
+  const current = localStorage.getItem(ACTIVE_ROLE_KEY) as Role | null
+
+  if (!current || !available.includes(current)) {
+    localStorage.setItem(ACTIVE_ROLE_KEY, user.role)
+  }
+}
+
 export function storeAuth(data: AuthResponse) {
   localStorage.setItem(TOKEN_KEY, data.accessToken)
   localStorage.setItem(USER_KEY, JSON.stringify(data.user))
+  syncActiveRole(data.user)
 }
 
 export function storeUser(user: AuthUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user))
+  syncActiveRole(user)
 }
 
 export function clearAuth() {
   localStorage.removeItem(TOKEN_KEY)
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(ACTIVE_ROLE_KEY)
 }
 
 export async function exchangeGoogleCode(code: string): Promise<AuthResponse> {
@@ -114,6 +158,73 @@ export async function loginWithPassword(email: string, password: string): Promis
   }
 
   return response.json() as Promise<AuthResponse>
+}
+
+function getAuthHeaders() {
+  const token = getStoredToken()
+  if (!token) {
+    throw new Error('Missing token')
+  }
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  }
+}
+
+export async function fetchAllUsersForSuperadmin(): Promise<ManagedUser[]> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/users`, {
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch users')
+  }
+
+  return response.json() as Promise<ManagedUser[]>
+}
+
+export async function updateUserForSuperadmin(
+  userId: string,
+  input: {
+    name?: string
+    role?: Role
+  },
+): Promise<ManagedUser> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/users/${userId}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(input),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to update user')
+  }
+
+  return response.json() as Promise<ManagedUser>
+}
+
+export async function deleteUserForSuperadmin(userId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/users/${userId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to delete user')
+  }
+}
+
+export async function assignAdminForSuperadmin(email: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/assign-admin`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ email }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to assign admin')
+  }
 }
 
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {

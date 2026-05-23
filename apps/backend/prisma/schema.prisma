@@ -19,6 +19,11 @@ enum AuthProvider {
   GOOGLE
 }
 
+enum VerificationType {
+  ONGOING
+  GRADUATED
+}
+
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
@@ -26,9 +31,46 @@ model User {
   role          Role         @default(USER)
   passwordHash  String?
   googleId      String?      @unique
+  avatarUrl     String?
   authProvider  AuthProvider @default(EMAIL)
+  profile       UserProfile?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
   @@index([role])
+}
+
+model UserProfile {
+  id                String           @id @default(cuid())
+  userId            String           @unique
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName          String
+  college           String
+  degree            String
+  currentYear       String
+  specialization    String
+  linkedinUrl       String?
+  resumeUrl         String?
+  profilePhotoUrl   String?
+  verificationType  VerificationType?
+  verificationDocUrl String?
+  isComplete        Boolean          @default(false)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model Specialization {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LawCollege {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

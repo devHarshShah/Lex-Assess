@@ -5,6 +5,8 @@ export interface AuthUserDto {
   email: string;
   name: string;
   role: Role;
+  avatarUrl: string | null;
+  profileCompleted: boolean;
 }
 
 export interface AuthResponseDto {

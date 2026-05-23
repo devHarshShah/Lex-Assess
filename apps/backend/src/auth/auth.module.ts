@@ -5,7 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { ProfileController } from './profile.controller';
 import { RbacDemoController } from './rbac-demo.controller';
+import { SuperadminSpecializationsController } from './superadmin-specializations.controller';
+import { SuperadminUsersController } from './superadmin-users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
 @Module({
@@ -16,7 +19,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       signOptions: { expiresIn: '1d' },
     }),
   ],
-  controllers: [AuthController, RbacDemoController],
+  controllers: [
+    AuthController,
+    ProfileController,
+    RbacDemoController,
+    SuperadminUsersController,
+    SuperadminSpecializationsController,
+  ],
   providers: [AuthService, UsersService, PrismaService, JwtStrategy],
   exports: [AuthService],
 })

@@ -1,6 +1,6 @@
 import { useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { hasRole } from '@/lib/auth'
+import { getActiveRole, hasRole } from '@/lib/auth'
 
 export function DashboardPage() {
   const user = useRouterState({
@@ -9,11 +9,13 @@ export function DashboardPage() {
 
   if (!user) return null
 
+  const role = getActiveRole(user)
+
   const cards = [
-    { title: 'Role', value: user.role, show: true },
-    { title: 'Superadmin Controls', value: 'Enabled', show: hasRole(user.role, ['SUPERADMIN']) },
-    { title: 'Admin Controls', value: 'Enabled', show: hasRole(user.role, ['ADMIN']) },
-    { title: 'Company Controls', value: 'Enabled', show: hasRole(user.role, ['COMPANY']) },
+    { title: 'Role', value: role, show: true },
+    { title: 'Superadmin Controls', value: 'Enabled', show: hasRole(role, ['SUPERADMIN']) },
+    { title: 'Admin Controls', value: 'Enabled', show: hasRole(role, ['ADMIN']) },
+    { title: 'Company Controls', value: 'Enabled', show: hasRole(role, ['COMPANY']) },
   ].filter((card) => card.show)
 
   return (
