@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { BookOpen, Bot, Map, PieChart, Settings2, ShieldUser, SquareTerminal } from 'lucide-react'
+import { BookOpen, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -8,54 +8,6 @@ import { NavUser } from '@/components/nav-user'
 import { TeamSwitcher } from '@/components/team-switcher'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from '@/components/ui/sidebar'
 import { getActiveRole, getAvailableRoles, setActiveRole } from '@/lib/auth'
-
-const data = {
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '/dashboard',
-      icon: SquareTerminal,
-      isActive: true,
-      items: [{ title: 'Overview', url: '/dashboard' }],
-    },
-    {
-      title: 'Superadmin',
-      url: '/dashboard/users',
-      icon: ShieldUser,
-      items: [{ title: 'User Management', url: '/dashboard/users' }],
-    },
-    {
-      title: 'Models',
-      url: '#',
-      icon: Bot,
-      items: [{ title: 'Catalog', url: '#' }],
-    },
-    {
-      title: 'Documentation',
-      url: '#',
-      icon: BookOpen,
-      items: [{ title: 'Guides', url: '#' }],
-    },
-    {
-      title: 'Settings',
-      url: '#',
-      icon: Settings2,
-      items: [{ title: 'General', url: '#' }],
-    },
-  ],
-  projects: [
-    {
-      name: 'Assessments',
-      url: '#',
-      icon: PieChart,
-    },
-    {
-      name: 'Companies',
-      url: '#',
-      icon: Map,
-    },
-  ],
-}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = useRouterState({
@@ -69,7 +21,67 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const availableRoles = getAvailableRoles(user)
   const activeRole = getActiveRole(user)
   const navMainItems =
-    activeRole === 'SUPERADMIN' ? data.navMain : data.navMain.filter((item) => item.title !== 'Superadmin')
+    activeRole === 'SUPERADMIN'
+      ? [
+          {
+            title: 'Dashboard',
+            url: '/dashboard',
+            icon: SquareTerminal,
+            isActive: true,
+            items: [{ title: 'Overview', url: '/dashboard' }],
+          },
+          {
+            title: 'User Admin',
+            url: '/dashboard/users',
+            icon: ShieldUser,
+            items: [{ title: 'Manage Users', url: '/dashboard/users' }],
+          },
+          {
+            title: 'Profile Review',
+            url: '/dashboard/profile-verifications',
+            icon: UserCheck,
+            items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
+          },
+          {
+            title: 'Profile Options',
+            url: '/dashboard/specializations',
+            icon: ShieldCheck,
+            items: [
+              { title: 'Specializations', url: '/dashboard/specializations' },
+              { title: 'Colleges', url: '/dashboard/colleges' },
+              { title: 'Degrees', url: '/dashboard/degrees' },
+            ],
+          },
+        ]
+      : [
+          {
+            title: 'Dashboard',
+            url: '/dashboard',
+            icon: SquareTerminal,
+            isActive: true,
+            items: [{ title: 'Overview', url: '/dashboard' }],
+          },
+          {
+            title: 'Profile',
+            url: '/dashboard/profile',
+            icon: UserCircle2,
+            items: [{ title: 'My Profile', url: '/dashboard/profile' }],
+          },
+          {
+            title: 'Knowledge',
+            url: '#',
+            icon: BookOpen,
+            items: [{ title: 'Guides', url: '#' }],
+          },
+        ]
+
+  const projectItems =
+    activeRole === 'SUPERADMIN'
+      ? [
+          { name: 'Colleges', url: '/dashboard/colleges', icon: University },
+          { name: 'Degrees', url: '/dashboard/degrees', icon: GraduationCap },
+        ]
+      : []
 
   function onRoleChange(role: (typeof availableRoles)[number]) {
     setActiveRole(role)
@@ -83,7 +95,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMainItems} />
-        <NavProjects projects={data.projects} />
+        {projectItems.length > 0 ? <NavProjects projects={projectItems} /> : null}
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={{ name: user.name, email: user.email, avatarUrl: user.avatarUrl }} />

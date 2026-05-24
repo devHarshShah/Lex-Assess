@@ -26,6 +26,15 @@ export interface ManagedUser {
   updatedAt: string
 }
 
+export interface ManagedUserProfileRecord {
+  id: string
+  email: string
+  name: string
+  role: Role
+  avatarUrl: string | null
+  profile: UserProfile | null
+}
+
 export type VerificationType = 'ONGOING' | 'GRADUATED'
 
 export interface UserProfile {
@@ -378,6 +387,85 @@ export async function deleteSuperadminSpecialization(id: string) {
     headers: getAuthHeaders(),
   })
   if (!response.ok) throw new Error('Failed to delete specialization')
+}
+
+export async function fetchSuperadminColleges(): Promise<{ id: string; name: string }[]> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/colleges`, { headers: getAuthHeaders() })
+  if (!response.ok) throw new Error('Failed to fetch colleges')
+  return response.json() as Promise<{ id: string; name: string }[]>
+}
+
+export async function createSuperadminCollege(name: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/colleges`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error('Failed to create college')
+}
+
+export async function updateSuperadminCollege(id: string, name: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/colleges/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error('Failed to update college')
+}
+
+export async function deleteSuperadminCollege(id: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/colleges/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to delete college')
+}
+
+export async function fetchSuperadminDegrees(): Promise<{ id: string; name: string }[]> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/degrees`, { headers: getAuthHeaders() })
+  if (!response.ok) throw new Error('Failed to fetch degrees')
+  return response.json() as Promise<{ id: string; name: string }[]>
+}
+
+export async function createSuperadminDegree(name: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/degrees`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error('Failed to create degree')
+}
+
+export async function updateSuperadminDegree(id: string, name: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/degrees/${id}`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name }),
+  })
+  if (!response.ok) throw new Error('Failed to update degree')
+}
+
+export async function deleteSuperadminDegree(id: string) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/degrees/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  })
+  if (!response.ok) throw new Error('Failed to delete degree')
+}
+
+export async function fetchSuperadminProfiles(): Promise<ManagedUserProfileRecord[]> {
+  const response = await fetch(`${API_BASE_URL}/superadmin/profiles`, { headers: getAuthHeaders() })
+  if (!response.ok) throw new Error('Failed to fetch profiles')
+  return response.json() as Promise<ManagedUserProfileRecord[]>
+}
+
+export async function verifySuperadminProfile(userId: string, verified: boolean) {
+  const response = await fetch(`${API_BASE_URL}/superadmin/profiles/${userId}/verify`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ verified }),
+  })
+  if (!response.ok) throw new Error('Failed to update verification status')
 }
 
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {

@@ -107,6 +107,13 @@ export class UsersService {
     return users.map((user) => this.toUserManagementRecord(user));
   }
 
+  async listUsersWithProfiles() {
+    return this.prisma.user.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { profile: true },
+    });
+  }
+
   async updateUserById(
     id: string,
     input: { name?: string; role?: Role },
@@ -286,6 +293,66 @@ export class UsersService {
     return this.prisma.lawCollege.findMany({
       orderBy: { name: 'asc' },
       select: { name: true },
+    });
+  }
+
+  listAllColleges() {
+    return this.prisma.lawCollege.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  createCollege(name: string) {
+    return this.prisma.lawCollege.create({
+      data: { name: name.trim() },
+    });
+  }
+
+  updateCollege(id: string, name: string) {
+    return this.prisma.lawCollege.update({
+      where: { id },
+      data: { name: name.trim() },
+    });
+  }
+
+  deleteCollege(id: string) {
+    return this.prisma.lawCollege.delete({ where: { id } });
+  }
+
+  listDegrees() {
+    return this.prisma.degreeOption.findMany({
+      orderBy: { name: 'asc' },
+      select: { name: true },
+    });
+  }
+
+  listAllDegrees() {
+    return this.prisma.degreeOption.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  createDegree(name: string) {
+    return this.prisma.degreeOption.create({
+      data: { name: name.trim() },
+    });
+  }
+
+  updateDegree(id: string, name: string) {
+    return this.prisma.degreeOption.update({
+      where: { id },
+      data: { name: name.trim() },
+    });
+  }
+
+  deleteDegree(id: string) {
+    return this.prisma.degreeOption.delete({ where: { id } });
+  }
+
+  async verifyUserProfile(userId: string, verified: boolean) {
+    return this.prisma.userProfile.update({
+      where: { userId },
+      data: { isComplete: verified },
     });
   }
 

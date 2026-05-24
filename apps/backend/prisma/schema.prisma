@@ -83,3 +83,10 @@ model LawCollege {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model DegreeOption {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

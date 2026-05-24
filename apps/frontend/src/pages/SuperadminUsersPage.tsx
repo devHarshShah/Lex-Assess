@@ -6,13 +6,9 @@ import { toast } from 'sonner'
 
 import {
   assignAdminForSuperadmin,
-  createSuperadminSpecialization,
   deleteUserForSuperadmin,
-  deleteSuperadminSpecialization,
   fetchAllUsersForSuperadmin,
-  fetchSuperadminSpecializations,
   type ManagedUser,
-  updateSuperadminSpecialization,
   updateUserForSuperadmin,
 } from '@/lib/auth'
 import { Badge } from '@/components/ui/badge'
@@ -64,10 +60,6 @@ export function SuperadminUsersPage() {
   const [savingUserId, setSavingUserId] = React.useState<string | null>(null)
   const [editingUserId, setEditingUserId] = React.useState<string | null>(null)
   const [draftName, setDraftName] = React.useState('')
-  const [specializations, setSpecializations] = React.useState<{ id: string; name: string; isActive: boolean; sortOrder: number }[]>(
-    [],
-  )
-  const [newSpecialization, setNewSpecialization] = React.useState('')
 
   async function loadUsers() {
     setLoading(true)
@@ -81,18 +73,8 @@ export function SuperadminUsersPage() {
     }
   }
 
-  async function loadSpecializations() {
-    try {
-      const records = await fetchSuperadminSpecializations()
-      setSpecializations(records)
-    } catch {
-      toast.error('Could not load specializations')
-    }
-  }
-
   React.useEffect(() => {
     void loadUsers()
-    void loadSpecializations()
   }, [])
 
   const filteredUsers = React.useMemo(() => {
@@ -287,73 +269,6 @@ export function SuperadminUsersPage() {
             </div>
           </>
         )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Specialisations Configuration</CardTitle>
-          <p className="text-sm text-muted-foreground">These values are used in student profile setup dropdowns.</p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex gap-2">
-            <Input value={newSpecialization} onChange={(e) => setNewSpecialization(e.target.value)} placeholder="Add specialization" />
-            <Button
-              onClick={async () => {
-                if (!newSpecialization.trim()) return
-                try {
-                  await createSuperadminSpecialization(newSpecialization.trim())
-                  setNewSpecialization('')
-                  await loadSpecializations()
-                  toast.success('Specialization added')
-                } catch {
-                  toast.error('Could not add specialization')
-                }
-              }}
-            >
-              Add
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {specializations.map((item) => (
-              <div key={item.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-                <div className="flex items-center gap-3">
-                  <Badge variant={item.isActive ? 'secondary' : 'outline'}>{item.isActive ? 'Active' : 'Inactive'}</Badge>
-                  <span>{item.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await updateSuperadminSpecialization(item.id, { isActive: !item.isActive })
-                        await loadSpecializations()
-                      } catch {
-                        toast.error('Could not update specialization')
-                      }
-                    }}
-                  >
-                    {item.isActive ? 'Disable' : 'Enable'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={async () => {
-                      try {
-                        await deleteSuperadminSpecialization(item.id)
-                        await loadSpecializations()
-                      } catch {
-                        toast.error('Could not delete specialization')
-                      }
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
         </CardContent>
       </Card>
     </div>

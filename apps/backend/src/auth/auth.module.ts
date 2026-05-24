@@ -8,6 +8,9 @@ import { AuthService } from './auth.service';
 import { ProfileController } from './profile.controller';
 import { RbacDemoController } from './rbac-demo.controller';
 import { SuperadminSpecializationsController } from './superadmin-specializations.controller';
+import { SuperadminCollegesController } from './superadmin-colleges.controller';
+import { SuperadminDegreesController } from './superadmin-degrees.controller';
+import { SuperadminProfilesController } from './superadmin-profiles.controller';
 import { SuperadminUsersController } from './superadmin-users.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UploadsController } from './uploads.controller';
@@ -27,6 +30,9 @@ import { UploadsService } from './uploads.service';
     RbacDemoController,
     SuperadminUsersController,
     SuperadminSpecializationsController,
+    SuperadminCollegesController,
+    SuperadminDegreesController,
+    SuperadminProfilesController,
     UploadsController,
   ],
   providers: [AuthService, UsersService, PrismaService, JwtStrategy, UploadsService],

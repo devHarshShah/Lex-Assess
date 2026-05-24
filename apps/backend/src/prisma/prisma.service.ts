@@ -131,5 +131,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         create: { name },
       });
     }
+
+    const degreeDefaults = ['BA LLB', 'BBA LLB', 'BCom LLB', 'BSc LLB', 'LLB', 'LLM', 'BLS LLB', 'BA LLB (Hons.)', 'BBA LLB (Hons.)'];
+    for (const name of degreeDefaults) {
+      await this.degreeOption.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      });
+    }
   }
 }

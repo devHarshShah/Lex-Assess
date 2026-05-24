@@ -3,6 +3,10 @@ import { homeRoute } from './routes/home'
 import { rootRoute } from './routes/root'
 import { dashboardRoute, dashboardIndexRoute } from './routes/dashboard'
 import { dashboardUsersRoute } from './routes/dashboard-users'
+import { dashboardSpecializationsRoute } from './routes/dashboard-specializations'
+import { dashboardCollegesRoute } from './routes/dashboard-colleges'
+import { dashboardDegreesRoute } from './routes/dashboard-degrees'
+import { dashboardProfileVerificationsRoute } from './routes/dashboard-profile-verifications'
 import { dashboardProfileRoute } from './routes/dashboard-profile'
 import { loginRoute } from './routes/login'
 import { googleCallbackRoute } from './routes/google-callback'
@@ -17,7 +21,15 @@ const routeTree = rootRoute.addChildren([
   googleCallbackRoute,
   profileSetupRoute,
   profileVerificationRoute,
-  dashboardRoute.addChildren([dashboardIndexRoute, dashboardUsersRoute, dashboardProfileRoute]),
+  dashboardRoute.addChildren([
+    dashboardIndexRoute,
+    dashboardUsersRoute,
+    dashboardSpecializationsRoute,
+    dashboardCollegesRoute,
+    dashboardDegreesRoute,
+    dashboardProfileVerificationsRoute,
+    dashboardProfileRoute,
+  ]),
 ])
 
 export const router = createRouter({

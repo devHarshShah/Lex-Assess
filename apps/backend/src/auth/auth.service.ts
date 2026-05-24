@@ -115,13 +115,15 @@ export class AuthService {
   }
 
   async getProfileOptions() {
-    const [colleges, specializations] = await Promise.all([
+    const [colleges, degrees, specializations] = await Promise.all([
       this.usersService.listColleges(),
+      this.usersService.listDegrees(),
       this.usersService.listActiveSpecializations(),
     ]);
 
     return {
       colleges: colleges.map((c) => c.name),
+      degrees: degrees.map((d) => d.name),
       specializations: specializations.map((s) => s.name),
     };
   }
@@ -179,6 +181,56 @@ export class AuthService {
 
   listAllSpecializations() {
     return this.usersService.listAllSpecializations();
+  }
+
+  listAllColleges() {
+    return this.usersService.listAllColleges();
+  }
+
+  createCollege(name: string) {
+    return this.usersService.createCollege(name);
+  }
+
+  updateCollege(id: string, name: string) {
+    return this.usersService.updateCollege(id, name);
+  }
+
+  deleteCollege(id: string) {
+    return this.usersService.deleteCollege(id);
+  }
+
+  listAllDegrees() {
+    return this.usersService.listAllDegrees();
+  }
+
+  createDegree(name: string) {
+    return this.usersService.createDegree(name);
+  }
+
+  updateDegree(id: string, name: string) {
+    return this.usersService.updateDegree(id, name);
+  }
+
+  deleteDegree(id: string) {
+    return this.usersService.deleteDegree(id);
+  }
+
+  async listProfilesForSuperadmin() {
+    const users = await this.usersService.listUsersWithProfiles();
+    return users
+      .filter((user) => user.role === Role.USER || user.role === Role.COMPANY)
+      .map((user) => ({
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+        profile: user.profile,
+      }));
+  }
+
+  verifyProfileForSuperadmin(userId: string, verified: boolean) {
+    return this.usersService.verifyUserProfile(userId, verified);
   }
 
   createSpecialization(name: string) {

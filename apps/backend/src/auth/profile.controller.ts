@@ -16,23 +16,11 @@ export class ProfileController {
 
   @Get('options')
   async options() {
-    const degrees = [
-      'BA LLB',
-      'BBA LLB',
-      'BCom LLB',
-      'BSc LLB',
-      'LLB',
-      'LLM',
-      'BLS LLB',
-      'BA LLB (Hons.)',
-      'BBA LLB (Hons.)',
-    ];
     const years = ['1', '2', '3', '4', '5', 'Graduate'];
 
     const dynamic = await this.authService.getProfileOptions();
     return {
       ...dynamic,
-      degrees,
       years,
     };
   }
