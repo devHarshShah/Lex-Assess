@@ -14,6 +14,7 @@ export class SuperadminSpecializationsController {
   constructor(private readonly authService: AuthService) {}
 
   @Get()
+  @Roles(Role.SUPERADMIN, Role.ADMIN)
   list() {
     return this.authService.listAllSpecializations();
   }

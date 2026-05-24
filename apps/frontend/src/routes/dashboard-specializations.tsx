@@ -7,7 +7,8 @@ export const dashboardSpecializationsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: '/specializations',
   beforeLoad: ({ context }) => {
-    if (getActiveRole(context.user) !== 'SUPERADMIN') throw redirect({ to: '/dashboard' })
+    const role = getActiveRole(context.user)
+    if (role !== 'SUPERADMIN' && role !== 'ADMIN') throw redirect({ to: '/dashboard' })
   },
   component: SuperadminSpecializationsPage,
 })

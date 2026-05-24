@@ -196,7 +196,7 @@ export async function loginWithPassword(email: string, password: string): Promis
   return response.json() as Promise<AuthResponse>
 }
 
-function getAuthHeaders() {
+export function getAuthHeaders() {
   const token = getStoredToken()
   if (!token) {
     throw new Error('Missing token')

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { toast } from 'sonner'
+import { Link } from '@tanstack/react-router'
 
 import {
   createSuperadminSpecialization,
@@ -73,6 +74,11 @@ export function SuperadminSpecializationsPage() {
               >
                 {item.isActive ? 'Disable' : 'Enable'}
               </Button>
+              <Link to="/dashboard/specializations/$specializationId/papers" params={{ specializationId: item.id }}>
+                <Button size="sm" variant="outline">
+                  Manage Papers
+                </Button>
+              </Link>
               <Button
                 size="sm"
                 variant="ghost"

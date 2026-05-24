@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { BookOpen, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
+import { BookOpen, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -20,60 +20,82 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const availableRoles = getAvailableRoles(user)
   const activeRole = getActiveRole(user)
-  const navMainItems =
-    activeRole === 'SUPERADMIN'
-      ? [
-          {
-            title: 'Dashboard',
-            url: '/dashboard',
-            icon: SquareTerminal,
-            isActive: true,
-            items: [{ title: 'Overview', url: '/dashboard' }],
-          },
-          {
-            title: 'User Admin',
-            url: '/dashboard/users',
-            icon: ShieldUser,
-            items: [{ title: 'Manage Users', url: '/dashboard/users' }],
-          },
-          {
-            title: 'Profile Review',
-            url: '/dashboard/profile-verifications',
-            icon: UserCheck,
-            items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
-          },
-          {
-            title: 'Profile Options',
-            url: '/dashboard/specializations',
-            icon: ShieldCheck,
-            items: [
-              { title: 'Specializations', url: '/dashboard/specializations' },
-              { title: 'Colleges', url: '/dashboard/colleges' },
-              { title: 'Degrees', url: '/dashboard/degrees' },
-            ],
-          },
-        ]
-      : [
-          {
-            title: 'Dashboard',
-            url: '/dashboard',
-            icon: SquareTerminal,
-            isActive: true,
-            items: [{ title: 'Overview', url: '/dashboard' }],
-          },
-          {
-            title: 'Profile',
-            url: '/dashboard/profile',
-            icon: UserCircle2,
-            items: [{ title: 'My Profile', url: '/dashboard/profile' }],
-          },
-          {
-            title: 'Knowledge',
-            url: '#',
-            icon: BookOpen,
-            items: [{ title: 'Guides', url: '#' }],
-          },
-        ]
+  let navMainItems: React.ComponentProps<typeof NavMain>['items'] = [
+    {
+      title: 'Dashboard',
+      url: '/dashboard',
+      icon: SquareTerminal,
+      isActive: true,
+      items: [{ title: 'Overview', url: '/dashboard' }],
+    },
+  ]
+
+  if (activeRole === 'SUPERADMIN') {
+    navMainItems.push(
+      {
+        title: 'User Admin',
+        url: '/dashboard/users',
+        icon: ShieldUser,
+        items: [{ title: 'Manage Users', url: '/dashboard/users' }],
+      },
+      {
+        title: 'Profile Review',
+        url: '/dashboard/profile-verifications',
+        icon: UserCheck,
+        items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
+      },
+      {
+        title: 'Profile Options',
+        url: '/dashboard/specializations',
+        icon: ShieldCheck,
+        items: [
+          { title: 'Specializations', url: '/dashboard/specializations' },
+          { title: 'Colleges', url: '/dashboard/colleges' },
+          { title: 'Degrees', url: '/dashboard/degrees' },
+        ],
+      },
+      {
+        title: 'Assessments',
+        url: '/dashboard/all-papers',
+        icon: FileText,
+        items: [
+          { title: 'All Question Papers', url: '/dashboard/all-papers' },
+        ],
+      }
+    )
+  } else if (activeRole === 'ADMIN') {
+    navMainItems.push(
+      {
+        title: 'Assessments',
+        url: '/dashboard/specializations',
+        icon: ShieldCheck,
+        items: [
+          { title: 'Question Papers', url: '/dashboard/specializations' },
+        ],
+      },
+      {
+        title: 'Profile',
+        url: '/dashboard/profile',
+        icon: UserCircle2,
+        items: [{ title: 'My Profile', url: '/dashboard/profile' }],
+      }
+    )
+  } else {
+    navMainItems.push(
+      {
+        title: 'Profile',
+        url: '/dashboard/profile',
+        icon: UserCircle2,
+        items: [{ title: 'My Profile', url: '/dashboard/profile' }],
+      },
+      {
+        title: 'Knowledge',
+        url: '#',
+        icon: BookOpen,
+        items: [{ title: 'Guides', url: '#' }],
+      }
+    )
+  }
 
   const projectItems =
     activeRole === 'SUPERADMIN'

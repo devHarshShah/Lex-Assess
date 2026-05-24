@@ -8,6 +8,9 @@ import { dashboardCollegesRoute } from './routes/dashboard-colleges'
 import { dashboardDegreesRoute } from './routes/dashboard-degrees'
 import { dashboardProfileVerificationsRoute } from './routes/dashboard-profile-verifications'
 import { dashboardProfileRoute } from './routes/dashboard-profile'
+import { dashboardSpecializationPapersRoute } from './routes/dashboard-specialization-papers'
+import { dashboardPaperBuilderRoute } from './routes/dashboard-paper-builder'
+import { dashboardAllPapersRoute } from './routes/dashboard-all-papers'
 import { loginRoute } from './routes/login'
 import { googleCallbackRoute } from './routes/google-callback'
 import { signupRoute } from './routes/signup'
@@ -29,6 +32,9 @@ const routeTree = rootRoute.addChildren([
     dashboardDegreesRoute,
     dashboardProfileVerificationsRoute,
     dashboardProfileRoute,
+    dashboardSpecializationPapersRoute,
+    dashboardPaperBuilderRoute,
+    dashboardAllPapersRoute,
   ]),
 ])
 
