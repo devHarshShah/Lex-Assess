@@ -40,4 +40,9 @@ export class StudentQuestionPapersController {
   ) {
     return this.service.getAttemptStatus(versionId, req.user.sub);
   }
+
+  @Get(':versionId/details')
+  getVersionDetails(@Param('versionId') versionId: string) {
+    return this.service.getVersionDetails(versionId);
+  }
 }

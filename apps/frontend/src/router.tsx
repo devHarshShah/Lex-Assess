@@ -25,6 +25,7 @@ const routeTree = rootRoute.addChildren([
   googleCallbackRoute,
   profileSetupRoute,
   profileVerificationRoute,
+  dashboardTestAttemptRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
     dashboardUsersRoute,
@@ -36,7 +37,6 @@ const routeTree = rootRoute.addChildren([
     dashboardSpecializationPapersRoute,
     dashboardPaperBuilderRoute,
     dashboardAllPapersRoute,
-    dashboardTestAttemptRoute,
   ]),
 ])
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { useRouterState, Link } from '@tanstack/react-router'
+import { useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { getActiveRole, hasRole } from '@/lib/auth'
@@ -110,15 +110,27 @@ export function DashboardPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="border-t pt-4">
-                  <Button asChild className="w-full" variant={attempt?.status === 'STARTED' ? 'default' : isDisabled ? 'secondary' : 'default'} disabled={isDisabled}>
+                  <Button 
+                    className="w-full" 
+                    variant={attempt?.status === 'STARTED' ? 'default' : isDisabled ? 'secondary' : 'default'} 
+                    disabled={isDisabled}
+                    onClick={() => {
+                      if (!isDisabled) {
+                        const url = `/dashboard/test-attempt/${publishedVersion?.id}`
+                        const width = window.screen.availWidth
+                        const height = window.screen.availHeight
+                        window.open(url, 'lex-test-window', `width=${width},height=${height},menubar=no,toolbar=no,location=no,status=no,resizable=yes`)
+                      }
+                    }}
+                  >
                     {isDisabled ? (
                       <span className="flex items-center justify-center gap-2">
                         {buttonText}
                       </span>
                     ) : (
-                      <Link to="/dashboard/test-attempt/$versionId" params={{ versionId: publishedVersion?.id || '' }}>
-                        {buttonText} <ChevronRight size={16} className="ml-2" />
-                      </Link>
+                      <span className="flex items-center justify-center gap-2">
+                        {buttonText} <ChevronRight size={16} />
+                      </span>
                     )}
                   </Button>
                 </CardFooter>

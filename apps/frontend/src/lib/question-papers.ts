@@ -100,6 +100,12 @@ export async function fetchVersionDetails(versionId: string): Promise<QuestionPa
   return res.json()
 }
 
+export async function fetchStudentVersionDetails(versionId: string): Promise<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }> {
+  const res = await fetch(`${API_BASE_URL}/student/papers/${versionId}/details`, { headers: getAuthHeaders() })
+  if (!res.ok) throw new Error('Failed to fetch student version details')
+  return res.json()
+}
+
 export async function updateVersion(versionId: string, data: { status?: string, timeLimitMinutes?: number, questions?: any[] }): Promise<QuestionPaperVersion> {
   const res = await fetch(`${API_BASE_URL}/admin/specializations/versions/${versionId}`, {
     method: 'PUT',
