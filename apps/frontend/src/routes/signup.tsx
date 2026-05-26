@@ -12,4 +12,15 @@ export const signupRoute = createRoute({
     }
   },
   component: SignupPage,
+  head: () => ({
+    meta: [
+      {
+        title: 'Sign Up | LexAssess',
+      },
+      {
+        name: 'description',
+        content: 'Join LexAssess and start your journey towards merit-based law placements.',
+      },
+    ],
+  }),
 })

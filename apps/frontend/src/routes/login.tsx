@@ -12,4 +12,15 @@ export const loginRoute = createRoute({
     }
   },
   component: LoginPage,
+  head: () => ({
+    meta: [
+      {
+        title: 'Login | LexAssess',
+      },
+      {
+        name: 'description',
+        content: 'Access your LexAssess account to manage your law profile and assessments.',
+      },
+    ],
+  }),
 })
