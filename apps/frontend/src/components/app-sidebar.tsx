@@ -20,17 +20,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const availableRoles = getAvailableRoles(user)
   const activeRole = getActiveRole(user)
-  let navMainItems: React.ComponentProps<typeof NavMain>['items'] = [
-    {
-      title: 'Dashboard',
-      url: '/dashboard',
-      icon: SquareTerminal,
-      isActive: true,
-      items: [{ title: 'Overview', url: '/dashboard' }],
-    },
-  ]
+  let navMainItems: React.ComponentProps<typeof NavMain>['items'] = []
 
-  if (activeRole === 'SUPERADMIN') {
+  if (user.role === 'USER' && !user.profileCompleted) {
+    navMainItems = [
+      {
+        title: 'Setup',
+        url: '/dashboard/setup',
+        icon: UserCircle2,
+        isActive: true,
+        items: [{ title: 'Complete Profile', url: '/dashboard/setup' }],
+      },
+    ]
+  } else {
+    navMainItems = [
+      {
+        title: 'Dashboard',
+        url: '/dashboard',
+        icon: SquareTerminal,
+        isActive: true,
+        items: [{ title: 'Overview', url: '/dashboard' }],
+      },
+    ]
+
+    if (activeRole === 'SUPERADMIN') {
     navMainItems.push(
       {
         title: 'User Admin',
@@ -96,9 +109,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       }
     )
   }
+}
 
   const projectItems =
-    activeRole === 'SUPERADMIN'
+    activeRole === 'SUPERADMIN' && user.profileCompleted
       ? [
           { name: 'Colleges', url: '/dashboard/colleges', icon: University },
           { name: 'Degrees', url: '/dashboard/degrees', icon: GraduationCap },

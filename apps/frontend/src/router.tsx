@@ -8,6 +8,7 @@ import { dashboardCollegesRoute } from './routes/dashboard-colleges'
 import { dashboardDegreesRoute } from './routes/dashboard-degrees'
 import { dashboardProfileVerificationsRoute } from './routes/dashboard-profile-verifications'
 import { dashboardProfileRoute } from './routes/dashboard-profile'
+import { dashboardProfileSetupRoute } from './routes/dashboard-profile-setup'
 import { dashboardSpecializationPapersRoute } from './routes/dashboard-specialization-papers'
 import { dashboardPaperBuilderRoute } from './routes/dashboard-paper-builder'
 import { dashboardAllPapersRoute } from './routes/dashboard-all-papers'
@@ -15,16 +16,12 @@ import { dashboardTestAttemptRoute } from './routes/dashboard-test-attempt'
 import { loginRoute } from './routes/login'
 import { googleCallbackRoute } from './routes/google-callback'
 import { signupRoute } from './routes/signup'
-import { profileSetupRoute } from './routes/profile-setup'
-import { profileVerificationRoute } from './routes/profile-verification'
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
   loginRoute,
   signupRoute,
   googleCallbackRoute,
-  profileSetupRoute,
-  profileVerificationRoute,
   dashboardTestAttemptRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
@@ -34,6 +31,7 @@ const routeTree = rootRoute.addChildren([
     dashboardDegreesRoute,
     dashboardProfileVerificationsRoute,
     dashboardProfileRoute,
+    dashboardProfileSetupRoute,
     dashboardSpecializationPapersRoute,
     dashboardPaperBuilderRoute,
     dashboardAllPapersRoute,

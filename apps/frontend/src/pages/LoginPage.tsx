@@ -32,7 +32,7 @@ export function LoginPage() {
     try {
       const auth = await loginWithPassword(email, password)
       storeAuth(auth)
-      await navigate({ to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/profile/setup' : '/dashboard' })
+      await navigate({ to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/dashboard/setup' : '/dashboard' })
     } catch (err) {
       clearAuth()
       setError(err instanceof Error ? err.message : 'Login failed')

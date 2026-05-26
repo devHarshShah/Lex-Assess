@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Pencil, FileCheck2, CheckCircle2 } from 'lucide-react'
+import { Pencil, FileCheck2, CheckCircle2, Scale } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -130,7 +130,31 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   }, [user.avatarUrl, user.name])
 
   if (loading || !options) {
-    return <p className="text-sm text-muted-foreground p-10">Loading profile setup...</p>
+    return (
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background px-4">
+        <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute -bottom-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+
+        <div className="relative z-10 w-full max-w-md rounded-3xl border bg-card/90 p-8 text-center shadow-xl backdrop-blur">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+            <Scale className="size-6 text-primary" />
+          </div>
+
+          <h1 className="text-2xl font-semibold tracking-tight">Setting Up Your Profile</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Fetching your preferences and academic options to personalize your experience.
+          </p>
+
+          <div className="mt-8 flex items-center justify-center gap-2">
+            <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+            <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+            <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" />
+          </div>
+
+          <p className="mt-6 text-xs uppercase tracking-[0.2em] text-muted-foreground">Preparing Workspace</p>
+        </div>
+      </div>
+    )
   }
 
   const initials = fullName
@@ -229,7 +253,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   }
 
   return (
-    <div className={isSetup ? "flex min-h-screen items-center justify-center bg-background px-6 py-10" : "w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center py-2"}>
+    <div className={isSetup ? "w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center py-6 px-4" : "w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center py-2"}>
       <div className="w-full space-y-6">
         {isSetup ? <ProfileStepper currentStep={currentStep} /> : null}
 

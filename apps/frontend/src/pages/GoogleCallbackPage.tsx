@@ -21,7 +21,7 @@ export function GoogleCallbackPage() {
         const auth = await exchangeGoogleCode(code)
         storeAuth(auth)
         await navigate({
-          to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/profile/setup' : '/dashboard',
+          to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/dashboard/setup' : '/dashboard',
           replace: true,
         })
       } catch {

@@ -16,9 +16,12 @@ export const dashboardRoute = createRoute({
 
     try {
       const user = await fetchCurrentUser()
-      if (user.role === 'USER' && !user.profileCompleted) {
-        throw redirect({ to: '/profile/setup' })
+      const { pathname } = window.location
+      
+      if (user.role === 'USER' && !user.profileCompleted && pathname !== '/dashboard/setup') {
+        throw redirect({ to: '/dashboard/setup' })
       }
+      
       storeUser(user)
       return { user }
     } catch (error) {
@@ -26,7 +29,12 @@ export const dashboardRoute = createRoute({
         throw error
       }
       const cachedUser = getStoredUser()
-      if (cachedUser && !(cachedUser.role === 'USER' && !cachedUser.profileCompleted)) {
+      const { pathname } = window.location
+      
+      if (cachedUser) {
+        if (cachedUser.role === 'USER' && !cachedUser.profileCompleted && pathname !== '/dashboard/setup') {
+          throw redirect({ to: '/dashboard/setup' })
+        }
         return { user: cachedUser }
       }
 

@@ -29,7 +29,7 @@ export function SignupPage() {
     try {
       const auth = await registerWithPassword({ name, email, password, role })
       storeAuth(auth)
-      await navigate({ to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/profile/setup' : '/dashboard' })
+      await navigate({ to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/dashboard/setup' : '/dashboard' })
     } catch (err) {
       clearAuth()
       setError(err instanceof Error ? err.message : 'Registration failed')
