@@ -11,6 +11,7 @@ import { dashboardProfileRoute } from './routes/dashboard-profile'
 import { dashboardSpecializationPapersRoute } from './routes/dashboard-specialization-papers'
 import { dashboardPaperBuilderRoute } from './routes/dashboard-paper-builder'
 import { dashboardAllPapersRoute } from './routes/dashboard-all-papers'
+import { dashboardTestAttemptRoute } from './routes/dashboard-test-attempt'
 import { loginRoute } from './routes/login'
 import { googleCallbackRoute } from './routes/google-callback'
 import { signupRoute } from './routes/signup'
@@ -35,6 +36,7 @@ const routeTree = rootRoute.addChildren([
     dashboardSpecializationPapersRoute,
     dashboardPaperBuilderRoute,
     dashboardAllPapersRoute,
+    dashboardTestAttemptRoute,
   ]),
 ])
 

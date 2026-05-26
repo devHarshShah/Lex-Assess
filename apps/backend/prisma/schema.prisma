@@ -42,6 +42,12 @@ enum QuestionType {
   SUBJECTIVE_WITH_ANSWER
 }
 
+enum AttemptStatus {
+  STARTED
+  SUBMITTED
+  EXPIRED
+}
+
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
@@ -53,6 +59,7 @@ model User {
   authProvider  AuthProvider @default(EMAIL)
   profile       UserProfile?
   questionPapers QuestionPaper[]
+  testAttempts  TestAttempt[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 
@@ -119,28 +126,48 @@ model QuestionPaper {
 }
 
 model QuestionPaperVersion {
-  id          String        @id @default(cuid())
-  paperId     String
-  paper       QuestionPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
-  versionName String
-  status      PaperStatus   @default(DRAFT)
-  questions   Question[]
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id               String        @id @default(cuid())
+  paperId          String
+  paper            QuestionPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  versionName      String
+  status           PaperStatus   @default(DRAFT)
+  timeLimitMinutes Int           @default(60)
+  questions        Question[]
+  testAttempts     TestAttempt[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   @@unique([paperId, versionName])
 }
 
 model Question {
-  id        String               @id @default(cuid())
-  versionId String
-  version   QuestionPaperVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  type      QuestionType
-  text      String
-  marks     Int                  @default(1)
-  options   Json?
-  answer    String?
-  order     Int                  @default(0)
-  createdAt DateTime             @default(now())
-  updatedAt DateTime             @updatedAt
+  id                String               @id @default(cuid())
+  versionId         String
+  version           QuestionPaperVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  type              QuestionType
+  text              String
+  marks             Int                  @default(1)
+  options           Json?
+  answer            String?
+  order             Int                  @default(0)
+  timeLimitSeconds  Int?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model TestAttempt {
+  id               String               @id @default(cuid())
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  versionId        String
+  version          QuestionPaperVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  startTime        DateTime             @default(now())
+  endTime          DateTime?
+  status           AttemptStatus        @default(STARTED)
+  answers          Json?                // Stores { questionId: answer }
+  score            Int?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([userId, versionId])
 }

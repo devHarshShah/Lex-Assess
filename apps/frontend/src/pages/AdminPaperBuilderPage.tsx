@@ -15,11 +15,13 @@ import { GripVertical, Trash2, Plus } from 'lucide-react'
 type QuestionType = 'MCQ' | 'SUBJECTIVE' | 'SUBJECTIVE_WITH_ANSWER'
 
 interface FormValues {
+  timeLimitMinutes: number
   questions: {
     id?: string
     type: QuestionType
     text: string
     marks: number
+    timeLimitSeconds?: number
     options: { id: string; text: string }[]
     answer: string
   }[]
@@ -30,7 +32,7 @@ export function AdminPaperBuilderPage() {
   const [version, setVersion] = React.useState<(QuestionPaperVersion & { paper?: QuestionPaper }) | null>(null)
   
   const { control, handleSubmit, reset } = useForm<FormValues>({
-    defaultValues: { questions: [] }
+    defaultValues: { timeLimitMinutes: 60, questions: [] }
   })
 
   const { fields, append, remove, move } = useFieldArray({
@@ -43,8 +45,10 @@ export function AdminPaperBuilderPage() {
       const data = await fetchVersionDetails(versionId)
       setVersion(data)
       reset({
+        timeLimitMinutes: data.timeLimitMinutes,
         questions: data.questions?.map(q => ({
           ...q,
+          timeLimitSeconds: q.timeLimitSeconds ?? undefined,
           options: Array.isArray(q.options) ? q.options : [],
           answer: q.answer || ''
         })) || []
@@ -70,7 +74,10 @@ export function AdminPaperBuilderPage() {
         order: index,
         options: q.type === 'MCQ' ? q.options : null,
       }))
-      await updateVersion(versionId, { questions: payload })
+      await updateVersion(versionId, { 
+        timeLimitMinutes: data.timeLimitMinutes,
+        questions: payload 
+      })
       toast.success('Saved successfully')
       await load()
     } catch {
@@ -137,6 +144,23 @@ export function AdminPaperBuilderPage() {
                                 name={`questions.${index}.marks`}
                                 render={({ field }) => (
                                   <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} className="mt-1" />
+                                )}
+                              />
+                            </div>
+                            <div className="w-32">
+                              <Label>Time Limit (sec)</Label>
+                              <Controller
+                                control={control}
+                                name={`questions.${index}.timeLimitSeconds`}
+                                render={({ field }) => (
+                                  <Input 
+                                    type="number" 
+                                    {...field} 
+                                    value={field.value || ''}
+                                    onChange={e => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)} 
+                                    className="mt-1" 
+                                    placeholder="Optional"
+                                  />
                                 )}
                               />
                             </div>
@@ -225,6 +249,21 @@ export function AdminPaperBuilderPage() {
           <CardFooter className="flex-col items-start border-t bg-muted/20 p-4 mt-4 gap-3">
             <h4 className="text-sm font-semibold">Paper Settings</h4>
             <div className="w-full space-y-3">
+              <div>
+                <Label>Time Limit (minutes)</Label>
+                <Controller
+                  control={control}
+                  name="timeLimitMinutes"
+                  render={({ field }) => (
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      onChange={e => field.onChange(parseInt(e.target.value))} 
+                      className="mt-1" 
+                    />
+                  )}
+                />
+              </div>
               <div>
                 <Label>Status</Label>
                 <select
