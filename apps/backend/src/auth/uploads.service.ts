@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Client } from 'minio';
 
@@ -6,14 +7,19 @@ type UploadKind = 'profile_photo' | 'resume' | 'verification_doc';
 
 @Injectable()
 export class UploadsService implements OnModuleInit {
-  private readonly bucket = process.env.MINIO_BUCKET ?? 'lexassess-uploads';
-  private readonly client = new Client({
-    endPoint: process.env.MINIO_ENDPOINT ?? 'localhost',
-    port: Number(process.env.MINIO_PORT ?? 9000),
-    useSSL: (process.env.MINIO_USE_SSL ?? 'false') === 'true',
-    accessKey: process.env.MINIO_ACCESS_KEY ?? 'minioadmin',
-    secretKey: process.env.MINIO_SECRET_KEY ?? 'minioadmin',
-  });
+  private readonly client: Client;
+  private readonly bucket: string;
+
+  constructor(private readonly configService: ConfigService) {
+    this.bucket = this.configService.get<string>('MINIO_BUCKET') || 'lexassess-uploads';
+    this.client = new Client({
+      endPoint: this.configService.get<string>('MINIO_ENDPOINT') || 'localhost',
+      port: Number(this.configService.get<string>('MINIO_PORT') || 9000),
+      useSSL: this.configService.get<string>('MINIO_USE_SSL') === 'true',
+      accessKey: this.configService.get<string>('MINIO_ACCESS_KEY') || 'minioadmin',
+      secretKey: this.configService.get<string>('MINIO_SECRET_KEY') || 'minioadmin',
+    });
+  }
 
   async onModuleInit(): Promise<void> {
     const exists = await this.client.bucketExists(this.bucket).catch(() => false);
@@ -40,7 +46,7 @@ export class UploadsService implements OnModuleInit {
       'Content-Type': file.mimetype,
     });
 
-    const publicBaseUrl = process.env.MINIO_PUBLIC_BASE_URL ?? 'http://localhost:9000';
+    const publicBaseUrl = this.configService.get<string>('MINIO_PUBLIC_BASE_URL') || 'http://localhost:9000';
     return {
       objectKey,
       url: `${publicBaseUrl}/${this.bucket}/${objectKey}`,

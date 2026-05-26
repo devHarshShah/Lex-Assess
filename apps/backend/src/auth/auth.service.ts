@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { hash, compare } from 'bcryptjs';
 import { Role } from '@prisma/client';
 import { AuthResponseDto } from './dto/auth-response.dto';
@@ -26,6 +27,7 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
   ) {}
 
   async registerWithEmailPassword(input: {
@@ -274,7 +276,7 @@ export class AuthService {
   }
 
   buildGoogleStartUrl(state?: string): string {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     const redirectUri = this.googleRedirectUri;
 
     if (!clientId) {
@@ -298,12 +300,12 @@ export class AuthService {
   }
 
   private get googleRedirectUri(): string {
-    const frontendOrigin = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173';
-    return process.env.GOOGLE_REDIRECT_URI ?? `${frontendOrigin}/auth/google/callback`;
+    const frontendOrigin = this.configService.get<string>('FRONTEND_ORIGIN') ?? 'http://localhost:5173';
+    return this.configService.get<string>('GOOGLE_REDIRECT_URI') ?? `${frontendOrigin}/auth/google/callback`;
   }
 
   private get googleClientId(): string {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!clientId) {
       throw new UnauthorizedException('GOOGLE_CLIENT_ID is not configured');
     }
@@ -312,7 +314,7 @@ export class AuthService {
   }
 
   private get googleClientSecret(): string {
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
     if (!clientSecret) {
       throw new UnauthorizedException('GOOGLE_CLIENT_SECRET is not configured');
     }
