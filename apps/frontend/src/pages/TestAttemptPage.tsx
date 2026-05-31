@@ -27,7 +27,14 @@ export function TestAttemptPage() {
         setIsLoading(true)
         const data = await fetchStudentVersionDetails(versionId)
         setVersion(data)
-        setQuestions(data.questions || [])
+        
+        // Flatten questions from sections
+        if (data.sections && data.sections.length > 0) {
+            const allQuestions = data.sections.flatMap(s => s.questions || [])
+            setQuestions(allQuestions)
+        } else {
+            setQuestions(data.questions || [])
+        }
       } catch (error: any) {
         toast.error('Failed to load test info')
       } finally {
@@ -164,6 +171,7 @@ export function TestAttemptPage() {
 
   // 4. Actual Test UI
   const currentQuestion = questions[currentIndex]
+  const currentSection = version?.sections?.find(s => s.questions?.some(q => q.id === currentQuestion?.id))
   const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0
 
   if (!currentQuestion) {
@@ -222,7 +230,7 @@ export function TestAttemptPage() {
         {/* Sticky Header */}
         <div style={{ backgroundColor: 'white', padding: '20px 30px', borderRadius: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>{version?.versionName}</h1>
+            <h1 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>{version?.versionName} {currentSection ? ` - ${currentSection.title}` : ''}</h1>
             <p style={{ color: '#666', fontSize: '14px', margin: '4px 0 0 0' }}>Question {currentIndex + 1} of {questions.length}</p>
           </div>
           <div style={{ padding: '8px 20px', backgroundColor: timeLeft && timeLeft < 300 ? '#fee2e2' : '#f1f5f9', color: timeLeft && timeLeft < 300 ? '#ef4444' : '#475569', borderRadius: '30px', fontWeight: 'bold', fontSize: '18px', border: '1px solid #e2e8f0' }}>

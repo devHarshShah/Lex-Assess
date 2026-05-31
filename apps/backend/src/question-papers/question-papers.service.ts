@@ -49,6 +49,10 @@ export class QuestionDto {
   @IsString()
   id?: string;
 
+  @IsOptional()
+  @IsString()
+  sectionId?: string;
+
   @IsEnum(QuestionType)
   type!: QuestionType;
 
@@ -74,6 +78,29 @@ export class QuestionDto {
   timeLimitSeconds?: number;
 }
 
+export class SectionDto {
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsInt()
+  order!: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionDto)
+  questions?: QuestionDto[];
+}
+
 export class UpdateVersionDto {
   @IsOptional()
   @IsEnum(PaperStatus)
@@ -82,6 +109,12 @@ export class UpdateVersionDto {
   @IsOptional()
   @IsInt()
   timeLimitMinutes?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SectionDto)
+  sections?: SectionDto[];
 
   @IsOptional()
   @IsArray()
@@ -184,7 +217,16 @@ export class QuestionPapersService {
     const version = await this.prisma.questionPaperVersion.findUnique({
       where: { id: versionId },
       include: {
+        sections: {
+          orderBy: { order: 'asc' },
+          include: {
+            questions: {
+              orderBy: { order: 'asc' }
+            }
+          }
+        },
         questions: {
+          where: { sectionId: null },
           orderBy: { order: 'asc' }
         },
         paper: {
@@ -225,9 +267,96 @@ export class QuestionPapersService {
         });
       }
 
-      if (data.questions) {
+      if (data.sections) {
+        // Sync Sections
+        const existingSections = await tx.paperSection.findMany({ where: { versionId } });
+        const incomingSectionIds = data.sections.map(s => s.id).filter(Boolean) as string[];
+        const sectionsToDelete = existingSections.filter(e => !incomingSectionIds.includes(e.id));
+
+        if (sectionsToDelete.length > 0) {
+          await tx.paperSection.deleteMany({
+            where: { id: { in: sectionsToDelete.map(s => s.id) } }
+          });
+        }
+
+        const allIncomingQuestions: (QuestionDto & { sectionId?: string })[] = [];
+
+        for (const s of data.sections) {
+          let sectionId = s.id;
+          if (sectionId) {
+            await tx.paperSection.update({
+              where: { id: sectionId },
+              data: {
+                title: s.title,
+                description: s.description,
+                order: s.order,
+              }
+            });
+          } else {
+            const newSection = await tx.paperSection.create({
+              data: {
+                versionId,
+                title: s.title,
+                description: s.description,
+                order: s.order,
+              }
+            });
+            sectionId = newSection.id;
+          }
+
+          if (s.questions) {
+            s.questions.forEach(q => {
+              allIncomingQuestions.push({ ...q, sectionId });
+            });
+          }
+        }
+
+        // Sync Questions
+        const existingQuestions = await tx.question.findMany({ where: { versionId } });
+        const incomingQuestionIds = allIncomingQuestions.map(q => q.id).filter(Boolean) as string[];
+        const questionsToDelete = existingQuestions.filter(e => !incomingQuestionIds.includes(e.id));
+
+        if (questionsToDelete.length > 0) {
+          await tx.question.deleteMany({
+            where: { id: { in: questionsToDelete.map(q => q.id) } }
+          });
+        }
+
+        for (const q of allIncomingQuestions) {
+          if (q.id) {
+            await tx.question.update({
+              where: { id: q.id },
+              data: {
+                sectionId: q.sectionId || null,
+                type: q.type,
+                text: q.text,
+                marks: q.marks,
+                options: q.options ? q.options : null,
+                answer: q.answer,
+                order: q.order,
+                timeLimitSeconds: q.timeLimitSeconds ?? null,
+              }
+            });
+          } else {
+            await tx.question.create({
+              data: {
+                versionId,
+                sectionId: q.sectionId || null,
+                type: q.type,
+                text: q.text,
+                marks: q.marks,
+                options: q.options ? q.options : null,
+                answer: q.answer,
+                order: q.order,
+                timeLimitSeconds: q.timeLimitSeconds ?? null,
+              }
+            });
+          }
+        }
+      } else if (data.questions) {
+        // Fallback for flat questions list
         const existing = await tx.question.findMany({ where: { versionId } });
-        const incomingIds = data.questions.map(q => q.id).filter(Boolean);
+        const incomingIds = data.questions.map(q => q.id).filter(Boolean) as string[];
         const toDelete = existing.filter(e => !incomingIds.includes(e.id));
 
         if (toDelete.length > 0) {

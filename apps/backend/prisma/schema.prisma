@@ -126,24 +126,39 @@ model QuestionPaper {
 }
 
 model QuestionPaperVersion {
-  id               String        @id @default(cuid())
+  id               String         @id @default(cuid())
   paperId          String
-  paper            QuestionPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  paper            QuestionPaper  @relation(fields: [paperId], references: [id], onDelete: Cascade)
   versionName      String
-  status           PaperStatus   @default(DRAFT)
-  timeLimitMinutes Int           @default(60)
+  status           PaperStatus    @default(DRAFT)
+  timeLimitMinutes Int            @default(60)
+  sections         PaperSection[]
   questions        Question[]
   testAttempts     TestAttempt[]
-  createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@unique([paperId, versionName])
+}
+
+model PaperSection {
+  id          String               @id @default(cuid())
+  versionId   String
+  version     QuestionPaperVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int                  @default(0)
+  questions   Question[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 }
 
 model Question {
   id                String               @id @default(cuid())
   versionId         String
   version           QuestionPaperVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sectionId         String?
+  section           PaperSection?        @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   type              QuestionType
   text              String
   marks             Int                  @default(1)

@@ -1,3 +1,12 @@
+import { api } from './api-client'
+import {
+  TOKEN_KEY,
+  USER_KEY,
+  ACTIVE_ROLE_KEY,
+  getApiBaseUrl,
+  getStoredToken,
+} from './auth-storage'
+
 export type Role = 'SUPERADMIN' | 'ADMIN' | 'COMPANY' | 'USER'
 
 export interface AuthUser {
@@ -61,18 +70,7 @@ export interface ProfileOptions {
   specializations: string[]
 }
 
-const TOKEN_KEY = 'lexassess_access_token'
-const USER_KEY = 'lexassess_user'
-const ACTIVE_ROLE_KEY = 'lexassess_active_role'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
-
-export function getApiBaseUrl() {
-  return API_BASE_URL
-}
-
-export function getStoredToken() {
-  return localStorage.getItem(TOKEN_KEY)
-}
+export { getApiBaseUrl, getStoredToken }
 
 export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)
@@ -130,36 +128,11 @@ export function clearAuth() {
 }
 
 export async function exchangeGoogleCode(code: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/auth/google/exchange`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Google sign-in failed')
-  }
-
-  return response.json() as Promise<AuthResponse>
+  return api.post<AuthResponse>('/auth/google/exchange', { code })
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
-  const token = getStoredToken()
-  if (!token) {
-    throw new Error('Missing token')
-  }
-
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-
-  if (!response.ok) {
-    throw new Error('Session expired')
-  }
-
-  return response.json() as Promise<AuthUser>
+  return api.get<AuthUser>('/auth/me')
 }
 
 export async function registerWithPassword(input: {
@@ -168,56 +141,15 @@ export async function registerWithPassword(input: {
   password: string
   role?: Role
 }): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    const message = await response.text()
-    throw new Error(message || 'Registration failed')
-  }
-
-  return response.json() as Promise<AuthResponse>
+  return api.post<AuthResponse>('/auth/register', input)
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<AuthResponse> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Invalid credentials')
-  }
-
-  return response.json() as Promise<AuthResponse>
-}
-
-export function getAuthHeaders() {
-  const token = getStoredToken()
-  if (!token) {
-    throw new Error('Missing token')
-  }
-
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
-  }
+  return api.post<AuthResponse>('/auth/login', { email, password })
 }
 
 export async function fetchAllUsersForSuperadmin(): Promise<ManagedUser[]> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/users`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch users')
-  }
-
-  return response.json() as Promise<ManagedUser[]>
+  return api.get<ManagedUser[]>('/superadmin/users')
 }
 
 export async function updateUserForSuperadmin(
@@ -227,64 +159,23 @@ export async function updateUserForSuperadmin(
     role?: Role
   },
 ): Promise<ManagedUser> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/users/${userId}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to update user')
-  }
-
-  return response.json() as Promise<ManagedUser>
+  return api.patch<ManagedUser>(`/superadmin/users/${userId}`, input)
 }
 
 export async function deleteUserForSuperadmin(userId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/users/${userId}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to delete user')
-  }
+  return api.delete(`/superadmin/users/${userId}`)
 }
 
 export async function assignAdminForSuperadmin(email: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/auth/assign-admin`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ email }),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to assign admin')
-  }
+  return api.post('/auth/assign-admin', { email })
 }
 
 export async function fetchProfileOptions(): Promise<ProfileOptions> {
-  const response = await fetch(`${API_BASE_URL}/profile/options`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch profile options')
-  }
-
-  return response.json() as Promise<ProfileOptions>
+  return api.get<ProfileOptions>('/profile/options')
 }
 
 export async function fetchMyProfile(): Promise<UserProfile | null> {
-  const response = await fetch(`${API_BASE_URL}/profile/me`, {
-    headers: getAuthHeaders(),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch profile')
-  }
-
-  return response.json() as Promise<UserProfile | null>
+  return api.get<UserProfile | null>('/profile/me')
 }
 
 export async function saveProfileStepOne(input: {
@@ -300,172 +191,78 @@ export async function saveProfileStepOne(input: {
   resumeUrl?: string
   profilePhotoUrl?: string
 }) {
-  const response = await fetch(`${API_BASE_URL}/profile/me`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to save profile')
-  }
-
-  return response.json() as Promise<UserProfile>
+  return api.patch<UserProfile>('/profile/me', input)
 }
 
 export async function saveProfileVerification(input: { verificationType: VerificationType; verificationDocUrl: string }) {
-  const response = await fetch(`${API_BASE_URL}/profile/verification`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(input),
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to save verification')
-  }
-
-  return response.json() as Promise<UserProfile>
+  return api.patch<UserProfile>('/profile/verification', input)
 }
 
 export async function uploadProfileAsset(file: File, kind: 'profile_photo' | 'resume' | 'verification_doc') {
-  const token = getStoredToken()
-  if (!token) {
-    throw new Error('Missing token')
-  }
-
   const formData = new FormData()
   formData.append('kind', kind)
   formData.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/uploads`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  })
-
-  if (!response.ok) {
-    throw new Error('Upload failed')
-  }
-
-  return response.json() as Promise<{ url: string; objectKey: string }>
+  return api.post<{ url: string; objectKey: string }>('/uploads', formData)
 }
 
 export async function fetchSuperadminSpecializations(): Promise<{ id: string; name: string; isActive: boolean; sortOrder: number }[]> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/specializations`, {
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to fetch specializations')
-  return response.json() as Promise<{ id: string; name: string; isActive: boolean; sortOrder: number }[]>
+  return api.get<{ id: string; name: string; isActive: boolean; sortOrder: number }[]>('/superadmin/specializations')
 }
 
 export async function createSuperadminSpecialization(name: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/specializations`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
-  })
-  if (!response.ok) throw new Error('Failed to create specialization')
+  return api.post('/superadmin/specializations', { name })
 }
 
 export async function updateSuperadminSpecialization(
   id: string,
   input: { name?: string; isActive?: boolean; sortOrder?: number },
 ) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/specializations/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(input),
-  })
-  if (!response.ok) throw new Error('Failed to update specialization')
+  return api.patch(`/superadmin/specializations/${id}`, input)
 }
 
 export async function deleteSuperadminSpecialization(id: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/specializations/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to delete specialization')
+  return api.delete(`/superadmin/specializations/${id}`)
 }
 
 export async function fetchSuperadminColleges(): Promise<{ id: string; name: string }[]> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/colleges`, { headers: getAuthHeaders() })
-  if (!response.ok) throw new Error('Failed to fetch colleges')
-  return response.json() as Promise<{ id: string; name: string }[]>
+  return api.get<{ id: string; name: string }[]>('/superadmin/colleges')
 }
 
 export async function createSuperadminCollege(name: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/colleges`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
-  })
-  if (!response.ok) throw new Error('Failed to create college')
+  return api.post('/superadmin/colleges', { name })
 }
 
 export async function updateSuperadminCollege(id: string, name: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/colleges/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
-  })
-  if (!response.ok) throw new Error('Failed to update college')
+  return api.patch(`/superadmin/colleges/${id}`, { name })
 }
 
 export async function deleteSuperadminCollege(id: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/colleges/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to delete college')
+  return api.delete(`/superadmin/colleges/${id}`)
 }
 
 export async function fetchSuperadminDegrees(): Promise<{ id: string; name: string }[]> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/degrees`, { headers: getAuthHeaders() })
-  if (!response.ok) throw new Error('Failed to fetch degrees')
-  return response.json() as Promise<{ id: string; name: string }[]>
+  return api.get<{ id: string; name: string }[]>('/superadmin/degrees')
 }
 
 export async function createSuperadminDegree(name: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/degrees`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
-  })
-  if (!response.ok) throw new Error('Failed to create degree')
+  return api.post('/superadmin/degrees', { name })
 }
 
 export async function updateSuperadminDegree(id: string, name: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/degrees/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ name }),
-  })
-  if (!response.ok) throw new Error('Failed to update degree')
+  return api.patch(`/superadmin/degrees/${id}`, { name })
 }
 
 export async function deleteSuperadminDegree(id: string) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/degrees/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!response.ok) throw new Error('Failed to delete degree')
+  return api.delete(`/superadmin/degrees/${id}`)
 }
 
 export async function fetchSuperadminProfiles(): Promise<ManagedUserProfileRecord[]> {
-  const response = await fetch(`${API_BASE_URL}/superadmin/profiles`, { headers: getAuthHeaders() })
-  if (!response.ok) throw new Error('Failed to fetch profiles')
-  return response.json() as Promise<ManagedUserProfileRecord[]>
+  return api.get<ManagedUserProfileRecord[]>('/superadmin/profiles')
 }
 
 export async function verifySuperadminProfile(userId: string, verified: boolean) {
-  const response = await fetch(`${API_BASE_URL}/superadmin/profiles/${userId}/verify`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ verified }),
-  })
-  if (!response.ok) throw new Error('Failed to update verification status')
+  return api.patch(`/superadmin/profiles/${userId}/verify`, { verified })
 }
 
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {

@@ -1,4 +1,4 @@
-import { getAuthHeaders, getApiBaseUrl } from './auth'
+import { api } from './api-client'
 
 export interface PaperAuthor {
   id: string
@@ -23,12 +23,24 @@ export interface QuestionPaperWithMeta extends Omit<QuestionPaper, 'versions'> {
   versions: (Pick<QuestionPaperVersion, 'id' | 'versionName' | 'status' | 'createdAt'> & { _count: { questions: number } })[]
 }
 
+export interface PaperSection {
+  id: string
+  versionId: string
+  title: string
+  description?: string
+  order: number
+  questions?: Question[]
+  createdAt: string
+  updatedAt: string
+}
+
 export interface QuestionPaperVersion {
   id: string
   paperId: string
   versionName: string
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   timeLimitMinutes: number
+  sections?: PaperSection[]
   questions?: Question[]
   _count?: { questions: number }
   createdAt: string
@@ -38,6 +50,7 @@ export interface QuestionPaperVersion {
 export interface Question {
   id: string
   versionId: string
+  sectionId?: string
   type: 'MCQ' | 'SUBJECTIVE' | 'SUBJECTIVE_WITH_ANSWER'
   text: string
   marks: number
@@ -60,139 +73,66 @@ export interface TestAttempt {
   score?: number
 }
 
-const API_BASE_URL = getApiBaseUrl()
-
 export async function fetchPapers(specializationId: string): Promise<QuestionPaper[]> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/${specializationId}/papers`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch papers')
-  return res.json()
+  return api.get<QuestionPaper[]>(`/admin/specializations/${specializationId}/papers`)
 }
 
 export async function createPaper(specializationId: string, title: string, description?: string): Promise<QuestionPaper> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/${specializationId}/papers`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ title, description }),
-  })
-  if (!res.ok) throw new Error('Failed to create paper')
-  return res.json()
+  return api.post<QuestionPaper>(`/admin/specializations/${specializationId}/papers`, { title, description })
 }
 
 export async function fetchVersions(paperId: string): Promise<QuestionPaperVersion[]> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/papers/${paperId}/versions`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch versions')
-  return res.json()
+  return api.get<QuestionPaperVersion[]>(`/admin/specializations/papers/${paperId}/versions`)
 }
 
 export async function createVersion(paperId: string, versionName: string): Promise<QuestionPaperVersion> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/papers/${paperId}/versions`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ versionName }),
-  })
-  if (!res.ok) throw new Error('Failed to create version')
-  return res.json()
+  return api.post<QuestionPaperVersion>(`/admin/specializations/papers/${paperId}/versions`, { versionName })
 }
 
 export async function fetchVersionDetails(versionId: string): Promise<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/versions/${versionId}`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch version details')
-  return res.json()
+  return api.get<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }>(`/admin/specializations/versions/${versionId}`)
 }
 
 export async function fetchStudentVersionDetails(versionId: string): Promise<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }> {
-  const res = await fetch(`${API_BASE_URL}/student/papers/${versionId}/details`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch student version details')
-  return res.json()
+  return api.get<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }>(`/student/papers/${versionId}/details`)
 }
 
-export async function updateVersion(versionId: string, data: { status?: string, timeLimitMinutes?: number, questions?: any[] }): Promise<QuestionPaperVersion> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/versions/${versionId}`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Failed to update version')
-  return res.json()
+export async function updateVersion(versionId: string, data: { status?: string, timeLimitMinutes?: number, sections?: any[], questions?: any[] }): Promise<QuestionPaperVersion> {
+  return api.put<QuestionPaperVersion>(`/admin/specializations/versions/${versionId}`, data)
 }
 
 export async function fetchAllPapers(): Promise<QuestionPaperWithMeta[]> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/all-papers`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch all papers')
-  return res.json()
+  return api.get<QuestionPaperWithMeta[]>('/admin/specializations/all-papers')
 }
 
 export async function fetchStudentPapers(): Promise<QuestionPaper[]> {
-  const res = await fetch(`${API_BASE_URL}/student/papers`, { headers: getAuthHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch student papers')
-  return res.json()
+  return api.get<QuestionPaper[]>('/student/papers')
 }
 
 export async function updatePaper(specializationId: string, paperId: string, data: { title?: string; description?: string }): Promise<QuestionPaper> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/${specializationId}/papers/${paperId}`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) throw new Error('Failed to update paper')
-  return res.json()
+  return api.put<QuestionPaper>(`/admin/specializations/${specializationId}/papers/${paperId}`, data)
 }
 
 export async function deletePaper(specializationId: string, paperId: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/${specializationId}/papers/${paperId}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!res.ok) throw new Error('Failed to delete paper')
+  return api.delete(`/admin/specializations/${specializationId}/papers/${paperId}`)
 }
 
 export async function renameVersion(versionId: string, versionName: string): Promise<QuestionPaperVersion> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/versions/${versionId}/rename`, {
-    method: 'PUT',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ versionName }),
-  })
-  if (!res.ok) throw new Error('Failed to rename version')
-  return res.json()
+  return api.put<QuestionPaperVersion>(`/admin/specializations/versions/${versionId}/rename`, { versionName })
 }
 
 export async function deleteVersion(versionId: string): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/admin/specializations/versions/${versionId}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  })
-  if (!res.ok) throw new Error('Failed to delete version')
+  return api.delete(`/admin/specializations/versions/${versionId}`)
 }
 
 export async function startTestAttempt(versionId: string): Promise<TestAttempt> {
-  const res = await fetch(`${API_BASE_URL}/student/papers/${versionId}/start`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-  })
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to start test attempt')
-  }
-  return res.json()
+  return api.post<TestAttempt>(`/student/papers/${versionId}/start`)
 }
 
 export async function submitTestAttempt(versionId: string, answers: Record<string, any>): Promise<TestAttempt> {
-  const res = await fetch(`${API_BASE_URL}/student/papers/${versionId}/submit`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ answers }),
-  })
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}))
-    throw new Error(error.message || 'Failed to submit test attempt')
-  }
-  return res.json()
+  return api.post<TestAttempt>(`/student/papers/${versionId}/submit`, { answers })
 }
 
 export async function fetchAttemptStatus(versionId: string): Promise<TestAttempt | null> {
-  const res = await fetch(`${API_BASE_URL}/student/papers/${versionId}/status`, {
-    headers: getAuthHeaders(),
-  })
-  if (!res.ok) return null
-  return res.json()
+  return api.get<TestAttempt | null>(`/student/papers/${versionId}/status`, { skipToast: true })
 }
