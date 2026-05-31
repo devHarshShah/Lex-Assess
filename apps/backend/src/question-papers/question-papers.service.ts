@@ -11,6 +11,12 @@ export class SubmitAttemptDto {
   answers!: Record<string, any>;
 }
 
+export class UpdateScoreDto {
+  @IsObject()
+  @IsNotEmpty()
+  questionScores!: Record<string, number>;
+}
+
 export class CreatePaperDto {
   @IsString()
   @IsNotEmpty()
@@ -523,13 +529,161 @@ export class QuestionPapersService {
       throw new BadRequestException('Time limit exceeded. Your attempt has expired.');
     }
 
-    return this.prisma.testAttempt.update({
+    const updatedAttempt = await this.prisma.testAttempt.update({
       where: { id: attempt.id },
       data: {
         status: AttemptStatus.SUBMITTED,
         endTime: new Date(),
         answers: data.answers as any,
       },
+    });
+
+    // Auto-calculate score
+    await this.calculateAutoScore(updatedAttempt.id);
+
+    return updatedAttempt;
+  }
+
+  async calculateAutoScore(attemptId: string) {
+    const attempt = await this.prisma.testAttempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        version: {
+          include: {
+            questions: true,
+          },
+        },
+      },
+    });
+
+    if (!attempt || !attempt.answers) return;
+
+    const studentAnswers = attempt.answers as Record<string, any>;
+    const questionScores: Record<string, number> = {};
+    let totalScore = 0;
+
+    for (const question of attempt.version.questions) {
+      if (question.type === QuestionType.MCQ) {
+        if (studentAnswers[question.id] === question.answer) {
+          questionScores[question.id] = question.marks;
+          totalScore += question.marks;
+        } else {
+          questionScores[question.id] = 0;
+        }
+      } else {
+        // Subjective questions start with 0 score
+        questionScores[question.id] = 0;
+      }
+    }
+
+    await this.prisma.testAttempt.update({
+      where: { id: attemptId },
+      data: {
+        score: totalScore,
+        questionScores: questionScores as any,
+      },
+    });
+  }
+
+  async getSubmissionsSummary() {
+    const specializations = await this.prisma.specialization.findMany({
+      include: {
+        questionPapers: {
+          include: {
+            versions: {
+              include: {
+                _count: {
+                  select: { testAttempts: { where: { status: AttemptStatus.SUBMITTED } } }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return specializations.map(spec => ({
+      id: spec.id,
+      name: spec.name,
+      submissionCount: spec.questionPapers.reduce((acc, paper) => {
+        return acc + paper.versions.reduce((vAcc, version) => vAcc + version._count.testAttempts, 0);
+      }, 0)
+    }));
+  }
+
+  async getSubmissionsBySpecialization(specializationId: string) {
+    return this.prisma.testAttempt.findMany({
+      where: {
+        status: AttemptStatus.SUBMITTED,
+        version: {
+          paper: {
+            specializationId
+          }
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profile: true
+          }
+        },
+        version: {
+          include: {
+            paper: true
+          }
+        }
+      },
+      orderBy: {
+        updatedAt: 'desc'
+      }
+    });
+  }
+
+  async getSubmissionDetails(attemptId: string) {
+    return this.prisma.testAttempt.findUnique({
+      where: { id: attemptId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            profile: true
+          }
+        },
+        version: {
+          include: {
+            questions: {
+              orderBy: {
+                order: 'asc'
+              }
+            },
+            paper: true
+          }
+        }
+      }
+    });
+  }
+
+  async updateSubmissionScore(attemptId: string, data: UpdateScoreDto, adminId: string) {
+    const attempt = await this.prisma.testAttempt.findUnique({
+      where: { id: attemptId }
+    });
+
+    if (!attempt) throw new NotFoundException('Submission not found');
+
+    const totalScore = Object.values(data.questionScores).reduce((acc, score) => acc + score, 0);
+
+    return this.prisma.testAttempt.update({
+      where: { id: attemptId },
+      data: {
+        score: totalScore,
+        questionScores: data.questionScores as any,
+        markedById: adminId
+      }
     });
   }
 

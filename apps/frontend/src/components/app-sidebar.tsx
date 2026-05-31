@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { BookOpen, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
+import { BookOpen, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -74,6 +74,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [
           { title: 'All Question Papers', url: '/dashboard/all-papers' },
         ],
+      },
+      {
+        title: 'Submissions',
+        url: '/dashboard/submissions',
+        icon: ClipboardList,
+        items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
       }
     )
   } else if (activeRole === 'ADMIN') {
@@ -85,6 +91,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [
           { title: 'Question Papers', url: '/dashboard/specializations' },
         ],
+      },
+      {
+        title: 'Submissions',
+        url: '/dashboard/submissions',
+        icon: ClipboardList,
+        items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
       },
       {
         title: 'Profile',

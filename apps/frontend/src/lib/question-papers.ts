@@ -71,6 +71,25 @@ export interface TestAttempt {
   status: 'STARTED' | 'SUBMITTED' | 'EXPIRED'
   answers?: any
   score?: number
+  questionScores?: Record<string, number>
+}
+
+export interface SubmissionSummary {
+  id: string
+  name: string
+  submissionCount: number
+}
+
+export interface SubmissionDetails extends TestAttempt {
+  user: {
+    id: string
+    name: string
+    email: string
+    profile?: any
+  }
+  version: QuestionPaperVersion & {
+    paper: QuestionPaper
+  }
 }
 
 export async function fetchPapers(specializationId: string): Promise<QuestionPaper[]> {
@@ -135,4 +154,20 @@ export async function submitTestAttempt(versionId: string, answers: Record<strin
 
 export async function fetchAttemptStatus(versionId: string): Promise<TestAttempt | null> {
   return api.get<TestAttempt | null>(`/student/papers/${versionId}/status`, { skipToast: true })
+}
+
+export async function fetchSubmissionsSummary(): Promise<SubmissionSummary[]> {
+  return api.get<SubmissionSummary[]>('/admin/submissions/summary')
+}
+
+export async function fetchSubmissionsBySpecialization(specializationId: string): Promise<SubmissionDetails[]> {
+  return api.get<SubmissionDetails[]>(`/admin/submissions/specialization/${specializationId}`)
+}
+
+export async function fetchSubmissionDetails(id: string): Promise<SubmissionDetails> {
+  return api.get<SubmissionDetails>(`/admin/submissions/${id}`)
+}
+
+export async function updateSubmissionScore(id: string, questionScores: Record<string, number>): Promise<TestAttempt> {
+  return api.patch<TestAttempt>(`/admin/submissions/${id}/score`, { questionScores })
 }

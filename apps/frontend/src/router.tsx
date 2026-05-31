@@ -13,9 +13,12 @@ import { dashboardSpecializationPapersRoute } from './routes/dashboard-specializ
 import { dashboardPaperBuilderRoute } from './routes/dashboard-paper-builder'
 import { dashboardAllPapersRoute } from './routes/dashboard-all-papers'
 import { dashboardTestAttemptRoute } from './routes/dashboard-test-attempt'
+import { dashboardSubmissionsRoute } from './routes/dashboard-submissions'
+import { dashboardSpecializationSubmissionsRoute } from './routes/dashboard-specialization-submissions'
+import { dashboardSubmissionScoringRoute } from './routes/dashboard-submission-scoring'
 import { loginRoute } from './routes/login'
-import { googleCallbackRoute } from './routes/google-callback'
 import { signupRoute } from './routes/signup'
+import { googleCallbackRoute } from './routes/google-callback'
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
@@ -35,6 +38,9 @@ const routeTree = rootRoute.addChildren([
     dashboardSpecializationPapersRoute,
     dashboardPaperBuilderRoute,
     dashboardAllPapersRoute,
+    dashboardSubmissionsRoute,
+    dashboardSpecializationSubmissionsRoute,
+    dashboardSubmissionScoringRoute,
   ]),
 ])
 
