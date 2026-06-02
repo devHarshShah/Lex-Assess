@@ -5,6 +5,8 @@ import {
   ACTIVE_ROLE_KEY,
   getApiBaseUrl,
   getStoredToken,
+  clearAuth,
+  UNAUTHORIZED_EVENT,
 } from './auth-storage'
 
 export type Role = 'SUPERADMIN' | 'ADMIN' | 'COMPANY' | 'USER'
@@ -70,7 +72,7 @@ export interface ProfileOptions {
   specializations: string[]
 }
 
-export { getApiBaseUrl, getStoredToken }
+export { getApiBaseUrl, getStoredToken, clearAuth, UNAUTHORIZED_EVENT }
 
 export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)
@@ -119,12 +121,6 @@ export function storeAuth(data: AuthResponse) {
 export function storeUser(user: AuthUser) {
   localStorage.setItem(USER_KEY, JSON.stringify(user))
   syncActiveRole(user)
-}
-
-export function clearAuth() {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(USER_KEY)
-  localStorage.removeItem(ACTIVE_ROLE_KEY)
 }
 
 export async function exchangeGoogleCode(code: string): Promise<AuthResponse> {

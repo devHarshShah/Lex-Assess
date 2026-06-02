@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { getStoredToken, getApiBaseUrl } from './auth-storage'
+import { getStoredToken, getApiBaseUrl, UNAUTHORIZED_EVENT } from './auth-storage'
 
 interface RequestOptions extends RequestInit {
   skipToast?: boolean
@@ -30,6 +30,10 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
     const data = isNoContent ? ({} as T) : await response.json().catch(() => ({} as T))
 
     if (!response.ok) {
+      if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
+      }
+
       const errorData = data as any
       const message = errorData.message || response.statusText || 'An unexpected error occurred'
       
