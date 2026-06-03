@@ -19,9 +19,8 @@ export function ConvictionSection() {
                 The Assessment Paper
               </span>
             </div>
-            <h2 className="mb-8 font-heading text-[clamp(2.5rem,4vw,3.5rem)] font-extrabold leading-tight tracking-tight text-foreground">
-              Built for How Law is<br />
-              <span className="text-primary">Actually Practised</span>
+            <h2 className="mb-8 font-heading text-[clamp(2rem,3vw,3rem)] font-extrabold leading-tight tracking-tight text-foreground">
+              Built for How Law is <span className="text-primary">Actually Practised</span>
             </h2>
             <div className="space-y-6 text-lg leading-relaxed text-muted-foreground">
               <p>

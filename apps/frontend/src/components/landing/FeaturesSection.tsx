@@ -19,9 +19,7 @@ export function FeaturesSection() {
           transition={{ duration: 0.5 }}
           className="mb-8 font-heading text-[clamp(2.5rem,4vw,3.5rem)] font-extrabold leading-tight tracking-tight text-foreground"
         >
-          Assessment + Interview =
-          <br />
-          <span className="text-primary">Your Result.</span>
+          Assessment + Interview = <span className="text-primary">Your Result.</span>
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 15 }}

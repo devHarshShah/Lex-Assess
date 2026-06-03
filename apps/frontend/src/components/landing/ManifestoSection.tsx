@@ -7,7 +7,7 @@ export function ManifestoSection() {
         <div className="mb-10 text-xs font-bold uppercase tracking-widest text-primary">
           — The LexAssess Founding Principle
         </div>
-        <div className="mx-auto mb-16 max-w-4xl font-heading text-[clamp(2rem,3vw,2.5rem)] leading-tight font-bold text-foreground italic opacity-90">
+        <div className="mx-auto mb-16 max-w-4xl font-heading text-2xl md:text-3xl leading-relaxed font-bold text-foreground italic opacity-90">
           &ldquo;The best junior lawyer in the room should not be the one with the most connections. They should be the one with the sharpest mind. LexAssess exists to make that true.&rdquo;
         </div>
         

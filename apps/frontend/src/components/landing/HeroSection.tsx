@@ -54,10 +54,8 @@ export function HeroSection() {
               transition={{ duration: 0.5 }}
               className="mb-8"
             >
-              <h1 className="text-[clamp(3.5rem,6vw,5.5rem)] font-extrabold leading-[1.05] tracking-tight text-foreground">
-                Where Legal Talent
-                <br />
-                Meets
+              <h1 className="text-[clamp(3rem,5vw,4.5rem)] font-extrabold leading-[1.05] tracking-tight text-foreground">
+                Where Legal Talent Meets
                 <br />
                 <span className="relative inline-block mt-2">
                   <span className="relative z-10 text-primary">Opportunity.</span>
