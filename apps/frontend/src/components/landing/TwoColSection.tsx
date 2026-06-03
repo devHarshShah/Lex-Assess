@@ -1,74 +1,42 @@
-import { firmSteps, studentSteps } from './data';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-
-function Column({
-  tag,
-  title,
-  description,
-  steps,
-  buttonLabel,
-  filled,
-}: {
-  tag: string;
-  title: string;
-  description: string;
-  steps: string[];
-  buttonLabel: string;
-  filled?: boolean;
-}) {
-  return (
-    <Card className="flex flex-col h-full bg-card p-10 border-border/60 shadow-sm rounded-none border-x-0 border-t-0 md:border-r md:last:border-r-0 lg:border-t lg:border-x">
-      <div className="mb-8 flex items-center gap-4">
-        <span className="h-px w-6 bg-primary" />
-        <span className="text-xs font-bold uppercase tracking-widest text-primary">
-          {tag}
-        </span>
-      </div>
-      <h3 className="mb-6 font-heading text-3xl font-extrabold leading-tight tracking-tight text-foreground">
-        {title}
-      </h3>
-      <p className="mb-10 text-base leading-relaxed text-muted-foreground flex-grow">
-        {description}
-      </p>
-      <div className="mb-10 flex flex-col gap-4">
-        {steps.map((step) => (
-          <div key={step} className="flex items-center gap-4">
-            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
-            <span className="text-sm font-medium text-foreground">{step}</span>
-          </div>
-        ))}
-      </div>
-      <Button
-        size="lg"
-        variant={filled ? 'default' : 'outline'}
-        className="w-full h-14 text-xs font-bold uppercase tracking-widest rounded-sm"
-      >
-        {buttonLabel}
-      </Button>
-    </Card>
-  );
-}
+import { assessmentModules } from './data';
 
 export function TwoColSection() {
   return (
-    <section className="mx-auto w-full max-w-6xl px-6 py-16 md:px-12">
-      <div className="grid overflow-hidden rounded-xl border border-border/60 bg-background lg:grid-cols-2">
-        <Column
-          tag="For Students"
-          title="Stop Sending Cold Emails."
-          description="Your resume is not your ceiling. On LexAssess, your score is your identity. Attempt the paper, earn your rank, clear the interview - and let top law firms discover you on merit alone."
-          steps={studentSteps}
-          buttonLabel="Begin Your Assessment"
-          filled
-        />
-        <Column
-          tag="For Law Firms"
-          title="Stop Guessing. Start Hiring Right."
-          description="Every candidate has been assessed, ranked and interviewed before you see them. Browse a verified directory filtered by score, practice area and location. Hire with complete confidence."
-          steps={firmSteps}
-          buttonLabel="Access the Directory"
-        />
+    <section className="bg-white py-[100px] px-12" id="assessment">
+      <div className="max-w-[1100px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-20 items-start">
+        <div className="assess-text">
+          <p className="text-[10px] font-semibold tracking-[3px] uppercase text-gold">The Assessment Paper</p>
+          <h2 className="font-serif text-[clamp(28px,3.5vw,44px)] font-semibold leading-[1.1] text-ink my-[14px] mb-5">
+            Built for How Law is Actually Practised
+          </h2>
+          <p className="text-[14px] font-light text-ink-mid leading-[1.9] mb-5">
+            Our assessments are not examinations of bare-act memory. They are structured simulations of real legal work — research under time pressure, drafting at short notice, and advising a senior on a nuanced question. AI tools are permitted because they are part of modern legal practice.
+          </p>
+          <p className="text-[14px] font-light text-ink-mid leading-[1.9] mb-5">
+            Every paper is authored and reviewed by NLU faculty and senior practicing lawyers. A live research module requires candidates to find real case URLs and paste actual excerpts — making the paper impossible to complete without genuine engagement with legal databases.
+          </p>
+          <a href="#apply" className="inline-block mt-2 text-[11px] font-semibold tracking-[2px] uppercase bg-gold text-white px-10 py-4 no-underline transition-all hover:bg-ink hover:-translate-y-0.5">
+            View Sample Paper
+          </a>
+        </div>
+        
+        <div className="assess-modules">
+          {assessmentModules.map((module) => (
+            <div key={module.id} className="flex gap-5 py-5 border-b border-border first:border-t">
+              <span className="font-serif text-[18px] font-semibold text-gold shrink-0 min-w-[24px]">
+                {module.id}
+              </span>
+              <div className="module-info">
+                <p className="text-[13px] font-semibold text-ink mb-[3px] tracking-[0.3px]">
+                  {module.title}
+                </p>
+                <p className="text-[12px] font-light text-ink-muted leading-[1.6]">
+                  {module.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

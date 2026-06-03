@@ -1,138 +1,69 @@
 import { motion } from 'framer-motion';
-import { pipelineSteps } from './data';
-import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
-
-function PipelineStep({
-  number,
-  pill,
-  title,
-  description,
-  index,
-}: {
-  number: string;
-  pill: string;
-  title: string;
-  description: string;
-  index: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: 0.4 + index * 0.1 }}
-      className="flex gap-6 border-b border-border/60 py-6 first:pt-0 last:border-0"
-    >
-      <div className="shrink-0 text-3xl font-bold tracking-tighter text-primary">
-        {number}
-      </div>
-      <div>
-        <div className="mb-2 flex items-center gap-3">
-          <span className="text-sm font-semibold uppercase tracking-wider text-primary">
-            {pill}
-          </span>
-        </div>
-        <h3 className="mb-2 text-lg font-bold text-foreground">{title}</h3>
-        <p className="text-sm leading-relaxed text-muted-foreground max-w-sm">
-          {description}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
 
 export function HeroSection() {
   return (
-    <section className="relative flex min-h-screen w-full flex-col justify-center items-center overflow-hidden px-6 pt-28 pb-20 md:px-12">
-      <div className="mx-auto w-full max-w-6xl flex-1 flex items-center">
-        <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24 w-full">
-          {/* Left Column: Headlines */}
-          <div className="flex flex-col">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mb-8"
-            >
-              <h1 className="text-[clamp(3.5rem,6vw,5.5rem)] font-extrabold leading-[1.05] tracking-tight text-foreground">
-                Prove It.
-                <br />
-                Rank It.
-                <br />
-                <span className="relative inline-block mt-2">
-                  <span className="relative z-10 text-primary">Own It.</span>
-                  <span className="absolute bottom-2 left-0 right-0 -z-10 h-3 bg-primary/20 rounded-full" />
-                </span>
-              </h1>
-            </motion.div>
-
-            <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-              className="mb-10 max-w-md text-lg leading-relaxed text-muted-foreground"
-            >
-              LexAssess is where India&apos;s sharpest law students are
-              assessed, ranked, and discovered. No shortcuts. No connections.
-              Only performance.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-              className="flex flex-col sm:flex-row gap-4"
-            >
-              <Button
-                size="lg"
-                className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm"
-              >
-                Give the Assessment
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm border-2 border-foreground/10 text-foreground hover:bg-foreground/5"
-              >
-                For Law Firms
-              </Button>
-            </motion.div>
-          </div>
-
-          {/* Right Column: Steps */}
-          <div className="relative lg:pl-12">
-            {pipelineSteps.map((step, idx) => (
-              <PipelineStep key={step.number} {...step} index={idx} />
-            ))}
-          </div>
-        </div>
+    <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-32 pb-20 relative overflow-hidden bg-white">
+      {/* Top Gradient Line */}
+      <div className="absolute top-0 left-0 right-0 h-[3px] bg-[linear-gradient(90deg,transparent_0%,var(--gold)_30%,var(--gold-light)_50%,var(--gold)_70%,transparent_100%)]" />
+      
+      {/* Background Text */}
+      <div className="absolute font-serif text-[clamp(120px,18vw,220px)] font-bold text-gold-pale top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap pointer-events-none select-none opacity-45 tracking-[-4px] z-0">
+        LEX
       </div>
 
-      {/* Scroll Down Indicator */}
-      <motion.div
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: [0, 8, 0] }}
-        transition={{
-          opacity: { duration: 0.5, delay: 0.6 },
-          y: {
-            repeat: Infinity,
-            duration: 1.5,
-            ease: 'easeInOut',
-          },
-        }}
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 cursor-pointer pointer-events-auto z-20 group"
-        onClick={() => {
-          window.scrollTo({
-            top: window.innerHeight,
-            behavior: 'smooth',
-          });
-        }}
-      >
-        <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
-          Scroll Down
-        </span>
-        <ChevronDown className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
-      </motion.div>
+      <div className="relative z-10 max-w-[860px]">
+        <motion.p 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.1 }}
+          className="font-sans text-[10px] font-semibold tracking-[3px] uppercase text-gold mb-7"
+        >
+          India's Merit-Based Legal Internship Platform
+        </motion.p>
+        
+        <motion.h1 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.25 }}
+          className="font-serif text-[clamp(44px,7vw,80px)] font-semibold leading-[1.1] text-ink mb-2.5 tracking-[-1px]"
+        >
+          Where Legal Talent<br />Meets <em className="not-italic text-gold italic">Opportunity</em>
+        </motion.h1>
+
+        <motion.p 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.38 }}
+          className="font-serif text-[clamp(18px,2.5vw,26px)] font-normal italic text-ink-muted mb-8 leading-[1.4]"
+        >
+          Earn your internship. Prove your skill.
+        </motion.p>
+
+        <motion.p 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.5 }}
+          className="text-[15px] font-light text-ink-mid max-w-[600px] mx-auto mb-11 leading-[1.8]"
+        >
+          LexAssess connects law students and young lawyers with leading firms, senior advocates, and legal teams — not through connections or college names, but through demonstrated legal ability. One assessment. One interview. Real merit.
+        </motion.p>
+
+        <motion.div 
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.62 }}
+          className="flex flex-wrap gap-4 justify-center"
+        >
+          <a href="#apply" className="text-[11px] font-semibold tracking-[2px] uppercase bg-gold text-white px-10 py-4 no-underline transition-all hover:bg-ink hover:-translate-y-0.5">
+            Take the Assessment
+          </a>
+          <a href="#how" className="text-[11px] font-semibold tracking-[2px] uppercase bg-transparent text-gold border border-gold-line px-10 py-[15px] no-underline transition-all hover:bg-gold-pale">
+            How It Works
+          </a>
+        </motion.div>
+        
+        <div className="w-[60px] h-px bg-gold-line mx-auto mt-14" />
+      </div>
     </section>
   );
 }

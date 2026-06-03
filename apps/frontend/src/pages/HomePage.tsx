@@ -1,36 +1,34 @@
 import {
-  ConvictionSection,
-  FeaturesSection,
-  Footer,
   Header,
   HeroSection,
-  ManifestoSection,
+  StatsBar,
+  FeaturesSection,
+  CredibilityBanner,
   TracksSection,
+  ScoringSection,
+  InternshipTypesSection,
   TwoColSection,
+  ManifestoSection,
   FaqSection,
+  CTASection,
+  Footer,
 } from '../components/landing'
-
-function Divider() {
-  return (
-    <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
-      <hr className="border-0 border-t border-border/60" />
-    </div>
-  )
-}
 
 export function HomePage() {
   return (
-    <div className="overflow-x-hidden min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary">
+    <div className="overflow-x-hidden min-h-screen bg-off-white text-ink selection:bg-gold/20 selection:text-gold">
       <Header />
       <HeroSection />
-      <Divider />
+      <StatsBar />
       <FeaturesSection />
-      <ManifestoSection />
-      <ConvictionSection />
-      <Divider />
-      <TwoColSection />
+      <CredibilityBanner />
       <TracksSection />
+      <ScoringSection />
+      <InternshipTypesSection />
+      <TwoColSection />
+      <ManifestoSection />
       <FaqSection />
+      <CTASection />
       <Footer />
     </div>
   )
