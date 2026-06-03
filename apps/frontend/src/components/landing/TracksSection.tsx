@@ -1,40 +1,61 @@
-import { tracks } from './data';
+import { motion } from 'framer-motion'
+import { tracks } from './data'
+import { Card } from '@/components/ui/card'
 
 export function TracksSection() {
   return (
-    <section className="bg-white py-[100px] px-12" id="tracks">
-      <div className="max-w-[1100px] mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-[10px] font-semibold tracking-[3px] uppercase text-gold">Practice Areas</p>
-          <h2 className="font-serif text-[clamp(32px,4vw,50px)] font-semibold leading-[1.1] text-ink mt-3.5">
-            Eleven Tracks & Growing.
-          </h2>
-          <p className="text-[15px] font-light text-ink-mid max-w-[560px] mx-auto mt-[18px] leading-[1.8]">
-            Choose the practice area that matches your ambition. Each track has its own expert-authored paper and dedicated interview panel.
-          </p>
-          <div className="w-10 h-[2px] bg-gold mx-auto mt-6" />
+    <section className="w-full bg-muted/20 py-16 border-y border-border/40">
+      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+        <div className="mb-6 flex items-center justify-center gap-4">
+          <span className="h-px w-12 bg-primary" />
+          <span className="text-xs font-bold uppercase tracking-widest text-primary text-center">
+            Practice Areas
+          </span>
+          <span className="h-px w-12 bg-primary" />
         </div>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-[1px] bg-border border-[0.5px] border-border mb-5">
-          {tracks.map((track) => (
-            <div key={track.title} className="bg-white p-7 relative overflow-hidden group transition-colors hover:bg-gold-pale cursor-default">
-              <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gold scale-x-0 transition-transform duration-250 group-hover:scale-x-100" />
-              <span className="font-serif text-[13px] font-semibold text-gold mb-2 block tracking-[0.5px]">
-                {track.roman}
-              </span>
-              <p className="text-[13px] font-semibold text-ink mb-1.5 leading-[1.3]">
-                {track.title}
-              </p>
-              <p className="text-[11.5px] font-light text-ink-muted leading-[1.6]">
-                {track.description}
-              </p>
-            </div>
-          ))}
+      <motion.h2 
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.5 }}
+        className="mb-6 text-center font-heading text-[clamp(2.5rem,4vw,3.5rem)] font-extrabold leading-tight tracking-tight text-foreground"
+      >
+        Eleven Tracks & <span className="text-primary">Growing.</span>
+      </motion.h2>
+      <motion.p 
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-100px' }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="mx-auto mb-16 max-w-2xl text-center text-lg leading-relaxed text-muted-foreground"
+      >
+        Choose the practice area that matches your ambition. Each track has its own expert-authored paper and dedicated interview panel.
+      </motion.p>
+
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {tracks.map((track, idx) => {
+          return (
+            <motion.div
+              key={track.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-50px' }}
+              transition={{ duration: 0.4, delay: idx * 0.05 }}
+            >
+              <Card className="flex h-full flex-col p-8 border-border/50 bg-background hover:bg-muted/30 transition-colors shadow-none rounded-md">
+                <div className="mb-5 text-primary text-xl font-bold font-serif">
+                  {track.roman}
+                </div>
+                <h3 className="mb-3 text-lg font-bold tracking-tight text-foreground">{track.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {track.description}
+                </p>
+              </Card>
+            </motion.div>
+          )
+        })}
         </div>
-        <p className="text-center text-[12px] font-light text-ink-muted mt-4 tracking-[0.3px]">
-          More practice areas being added. All tracks follow the same rigorous standard.
-        </p>
       </div>
     </section>
-  );
+  )
 }

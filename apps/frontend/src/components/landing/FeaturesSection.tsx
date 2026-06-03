@@ -1,35 +1,66 @@
-import { pipelineSteps } from './data';
+import { motion } from 'framer-motion';
+import { features } from './data';
+import { Card } from '@/components/ui/card';
 
 export function FeaturesSection() {
   return (
-    <section className="bg-off-white py-[100px] px-12" id="how">
-      <div className="max-w-[1100px] mx-auto">
-        <div className="text-center mb-16">
-          <p className="text-[10px] font-semibold tracking-[3px] uppercase text-gold">The Process</p>
-          <h2 className="font-serif text-[clamp(32px,4vw,50px)] font-semibold leading-[1.1] text-ink mt-3.5">
-            Simple. Transparent. Fair.
-          </h2>
-          <p className="text-[15px] font-light text-ink-mid max-w-[560px] mx-auto mt-[18px] leading-[1.8]">
-            No referrals. No name-dropping. A clear four-step process that rewards legal ability — nothing else.
-          </p>
-          <div className="w-10 h-[2px] bg-gold mx-auto mt-6" />
+    <section className="w-full bg-card py-16 border-y border-border/40">
+      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+        <div className="mb-6 flex items-center gap-4">
+          <span className="h-px w-12 bg-primary" />
+          <span className="text-xs font-bold uppercase tracking-widest text-primary">
+            How Your Score Is Calculated
+          </span>
         </div>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-0 border-[0.5px] border-border bg-border">
-          {pipelineSteps.map((step) => (
-            <div key={step.number} className="bg-white p-11 pb-8 relative group">
-              <div className="absolute top-0 left-0 w-[3px] h-10 bg-gold" />
-              <span className="font-serif text-[64px] font-semibold text-gold-pale leading-none mb-5 block">
-                {step.number}
-              </span>
-              <h3 className="font-serif text-[19px] font-semibold text-ink mb-2.5 leading-[1.2]">
-                {step.title}
-              </h3>
-              <p className="text-[13px] font-light text-ink-muted leading-[1.75]">
-                {step.description}
-              </p>
-            </div>
-          ))}
+        <motion.h2
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.5 }}
+          className="mb-8 font-heading text-[clamp(2.5rem,4vw,3.5rem)] font-extrabold leading-tight tracking-tight text-foreground"
+        >
+          Assessment + Interview =
+          <br />
+          <span className="text-primary">Your Result.</span>
+        </motion.h2>
+        <motion.p
+          initial={{ opacity: 0, y: 15 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-100px' }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-16 max-w-xl text-lg leading-relaxed text-muted-foreground"
+        >
+          Two independent evaluations. One cumulative score. Fully transparent at every stage.
+        </motion.p>
+
+        <div className="grid gap-6 sm:grid-cols-1 lg:grid-cols-3">
+          {features.map((feature, idx) => {
+            return (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-50px' }}
+                transition={{ duration: 0.4, delay: idx * 0.05 }}
+              >
+                <Card className="flex h-full flex-col p-8 border-border/50 bg-background shadow-sm hover:shadow-md transition-shadow rounded-md relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1 h-12 bg-primary"></div>
+                  <div className="mb-4 text-primary text-4xl font-bold font-serif opacity-30">
+                    {feature.number}
+                  </div>
+                  <h3 className="mb-3 text-xl font-bold tracking-tight text-foreground">
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm leading-relaxed text-muted-foreground mb-6 flex-grow">
+                    {feature.description}
+                  </p>
+                  <div className="inline-block border border-primary/30 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-primary w-fit">
+                    {feature.tag}
+                  </div>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </section>

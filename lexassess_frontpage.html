@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LexAssess — Merit-Based Legal Internship Platform</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --gold:       #B8860B;
+    --gold-light: #D4A843;
+    --gold-pale:  #F5EDD6;
+    --gold-line:  #C9A84C;
+    --white:      #FFFFFF;
+    --off-white:  #FAFAF7;
+    --ink:        #1A1612;
+    --ink-mid:    #3D3530;
+    --ink-muted:  #7A6E65;
+    --ink-faint:  #C8BEB5;
+    --border:     #E8E0D0;
+    --serif:      'Cormorant Garamond', Georgia, serif;
+    --sans:       'Jost', sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--sans); background: var(--off-white); color: var(--ink); font-size: 16px; line-height: 1.7; -webkit-font-smoothing: antialiased; }
+  .eyebrow { font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); }
+
+  /* NAV */
+  nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 48px; height: 64px; }
+  .nav-logo { font-family: var(--serif); font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: 0.5px; text-decoration: none; }
+  .nav-logo span { color: var(--gold); }
+  .nav-links { display: flex; gap: 32px; }
+  .nav-links a { font-size: 11px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-muted); text-decoration: none; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--gold); }
+  .nav-cta { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--white); background: var(--gold); border: none; padding: 10px 24px; cursor: pointer; text-decoration: none; transition: background 0.2s; }
+  .nav-cta:hover { background: var(--ink); }
+
+  /* HERO */
+  .hero { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 48px 80px; position: relative; overflow: hidden; background: var(--white); }
+  .hero::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, transparent 0%, var(--gold) 30%, var(--gold-light) 50%, var(--gold) 70%, transparent 100%); }
+  .hero-bg-text { position: absolute; font-family: var(--serif); font-size: clamp(120px, 18vw, 220px); font-weight: 700; color: var(--gold-pale); top: 50%; left: 50%; transform: translate(-50%,-50%); white-space: nowrap; pointer-events: none; user-select: none; opacity: 0.45; letter-spacing: -4px; }
+  .hero-content { position: relative; z-index: 2; max-width: 860px; }
+  .hero-eyebrow { margin-bottom: 28px; }
+  .hero-title { font-family: var(--serif); font-size: clamp(44px, 7vw, 80px); font-weight: 600; line-height: 1.1; color: var(--ink); margin-bottom: 10px; letter-spacing: -1px; }
+  .hero-title em { font-style: italic; color: var(--gold); }
+  .hero-subtitle { font-family: var(--serif); font-size: clamp(18px, 2.5vw, 26px); font-weight: 400; font-style: italic; color: var(--ink-muted); margin-bottom: 32px; line-height: 1.4; }
+  .hero-desc { font-size: 15px; font-weight: 300; color: var(--ink-mid); max-width: 600px; margin: 0 auto 44px; line-height: 1.8; }
+  .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; background: var(--gold); color: var(--white); padding: 16px 40px; border: none; cursor: pointer; text-decoration: none; display: inline-block; transition: background 0.2s, transform 0.15s; }
+  .btn-primary:hover { background: var(--ink); transform: translateY(-1px); }
+  .btn-secondary { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; background: transparent; color: var(--gold); padding: 15px 40px; border: 1px solid var(--gold-line); cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
+  .btn-secondary:hover { background: var(--gold-pale); }
+  .hero-divider { width: 60px; height: 1px; background: var(--gold-line); margin: 56px auto 0; }
+
+  /* STATS BAR */
+  .stats-bar { background: var(--ink); padding: 28px 48px; display: flex; justify-content: center; gap: 0; flex-wrap: wrap; }
+  .stat-item { text-align: center; padding: 0 44px; border-right: 0.5px solid rgba(255,255,255,0.12); }
+  .stat-item:last-child { border-right: none; }
+  .stat-num { font-family: var(--serif); font-size: 34px; font-weight: 600; color: var(--gold-light); display: block; line-height: 1; margin-bottom: 4px; }
+  .stat-lbl { font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+
+  /* SECTION SHARED */
+  section { padding: 100px 48px; }
+  .section-inner { max-width: 1100px; margin: 0 auto; }
+  .section-header { text-align: center; margin-bottom: 64px; }
+  .section-title { font-family: var(--serif); font-size: clamp(32px, 4vw, 50px); font-weight: 600; line-height: 1.1; color: var(--ink); margin-top: 14px; }
+  .section-lead { font-size: 15px; font-weight: 300; color: var(--ink-mid); max-width: 560px; margin: 18px auto 0; line-height: 1.8; }
+  .gold-rule { width: 40px; height: 2px; background: var(--gold); margin: 24px auto 0; }
+
+  /* HOW IT WORKS */
+  .how { background: var(--off-white); }
+  .steps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; border: 0.5px solid var(--border); background: var(--border); }
+  .step { background: var(--white); padding: 44px 32px; position: relative; }
+  .step-num { font-family: var(--serif); font-size: 64px; font-weight: 600; color: var(--gold-pale); line-height: 1; margin-bottom: 20px; display: block; }
+  .step-title { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink); margin-bottom: 10px; line-height: 1.2; }
+  .step-desc { font-size: 13px; font-weight: 300; color: var(--ink-muted); line-height: 1.75; }
+  .step-accent { position: absolute; top: 0; left: 0; width: 3px; height: 40px; background: var(--gold); }
+
+  /* CREDIBILITY BANNER */
+  .credibility { background: var(--gold-pale); border-top: 1px solid var(--gold-line); border-bottom: 1px solid var(--gold-line); padding: 52px 48px; }
+  .cred-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--gold-line); border: 1px solid var(--gold-line); }
+  .cred-card { background: var(--gold-pale); padding: 36px 32px; text-align: center; }
+  .cred-icon { font-family: var(--serif); font-size: 32px; font-weight: 600; color: var(--gold); display: block; margin-bottom: 14px; }
+  .cred-title { font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); margin-bottom: 10px; }
+  .cred-desc { font-size: 13px; font-weight: 300; color: var(--ink-mid); line-height: 1.75; }
+
+  /* TRACKS */
+  .tracks { background: var(--white); }
+  .tracks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1px; background: var(--border); border: 0.5px solid var(--border); margin-bottom: 20px; }
+  .track-card { background: var(--white); padding: 28px 24px; position: relative; overflow: hidden; transition: background 0.2s; cursor: default; }
+  .track-card:hover { background: var(--gold-pale); }
+  .track-card::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: var(--gold); transform: scaleX(0); transition: transform 0.25s; }
+  .track-card:hover::after { transform: scaleX(1); }
+  .track-roman { font-family: var(--serif); font-size: 13px; font-weight: 600; color: var(--gold); margin-bottom: 8px; display: block; letter-spacing: 0.5px; }
+  .track-name { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 5px; line-height: 1.3; }
+  .track-desc { font-size: 11.5px; font-weight: 300; color: var(--ink-muted); line-height: 1.6; }
+  .tracks-note { text-align: center; font-size: 12px; font-weight: 300; color: var(--ink-muted); margin-top: 16px; letter-spacing: 0.3px; }
+
+  /* PROCESS DETAIL — HOW SCORING WORKS */
+  .scoring { background: var(--off-white); }
+  .score-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border: 0.5px solid var(--border); }
+  .score-step { background: var(--white); padding: 40px 32px; position: relative; }
+  .score-step-num { font-family: var(--serif); font-size: 44px; font-weight: 700; color: var(--gold-pale); display: block; line-height: 1; margin-bottom: 18px; }
+  .score-step-title { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--ink); margin-bottom: 10px; line-height: 1.2; }
+  .score-step-desc { font-size: 13px; font-weight: 300; color: var(--ink-muted); line-height: 1.75; }
+  .score-step-tag { display: inline-block; margin-top: 14px; font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--gold); border: 0.5px solid var(--gold-line); padding: 4px 12px; }
+  .score-connector { display: flex; align-items: center; justify-content: center; padding: 32px 0; }
+  .score-connector-line { width: 1px; height: 40px; background: var(--gold-line); }
+
+  /* INTERNSHIP TYPES */
+  .types-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 0.5px solid var(--border); }
+  .type-card { background: var(--white); padding: 48px 40px; }
+  .type-badge { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; background: var(--gold); color: var(--white); padding: 5px 14px; display: inline-block; margin-bottom: 22px; }
+  .type-title { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--ink); margin-bottom: 14px; line-height: 1.2; }
+  .type-desc { font-size: 13.5px; font-weight: 300; color: var(--ink-mid); line-height: 1.8; }
+
+  /* ASSESSMENT */
+  .assessment { background: var(--white); }
+  .assessment-inner { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: start; }
+  .assess-title { font-family: var(--serif); font-size: clamp(28px, 3.5vw, 44px); font-weight: 600; line-height: 1.1; color: var(--ink); margin: 14px 0 20px; }
+  .assess-body { font-size: 14px; font-weight: 300; color: var(--ink-mid); line-height: 1.9; margin-bottom: 20px; }
+  .module-row { display: flex; align-items: flex-start; gap: 20px; padding: 20px 0; border-bottom: 0.5px solid var(--border); }
+  .module-row:first-child { border-top: 0.5px solid var(--border); }
+  .module-num { font-family: var(--serif); font-size: 18px; font-weight: 600; color: var(--gold); flex-shrink: 0; min-width: 24px; }
+  .module-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 3px; letter-spacing: 0.3px; }
+  .module-desc { font-size: 12px; font-weight: 300; color: var(--ink-muted); line-height: 1.6; }
+
+  /* MANIFESTO */
+  .manifesto { background: var(--ink); padding: 100px 48px; text-align: center; position: relative; overflow: hidden; }
+  .manifesto::before { content: '"'; position: absolute; font-family: var(--serif); font-size: 300px; font-weight: 700; color: rgba(184,134,11,0.07); line-height: 1; top: -40px; left: 20px; }
+  .manifesto::after  { content: '"'; position: absolute; font-family: var(--serif); font-size: 300px; font-weight: 700; color: rgba(184,134,11,0.07); line-height: 1; bottom: -100px; right: 20px; }
+  .manifesto-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+  .manifesto-quote { font-family: var(--serif); font-size: clamp(22px, 3.5vw, 38px); font-weight: 400; font-style: italic; color: var(--white); line-height: 1.45; margin-bottom: 28px; }
+  .manifesto-attr { font-size: 11px; font-weight: 500; letter-spacing: 2.5px; text-transform: uppercase; color: var(--gold-light); }
+
+  /* FAQ */
+  .eligibility { background: var(--off-white); }
+  .elig-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 0.5px solid var(--border); }
+  .elig-card { background: var(--white); padding: 36px 32px; }
+  .elig-q { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 10px; letter-spacing: 0.2px; }
+  .elig-a { font-size: 13px; font-weight: 300; color: var(--ink-muted); line-height: 1.75; }
+
+  /* CTA */
+  .cta-section { background: var(--white); padding: 100px 48px; text-align: center; border-top: 0.5px solid var(--border); }
+  .cta-title { font-family: var(--serif); font-size: clamp(36px, 5vw, 60px); font-weight: 600; line-height: 1.1; color: var(--ink); margin-bottom: 12px; }
+  .cta-title em { font-style: italic; color: var(--gold); }
+  .cta-sub { font-size: 14px; font-weight: 300; color: var(--ink-muted); margin-bottom: 40px; }
+
+  /* FOOTER */
+  footer { background: var(--ink); padding: 48px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; }
+  .footer-logo { font-family: var(--serif); font-size: 20px; font-weight: 700; color: var(--white); }
+  .footer-logo span { color: var(--gold-light); }
+  .footer-note { font-size: 11px; font-weight: 300; letter-spacing: 0.5px; color: rgba(255,255,255,0.35); }
+  .footer-links { display: flex; gap: 28px; }
+  .footer-links a { font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(255,255,255,0.45); text-decoration: none; transition: color 0.2s; }
+  .footer-links a:hover { color: var(--gold-light); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+  .hero-content > * { animation: fadeUp 0.7s ease both; }
+  .hero-content > *:nth-child(1) { animation-delay: 0.1s; }
+  .hero-content > *:nth-child(2) { animation-delay: 0.25s; }
+  .hero-content > *:nth-child(3) { animation-delay: 0.38s; }
+  .hero-content > *:nth-child(4) { animation-delay: 0.5s; }
+  .hero-content > *:nth-child(5) { animation-delay: 0.62s; }
+
+  @media (max-width: 900px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    section { padding: 60px 20px; }
+    .hero { padding: 100px 20px 60px; }
+    .stats-bar { padding: 20px; }
+    .stat-item { padding: 0 18px; }
+    .types-grid, .assessment-inner, .elig-grid, .score-steps, .cred-inner { grid-template-columns: 1fr; }
+    footer { flex-direction: column; padding: 32px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="#"><span>Lex</span>Assess</a>
+  <div class="nav-links">
+    <a href="#how">Process</a>
+    <a href="#tracks">Practice Areas</a>
+    <a href="#assessment">Assessment</a>
+    <a href="#internships">Internships</a>
+    <a href="#eligibility">FAQs</a>
+  </div>
+  <a href="#apply" class="nav-cta">Apply Now</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg-text" aria-hidden="true">LEX</div>
+  <div class="hero-content">
+    <p class="eyebrow hero-eyebrow">India's Merit-Based Legal Internship Platform</p>
+    <h1 class="hero-title">Where Legal Talent<br>Meets <em>Opportunity</em></h1>
+    <p class="hero-subtitle">Earn your internship. Prove your skill.</p>
+    <p class="hero-desc">LexAssess connects law students and young lawyers with leading firms, senior advocates, and legal teams — not through connections or college names, but through demonstrated legal ability. One assessment. One interview. Real merit.</p>
+    <div class="hero-actions">
+      <a href="#apply" class="btn-primary">Take the Assessment</a>
+      <a href="#how" class="btn-secondary">How It Works</a>
+    </div>
+    <div class="hero-divider"></div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-num">11+</span>
+    <span class="stat-lbl">Practice Areas</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">2 hr</span>
+    <span class="stat-lbl">Assessment Paper</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">100%</span>
+    <span class="stat-lbl">Merit Based</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">Open</span>
+    <span class="stat-lbl">All Law Schools</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">Full</span>
+    <span class="stat-lbl">Transparency</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="section-inner">
+    <div class="section-header">
+      <p class="eyebrow">The Process</p>
+      <h2 class="section-title">Simple. Transparent. Fair.</h2>
+      <p class="section-lead">No referrals. No name-dropping. A clear four-step process that rewards legal ability — nothing else.</p>
+      <div class="gold-rule"></div>
+    </div>
+    <div class="steps-grid">
+      <div class="step">
+        <div class="step-accent"></div>
+        <span class="step-num">01</span>
+        <h3 class="step-title">Choose Your Track</h3>
+        <p class="step-desc">Select a practice area that matches your interest. Each paper is authored and reviewed by NLU professors and practicing professionals in that field.</p>
+      </div>
+      <div class="step">
+        <div class="step-accent"></div>
+        <span class="step-num">02</span>
+        <h3 class="step-title">Take the 2-Hour Assessment</h3>
+        <p class="step-desc">A rigorous 2-hour paper combining objective questions, live research tasks, and practical drafting. AI tools are permitted — we test judgment, not memory.</p>
+      </div>
+      <div class="step">
+        <div class="step-accent"></div>
+        <span class="step-num">03</span>
+        <h3 class="step-title">Expert Interview</h3>
+        <p class="step-desc">Every candidate who completes the assessment is scheduled for an interview with a practicing professional in their chosen practice area.</p>
+      </div>
+      <div class="step">
+        <div class="step-accent"></div>
+        <span class="step-num">04</span>
+        <h3 class="step-title">Cumulative Score & Result</h3>
+        <p class="step-desc">Your written assessment and interview scores are combined into a final cumulative result, shared with you in a detailed, transparent score report.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CREDIBILITY BANNER -->
+<div class="credibility">
+  <div class="cred-inner">
+    <div class="cred-card">
+      <span class="cred-icon">✦</span>
+      <p class="cred-title">Papers by Top NLU Faculty & Professionals</p>
+      <p class="cred-desc">Every assessment paper is authored and reviewed by NLU professors and senior practicing lawyers with a minimum of 10 years in the field. No question is set without domain expertise behind it.</p>
+    </div>
+    <div class="cred-card">
+      <span class="cred-icon">✦</span>
+      <p class="cred-title">Interviews by Field Expert Professionals</p>
+      <p class="cred-desc">Your interview is conducted by an active professional in your chosen practice area — not a generalist. A Capital Markets interview is taken by a Capital Markets lawyer. Always.</p>
+    </div>
+    <div class="cred-card">
+      <span class="cred-icon">✦</span>
+      <p class="cred-title">Complete Transparency at Every Step</p>
+      <p class="cred-desc">You see your assessment score, your interview feedback, and your cumulative result. Every criterion is published in advance. There are no hidden evaluations or undisclosed factors.</p>
+    </div>
+  </div>
+</div>
+
+<!-- PRACTICE TRACKS -->
+<section class="tracks" id="tracks">
+  <div class="section-inner">
+    <div class="section-header">
+      <p class="eyebrow">Practice Areas</p>
+      <h2 class="section-title">Eleven Tracks & Growing.</h2>
+      <p class="section-lead">Choose the practice area that matches your ambition. Each track has its own expert-authored paper and dedicated interview panel.</p>
+      <div class="gold-rule"></div>
+    </div>
+    <div class="tracks-grid">
+      <div class="track-card">
+        <span class="track-roman">I</span>
+        <p class="track-name">Capital Markets</p>
+        <p class="track-desc">SEBI, securities law, listings, debt & equity transactions</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">II</span>
+        <p class="track-name">General Corporate</p>
+        <p class="track-desc">Company law, M&A, governance, shareholder agreements</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">III</span>
+        <p class="track-name">Disputes</p>
+        <p class="track-desc">Litigation, arbitration, civil procedure & appellate practice</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">IV</span>
+        <p class="track-name">Maritime & Aviation</p>
+        <p class="track-desc">Admiralty law, aircraft financing, regulatory compliance</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">V</span>
+        <p class="track-name">Intellectual Property</p>
+        <p class="track-desc">Patents, trademarks, copyright & IP transactions</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">VI</span>
+        <p class="track-name">Taxation</p>
+        <p class="track-desc">Direct tax, GST, transfer pricing & tax disputes</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">VII</span>
+        <p class="track-name">Banking & Finance</p>
+        <p class="track-desc">Lending, security interests, RBI regulation, insolvency</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">VIII</span>
+        <p class="track-name">Competition Law</p>
+        <p class="track-desc">CCI practice, mergers, dominance & cartel regulation</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">IX</span>
+        <p class="track-name">Labour & Employment</p>
+        <p class="track-desc">Labour codes, industrial disputes, service law</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">X</span>
+        <p class="track-name">Data Protection</p>
+        <p class="track-desc">DPDP Act, privacy law, cross-border data flows</p>
+      </div>
+      <div class="track-card">
+        <span class="track-roman">XI</span>
+        <p class="track-name">Technology Law</p>
+        <p class="track-desc">IT Act, AI regulation, fintech, platform liability</p>
+      </div>
+    </div>
+    <p class="tracks-note">More practice areas being added. All tracks follow the same rigorous standard.</p>
+  </div>
+</section>
+
+<!-- SCORING PROCESS DETAIL -->
+<section class="scoring" id="scoring">
+  <div class="section-inner">
+    <div class="section-header">
+      <p class="eyebrow">How Your Score Is Calculated</p>
+      <h2 class="section-title">Assessment + Interview = Your Result</h2>
+      <p class="section-lead">Two independent evaluations. One cumulative score. Fully transparent at every stage.</p>
+      <div class="gold-rule"></div>
+    </div>
+    <div class="score-steps">
+      <div class="score-step">
+        <div class="step-accent"></div>
+        <span class="score-step-num">01</span>
+        <h3 class="score-step-title">Written Assessment</h3>
+        <p class="score-step-desc">A 2-hour paper across objective questions, research tasks, and practical drafting. Evaluated anonymously against published criteria. Your paper is graded by subject-matter experts — not automated scoring.</p>
+        <span class="score-step-tag">2 Hours · All Tracks</span>
+      </div>
+      <div class="score-step">
+        <div class="step-accent"></div>
+        <span class="score-step-num">02</span>
+        <h3 class="score-step-title">Expert Interview</h3>
+        <p class="score-step-desc">Every candidate who completes the written assessment is scheduled for an interview with a practicing professional in their chosen practice area. The interview tests applied reasoning, client-handling, and legal judgment — not textbook recall.</p>
+        <span class="score-step-tag">Conducted by Field Professional</span>
+      </div>
+      <div class="score-step">
+        <div class="step-accent"></div>
+        <span class="score-step-num">03</span>
+        <h3 class="score-step-title">Cumulative Score & Feedback</h3>
+        <p class="score-step-desc">Your written and interview scores are combined into a final cumulative result. You receive a detailed score report with feedback on each component.</p>
+        <span class="score-step-tag">Full Transparency · Detailed Report</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTERNSHIP TYPES -->
+<section style="background: var(--white); padding: 100px 48px;" id="internships">
+  <div class="section-inner">
+    <div class="section-header">
+      <p class="eyebrow">Internship Formats</p>
+      <h2 class="section-title">Two Ways to Intern.<br>One Standard of Merit.</h2>
+      <div class="gold-rule"></div>
+    </div>
+    <div class="types-grid">
+      <div class="type-card">
+        <span class="type-badge">Online Internship</span>
+        <h3 class="type-title">Remote Legal Work</h3>
+      </div>
+      <div class="type-card">
+        <span class="type-badge">Physical Internship</span>
+        <h3 class="type-title">In-Chamber / In-Office</h3>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ASSESSMENT DETAIL -->
+<section class="assessment" id="assessment">
+  <div class="assessment-inner">
+    <div class="assess-text">
+      <p class="eyebrow">The Assessment Paper</p>
+      <h2 class="assess-title">Built for How Law is Actually Practised</h2>
+      <p class="assess-body">Our assessments are not examinations of bare-act memory. They are structured simulations of real legal work — research under time pressure, drafting at short notice, and advising a senior on a nuanced question. AI tools are permitted because they are part of modern legal practice.</p>
+      <p class="assess-body">Every paper is authored and reviewed by NLU faculty and senior practicing lawyers. A live research module requires candidates to find real case URLs and paste actual excerpts — making the paper impossible to complete without genuine engagement with legal databases.</p>
+      <a href="#apply" class="btn-primary" style="display:inline-block; margin-top:8px;">View Sample Paper</a>
+    </div>
+    <div class="assess-modules">
+      <div class="module-row">
+        <span class="module-num">A</span>
+        <div class="module-info">
+          <p class="module-title">Current Law Identification</p>
+          <p class="module-desc">MCQ and short-answer questions testing knowledge of current statutory provisions and recent judicial developments.</p>
+        </div>
+      </div>
+      <div class="module-row">
+        <span class="module-num">B</span>
+        <div class="module-info">
+          <p class="module-title">Research & Memo Writing</p>
+          <p class="module-desc">Structured research notes in professional format — Issue, Law, Current Position, Risk, Recommendation. Graded on real-world usability.</p>
+        </div>
+      </div>
+      <div class="module-row">
+        <span class="module-num">C</span>
+        <div class="module-info">
+          <p class="module-title">Practical Drafting</p>
+          <p class="module-desc">Draft pleadings, opinions, agreements, or regulatory submissions under realistic time constraints and detailed fact patterns.</p>
+        </div>
+      </div>
+      <div class="module-row">
+        <span class="module-num">D</span>
+        <div class="module-info">
+          <p class="module-title">Live Research Verification</p>
+          <p class="module-desc">Find a real case on IndianKanoon or SCC Online, paste the URL and a verbatim excerpt. Every link is verified by assessors — this module cannot be completed by AI alone.</p>
+        </div>
+      </div>
+      <div class="module-row">
+        <span class="module-num">E</span>
+        <div class="module-info">
+          <p class="module-title">Research Literacy MCQ</p>
+          <p class="module-desc">Tests knowledge of legal databases, citation formats, how to decode AIR and SCC citations, and the hierarchy of legal sources.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MANIFESTO -->
+<div class="manifesto">
+  <div class="manifesto-inner">
+    <p class="manifesto-quote">"The best junior lawyer in the room should not be the one with the most connections. They should be the one with the sharpest mind. LexAssess exists to make that true."</p>
+    <p class="manifesto-attr">— The LexAssess Founding Principle</p>
+  </div>
+</div>
+
+<!-- FAQ -->
+<section class="eligibility" id="eligibility">
+  <div class="section-inner">
+    <div class="section-header">
+      <p class="eyebrow">Common Questions</p>
+      <h2 class="section-title">Everything You Need to Know</h2>
+      <div class="gold-rule"></div>
+    </div>
+    <div class="elig-grid">
+      <div class="elig-card">
+        <p class="elig-q">Who can apply?</p>
+        <p class="elig-a">Any law student enrolled in a recognised 3-year LLB or 5-year integrated programme, or a recently qualified lawyer within 2 years of enrolment. There is no restriction on college or university.</p>
+      </div>
+      <div class="elig-card">
+        <p class="elig-q">Who sets and reviews the assessment papers?</p>
+        <p class="elig-a">Papers are authored and reviewed by NLU professors and senior practicing professionals with a minimum of 10 years of active practice in the relevant field. No paper is set by a generalist.</p>
+      </div>
+      <div class="elig-card">
+        <p class="elig-q">Who conducts the interview?</p>
+        <p class="elig-a">Every candidate who completes the assessment is scheduled for an interview with a practicing professional in their specific practice area — not a general HR panel. A Banking & Finance applicant is interviewed by a Banking & Finance lawyer.</p>
+      </div>
+      <div class="elig-card">
+        <p class="elig-q">Are AI tools really permitted in the assessment?</p>
+        <p class="elig-a">Yes. Candidates may use any AI tool, legal database, or online resource. The questions are designed to test legal judgment and applied reasoning — not the ability to recall section numbers.</p>
+      </div>
+      <div class="elig-card">
+        <p class="elig-q">How is the final result determined?</p>
+        <p class="elig-a">Your cumulative score combines the written assessment and expert interview. All criteria are published in advance. There are no undisclosed factors.</p>
+      </div>
+      <div class="elig-card">
+        <p class="elig-q">What do I receive on completing the internship?</p>
+        <p class="elig-a">A verified completion certificate, a supervisor performance evaluation, and your LexAssess score report with detailed feedback — all suitable for your CV and professional portfolio.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="apply">
+  <p class="eyebrow" style="margin-bottom:16px;">Ready to Begin?</p>
+  <h2 class="cta-title">Prove What You Know.<br>Earn What You <em>Deserve.</em></h2>
+  <p class="cta-sub">Join law students across India who chose merit over connections.</p>
+  <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+    <a href="#" class="btn-primary">Register & Apply</a>
+    <a href="#tracks" class="btn-secondary">Browse Practice Areas</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span>Lex</span>Assess</div>
+  <div class="footer-links">
+    <a href="#">About</a>
+    <a href="#">For Firms</a>
+    <a href="#">Sample Papers</a>
+    <a href="#">Contact</a>
+  </div>
+  <p class="footer-note">© 2025 LexAssess. Merit-based legal internship platform.</p>
+</footer>
+
+</body>
+</html>
