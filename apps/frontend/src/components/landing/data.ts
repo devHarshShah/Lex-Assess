@@ -6,16 +6,6 @@ import {
   Scale,
   Eye,
   Lock,
-  LineChart,
-  Building2,
-  Gavel,
-  Ship,
-  Lightbulb,
-  Receipt,
-  Landmark,
-  Users2,
-  Briefcase,
-  Cpu,
   BookOpen,
 } from 'lucide-react'
 import type { Feature, Pillar, Step, Track } from './types'
