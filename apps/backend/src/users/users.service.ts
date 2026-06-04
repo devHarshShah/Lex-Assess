@@ -84,6 +84,7 @@ export class UsersService {
       role: user.role,
       avatarUrl: user.avatarUrl,
       profileCompleted: false,
+      hasActiveSubscription: user.hasActiveSubscription,
     };
   }
 
@@ -95,6 +96,7 @@ export class UsersService {
       role: input.role,
       avatarUrl: input.avatarUrl,
       profileCompleted: input.profile?.isComplete ?? false,
+      hasActiveSubscription: input.hasActiveSubscription,
     };
   }
 

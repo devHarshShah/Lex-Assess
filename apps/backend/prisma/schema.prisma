@@ -61,10 +61,32 @@ model User {
   questionPapers QuestionPaper[]
   testAttempts    TestAttempt[] @relation("UserAttempts")
   markedAttempts  TestAttempt[] @relation("MarkedAttempts")
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  transactions    Transaction[]
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  hasActiveSubscription  Boolean      @default(false)
+  razorpaySubscriptionId String?      @unique
+  razorpayCustomerId     String?
 
   @@index([role])
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Int      // In paise
+  currency        String   @default("INR")
+  status          String   // "captured", "failed", etc.
+  razorpayPaymentId String? @unique
+  razorpayOrderId   String?
+  razorpaySubscriptionId String?
+  description     String?
+  receiptUrl      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model UserProfile {

@@ -7,6 +7,7 @@ export interface PublicUser {
   role: Role;
   avatarUrl: string | null;
   profileCompleted: boolean;
+  hasActiveSubscription: boolean;
 }
 
 export interface UserManagementRecord extends PublicUser {

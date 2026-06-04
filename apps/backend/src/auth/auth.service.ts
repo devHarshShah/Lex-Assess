@@ -55,7 +55,7 @@ export class AuthService {
       role,
     });
 
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, false);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, false, false);
   }
 
   async assignAdmin(email: string) {
@@ -257,7 +257,7 @@ export class AuthService {
     if (!isValidPassword) throw new UnauthorizedException('Invalid email or password');
 
     const profileCompleted = await this.usersService.isProfileCompleted(user.id);
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
   }
 
   async loginWithGoogleCode(code: string): Promise<AuthResponseDto> {
@@ -365,7 +365,7 @@ export class AuthService {
     });
 
     const profileCompleted = await this.usersService.isProfileCompleted(user.id);
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
   }
 
   private issueToken(
@@ -375,6 +375,7 @@ export class AuthService {
     name: string,
     avatarUrl: string | null,
     profileCompleted: boolean,
+    hasActiveSubscription: boolean,
   ): AuthResponseDto {
     const accessToken = this.jwtService.sign({
       sub: id,
@@ -391,6 +392,7 @@ export class AuthService {
         name,
         avatarUrl,
         profileCompleted,
+        hasActiveSubscription,
       },
     };
   }

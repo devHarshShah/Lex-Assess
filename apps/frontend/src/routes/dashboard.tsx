@@ -18,7 +18,9 @@ export const dashboardRoute = createRoute({
       const user = await fetchCurrentUser()
       const { pathname } = window.location
       
-      if (user.role === 'USER' && !user.profileCompleted && pathname !== '/dashboard/setup') {
+      const isSetupOrSuccess = pathname === '/dashboard/setup' || pathname === '/dashboard/payment-success'
+      
+      if (user.role === 'USER' && !user.profileCompleted && !isSetupOrSuccess) {
         throw redirect({ to: '/dashboard/setup' })
       }
       
@@ -30,9 +32,10 @@ export const dashboardRoute = createRoute({
       }
       const cachedUser = getStoredUser()
       const { pathname } = window.location
+      const isSetupOrSuccess = pathname === '/dashboard/setup' || pathname === '/dashboard/payment-success'
       
       if (cachedUser) {
-        if (cachedUser.role === 'USER' && !cachedUser.profileCompleted && pathname !== '/dashboard/setup') {
+        if (cachedUser.role === 'USER' && !cachedUser.profileCompleted && !isSetupOrSuccess) {
           throw redirect({ to: '/dashboard/setup' })
         }
         return { user: cachedUser }

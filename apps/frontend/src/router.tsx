@@ -16,6 +16,7 @@ import { dashboardTestAttemptRoute } from './routes/dashboard-test-attempt'
 import { dashboardSubmissionsRoute } from './routes/dashboard-submissions'
 import { dashboardSpecializationSubmissionsRoute } from './routes/dashboard-specialization-submissions'
 import { dashboardSubmissionScoringRoute } from './routes/dashboard-submission-scoring'
+import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success'
 import { loginRoute } from './routes/login'
 import { signupRoute } from './routes/signup'
 import { googleCallbackRoute } from './routes/google-callback'
@@ -41,6 +42,7 @@ const routeTree = rootRoute.addChildren([
     dashboardSubmissionsRoute,
     dashboardSpecializationSubmissionsRoute,
     dashboardSubmissionScoringRoute,
+    dashboardPaymentSuccessRoute,
   ]),
 ])
 

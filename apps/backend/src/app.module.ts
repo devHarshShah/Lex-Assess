@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { QuestionPapersModule } from './question-papers/question-papers.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { QuestionPapersModule } from './question-papers/question-papers.module';
     }),
     AuthModule,
     QuestionPapersModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

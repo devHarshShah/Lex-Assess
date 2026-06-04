@@ -322,7 +322,7 @@ export function TestAttemptPage() {
       setQuestionTimeLeft(null)
       return
     }
-    const spent = timeSpentRef.current[currentQuestion.id] || 0
+    const spent = currentQuestion?.id ? (timeSpentRef.current[currentQuestion.id] || 0) : 0
     setQuestionTimeLeft(Math.max(0, secLimit - spent))
   }, [currentIndex, currentRules?.timeLimitSeconds, currentQuestion?.timeLimitSeconds, phase, isSubmitted])
 

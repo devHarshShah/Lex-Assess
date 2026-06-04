@@ -19,6 +19,7 @@ export interface AuthUser {
   roles?: Role[]
   avatarUrl: string | null
   profileCompleted: boolean
+  hasActiveSubscription: boolean
 }
 
 export interface AuthResponse {
