@@ -58,6 +58,28 @@ function validateFileSize(file: File, maxBytes: number, label: string): boolean 
   return true
 }
 
+function getStepOneMissingMessage(input: {
+  fullName: string
+  college: string
+  manualCollege: string
+  degree: string
+  currentYear: string
+  specialization: string
+  gender: 'MALE' | 'FEMALE' | 'OTHER'
+  countryCode: string
+  mobileNumber: string
+}) {
+  if (!input.fullName.trim()) return 'Please enter your full name'
+  if (!input.college.trim()) return 'Please select your college'
+  if (input.college === 'Other' && !input.manualCollege.trim()) return 'Please enter your institute name'
+  if (!input.degree.trim()) return 'Please select your degree'
+  if (!input.currentYear.trim()) return 'Please select your current year'
+  if (!input.specialization.trim()) return 'Please select your practice area'
+  if (!input.gender.trim()) return 'Please select your gender'
+  if (!input.countryCode.trim() || !input.mobileNumber.trim()) return 'Please enter your phone number'
+  return null
+}
+
 export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mode?: 'setup' | 'manage' }) {
   const navigate = useNavigate()
   const profilePhotoInputRef = React.useRef<HTMLInputElement | null>(null)
@@ -184,10 +206,23 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   .join('')
 
   const getCollegeToSave = () => (college === 'Other' ? manualCollege : college)
+  const step1MissingMessage = getStepOneMissingMessage({
+    fullName,
+    college,
+    manualCollege,
+    degree,
+    currentYear,
+    specialization,
+    gender,
+    countryCode,
+    mobileNumber,
+  })
+  const isStep1Complete = step1MissingMessage === null
+  const isStep2Complete = Boolean(verificationDocUrl)
 
   const handleSaveStep1 = async (proceed: boolean) => {
-    if (college === 'Other' && !manualCollege.trim()) {
-      toast.error('Please enter your institute name')
+    if (step1MissingMessage) {
+      toast.error(step1MissingMessage)
       return false
     }
     setSubmitting(true)
@@ -224,8 +259,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   }
 
   const handleSaveAll = async () => {
-    if (college === 'Other' && !manualCollege.trim()) {
-      toast.error('Please enter your institute name')
+    if (step1MissingMessage) {
+      toast.error(step1MissingMessage)
       return
     }
     setSubmitting(true)
@@ -283,7 +318,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   return (
   <div className={isSetup ? "w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center py-6 px-4" : "w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center py-2"}>
     <div className="w-full space-y-6">
-      {isSetup ? <ProfileStepper currentStep={currentStep} /> : null}
+      {isSetup ? <ProfileStepper currentStep={currentStep} step1Completed={isStep1Complete} step2Completed={isStep2Complete} /> : null}
 
       <div className={isSetup ? "grid gap-6 md:grid-cols-[1.2fr_0.8fr]" : "block"}>
 
@@ -320,7 +355,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     </Avatar>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Profile photo</p>
+                    <p className="text-xs font-medium text-muted-foreground">Profile photo <span className="font-normal">(Optional)</span></p>
                     <Button
                       type="button"
                       variant="outline"
@@ -443,7 +478,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                       )}
                   </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Phone <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                      <label className="text-sm font-medium">Phone</label>
                       <div className="flex gap-2">
                         <select
                           className="h-10 w-[90px] rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -517,7 +552,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     <div className="pt-4 flex justify-end">
                       <Button
                         className="px-8"
-                        disabled={submitting}
+                        disabled={submitting || !isStep1Complete}
                         onClick={() => handleSaveStep1(true)}
                       >
                         Continue to Verification

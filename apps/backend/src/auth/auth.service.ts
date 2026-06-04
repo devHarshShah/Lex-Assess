@@ -141,8 +141,7 @@ export class AuthService {
           profile.specialization &&
           profile.gender &&
           profile.countryCode &&
-          profile.mobileNumber &&
-          profile.profilePhotoUrl,
+          profile.mobileNumber,
       ),
       step2Completed: Boolean(profile?.verificationType && profile?.verificationDocUrl),
       profileCompleted: profile?.isComplete ?? false,
@@ -170,8 +169,7 @@ export class AuthService {
       !profile.specialization ||
       !profile.gender ||
       !profile.countryCode ||
-      !profile.mobileNumber ||
-      !profile.profilePhotoUrl
+      !profile.mobileNumber
     ) {
       throw new BadRequestException('Complete profile step 1 first');
     }

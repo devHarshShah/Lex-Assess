@@ -1,8 +1,14 @@
 interface ProfileStepperProps {
   currentStep: 1 | 2
+  step1Completed?: boolean
+  step2Completed?: boolean
 }
 
-export function ProfileStepper({ currentStep }: ProfileStepperProps) {
+export function ProfileStepper({
+  currentStep,
+  step1Completed = currentStep > 1,
+  step2Completed = false,
+}: ProfileStepperProps) {
   const steps = [
     {
       id: 1,
@@ -16,12 +22,16 @@ export function ProfileStepper({ currentStep }: ProfileStepperProps) {
     },
   ] as const
 
+  const completedSteps = new Set<number>()
+  if (step1Completed) completedSteps.add(1)
+  if (step2Completed) completedSteps.add(2)
+
   return (
     <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
       <div className="flex items-center gap-3">
         {steps.map((step, index) => {
           const isActive = currentStep === step.id
-          const isCompleted = currentStep > step.id
+          const isCompleted = completedSteps.has(step.id)
 
           return (
             <div key={step.id} className="flex flex-1 items-center gap-3">
