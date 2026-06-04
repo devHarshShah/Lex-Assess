@@ -1,3 +1,9 @@
 {
-  "extends": "@repo/typescript-config/nestjs"
+  "extends": "@repo/typescript-config/nestjs",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "@prisma/client": ["./src/generated/client/client.ts"]
+    }
+  }
 }
