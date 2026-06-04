@@ -41,7 +41,7 @@ export function AdminSpecializationSubmissionsPage() {
             {submissions?.[0]?.version?.paper?.specializationId ? 'Submissions' : 'Submissions'}
           </h1>
           <p className="text-muted-foreground">
-            List of student attempts for this specialization.
+            List of student attempts for this practice area.
           </p>
         </div>
       </div>
@@ -91,7 +91,7 @@ export function AdminSpecializationSubmissionsPage() {
             {submissions?.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                  No submissions found for this specialization.
+                  No submissions found for this practice area.
                 </TableCell>
               </TableRow>
             )}

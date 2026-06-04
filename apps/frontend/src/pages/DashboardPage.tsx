@@ -56,7 +56,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Welcome back, {user.name}!</h2>
-        <p className="text-muted-foreground">Here are the tests available for your specialization.</p>
+        <p className="text-muted-foreground">Here are the tests available for your practice area.</p>
       </div>
 
       {loading ? (
@@ -144,7 +144,7 @@ export function DashboardPage() {
             <BookOpen className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-semibold">No tests found</h3>
             <p className="text-muted-foreground max-w-xs">
-              There are no published tests for your specialization yet. Please check back later.
+              There are no published tests for your practice area yet. Please check back later.
             </p>
           </CardContent>
         </Card>

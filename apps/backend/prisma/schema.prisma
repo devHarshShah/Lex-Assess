@@ -133,6 +133,7 @@ model QuestionPaperVersion {
   versionName      String
   status           PaperStatus    @default(DRAFT)
   timeLimitMinutes Int            @default(60)
+  instructions     String?        // Rich text instructions shown before the test starts
   sections         PaperSection[]
   questions        Question[]
   testAttempts     TestAttempt[]
@@ -149,6 +150,7 @@ model PaperSection {
   title       String
   description String?
   order       Int                  @default(0)
+  rules       Json?                // Section-level rules: { allowTabSwitching, allowExternalResources, maxViolations, wordLimit, timeLimitSeconds, questionsToAttempt }
   questions   Question[]
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
@@ -167,6 +169,9 @@ model Question {
   answer            String?
   order             Int                  @default(0)
   timeLimitSeconds  Int?
+  parentId          String?
+  parent            Question?            @relation("SubQuestions", fields: [parentId], references: [id], onDelete: Cascade)
+  subQuestions      Question[]           @relation("SubQuestions")
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
 }

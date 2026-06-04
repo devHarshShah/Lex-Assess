@@ -7,9 +7,11 @@ interface AntiCheatMonitorProps {
   micLevel: number
   isScreenShared: boolean
   violations: number
+  allowedResources?: string[]
+  blockedResources?: string[]
 }
 
-export function AntiCheatMonitor({ userStream, micLevel, isScreenShared, violations }: AntiCheatMonitorProps) {
+export function AntiCheatMonitor({ userStream, micLevel, isScreenShared, violations, allowedResources, blockedResources }: AntiCheatMonitorProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null)
 
   console.log('AntiCheatMonitor Debug:', { 
@@ -90,6 +92,32 @@ export function AntiCheatMonitor({ userStream, micLevel, isScreenShared, violati
               LIVE
             </span>
           </div>
+          
+          {((allowedResources?.length ?? 0) > 0 || (blockedResources?.length ?? 0) > 0) && (
+            <div className="mt-2 pt-2 border-t border-gray-100 flex flex-col gap-1.5">
+              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-tighter">Active Policy</span>
+              {allowedResources && allowedResources.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {allowedResources.slice(0, 3).map((r, i) => (
+                    <span key={i} className="text-[8px] px-1.5 py-0.5 bg-green-50 text-green-700 rounded border border-green-100 truncate max-w-[60px] font-medium">
+                      ✓ {r}
+                    </span>
+                  ))}
+                  {allowedResources.length > 3 && <span className="text-[8px] text-gray-400">+{allowedResources.length - 3}</span>}
+                </div>
+              )}
+              {blockedResources && blockedResources.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {blockedResources.slice(0, 3).map((r, i) => (
+                    <span key={i} className="text-[8px] px-1.5 py-0.5 bg-red-50 text-red-700 rounded border border-red-100 truncate max-w-[60px] font-medium">
+                      ✗ {r}
+                    </span>
+                  ))}
+                  {blockedResources.length > 3 && <span className="text-[8px] text-gray-400">+{blockedResources.length - 3}</span>}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Card>
     </div>

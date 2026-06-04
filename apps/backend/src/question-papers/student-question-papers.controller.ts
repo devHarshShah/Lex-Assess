@@ -41,8 +41,17 @@ export class StudentQuestionPapersController {
     return this.service.getAttemptStatus(versionId, req.user.sub);
   }
 
+  @Post(':versionId/save-answers')
+  saveAnswers(
+    @Param('versionId') versionId: string,
+    @Body() data: SubmitAttemptDto,
+    @Req() req: { user: { sub: string } },
+  ) {
+    return this.service.saveAnswers(versionId, req.user.sub, data);
+  }
+
   @Get(':versionId/details')
   getVersionDetails(@Param('versionId') versionId: string) {
-    return this.service.getVersionDetails(versionId);
+    return this.service.getStudentVersionDetails(versionId);
   }
 }

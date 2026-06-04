@@ -49,6 +49,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   private async seedProfileDefaults(): Promise<void> {
     const specializationDefaults = [
+      'General',
       'Capital Markets',
       'General Corporate',
       'Disputes',

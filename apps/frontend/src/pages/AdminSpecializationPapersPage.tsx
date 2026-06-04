@@ -287,7 +287,7 @@ export function AdminSpecializationPapersPage() {
           <div>
             <CardTitle>Question Papers</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Manage papers and their versions for this specialization.
+              Manage papers and their versions for this practice area.
             </p>
           </div>
           <Input

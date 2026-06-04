@@ -70,7 +70,7 @@ export function SuperadminAllPapersPage() {
       },
       {
         id: 'specialization',
-        header: 'Specialization',
+        header: 'Practice Area',
         cell: ({ row }) => (
           <Badge variant="outline">{row.original.specialization.name}</Badge>
         ),
@@ -162,13 +162,13 @@ export function SuperadminAllPapersPage() {
           <div>
             <CardTitle>All Question Papers</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Overview of every paper created across all specializations and admins.
+              Overview of every paper created across all practice areas and admins.
             </p>
           </div>
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search title, specialization, author..."
+            placeholder="Search title, practice area, author..."
             className="w-full md:max-w-sm"
           />
         </CardHeader>

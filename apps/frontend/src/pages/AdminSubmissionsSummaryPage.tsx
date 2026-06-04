@@ -23,7 +23,7 @@ export function AdminSubmissionsSummaryPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Submissions</h1>
         <p className="text-muted-foreground">
-          View and score student submissions grouped by specialization.
+          View and score student submissions grouped by practice area.
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export function AdminSubmissionsSummaryPage() {
 
         {summaries?.length === 0 && (
           <div className="col-span-full flex h-[200px] items-center justify-center rounded-lg border border-dashed">
-            <p className="text-muted-foreground">No specializations found.</p>
+            <p className="text-muted-foreground">No practice areas found.</p>
           </div>
         )}
       </div>

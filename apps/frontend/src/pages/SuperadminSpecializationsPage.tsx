@@ -21,7 +21,7 @@ export function SuperadminSpecializationsPage() {
     try {
       setItems(await fetchSuperadminSpecializations())
     } catch {
-      toast.error('Could not load specializations')
+      toast.error('Could not load practice areas')
     }
   }
 
@@ -32,11 +32,11 @@ export function SuperadminSpecializationsPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Specializations</CardTitle>
+        <CardTitle>Practice Areas</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
-          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Add specialization" />
+          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Add practice area" />
           <Button
             onClick={async () => {
               if (!newName.trim()) return

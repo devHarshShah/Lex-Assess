@@ -82,6 +82,16 @@ export class QuestionDto {
   @IsOptional()
   @IsInt()
   timeLimitSeconds?: number;
+
+  @IsOptional()
+  @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionDto)
+  subQuestions?: QuestionDto[];
 }
 
 export class SectionDto {
@@ -101,6 +111,16 @@ export class SectionDto {
   order!: number;
 
   @IsOptional()
+  rules?: {
+    allowTabSwitching?: boolean;
+    allowExternalResources?: boolean;
+    maxViolations?: number;
+    wordLimit?: number;
+    timeLimitSeconds?: number;
+    questionsToAttempt?: number;
+  };
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => QuestionDto)
@@ -115,6 +135,10 @@ export class UpdateVersionDto {
   @IsOptional()
   @IsInt()
   timeLimitMinutes?: number;
+
+  @IsOptional()
+  @IsString()
+  instructions?: string;
 
   @IsOptional()
   @IsArray()
@@ -227,13 +251,24 @@ export class QuestionPapersService {
           orderBy: { order: 'asc' },
           include: {
             questions: {
-              orderBy: { order: 'asc' }
+              where: { parentId: null },
+              orderBy: { order: 'asc' },
+              include: {
+                subQuestions: {
+                  orderBy: { order: 'asc' }
+                }
+              }
             }
           }
         },
         questions: {
-          where: { sectionId: null },
-          orderBy: { order: 'asc' }
+          where: { sectionId: null, parentId: null },
+          orderBy: { order: 'asc' },
+          include: {
+            subQuestions: {
+              orderBy: { order: 'asc' }
+            }
+          }
         },
         paper: {
           include: { specialization: true }
@@ -244,9 +279,35 @@ export class QuestionPapersService {
     return version;
   }
 
+  async getStudentVersionDetails(versionId: string) {
+    const version = await this.getVersionDetails(versionId);
+    
+    // Recursively strip answers
+    const stripAnswers = (question: any) => {
+      delete question.answer;
+      if (question.subQuestions && question.subQuestions.length > 0) {
+        question.subQuestions.forEach(stripAnswers);
+      }
+    };
+
+    if (version.sections) {
+      version.sections.forEach(section => {
+        if (section.questions) {
+          section.questions.forEach(stripAnswers);
+        }
+      });
+    }
+
+    if (version.questions) {
+      version.questions.forEach(stripAnswers);
+    }
+
+    return version;
+  }
+
   async updateVersion(versionId: string, data: UpdateVersionDto) {
     return this.prisma.$transaction(async (tx) => {
-      if (data.status !== undefined || data.timeLimitMinutes !== undefined) {
+      if (data.status !== undefined || data.timeLimitMinutes !== undefined || data.instructions !== undefined) {
         // If publishing, first demote all other versions of the same paper to DRAFT
         if (data.status === PaperStatus.PUBLISHED) {
           const current = await tx.questionPaperVersion.findUnique({
@@ -269,24 +330,58 @@ export class QuestionPapersService {
           data: {
             ...(data.status !== undefined ? { status: data.status } : {}),
             ...(data.timeLimitMinutes !== undefined ? { timeLimitMinutes: data.timeLimitMinutes } : {}),
+            ...(data.instructions !== undefined ? { instructions: data.instructions } : {}),
           },
         });
       }
 
-      if (data.sections) {
-        // Sync Sections
+      if (data.sections !== undefined) {
+        // Sync Sections if present
         const existingSections = await tx.paperSection.findMany({ where: { versionId } });
         const incomingSectionIds = data.sections.map(s => s.id).filter(Boolean) as string[];
         const sectionsToDelete = existingSections.filter(e => !incomingSectionIds.includes(e.id));
-
         if (sectionsToDelete.length > 0) {
           await tx.paperSection.deleteMany({
             where: { id: { in: sectionsToDelete.map(s => s.id) } }
           });
         }
+      }
 
-        const allIncomingQuestions: (QuestionDto & { sectionId?: string })[] = [];
+      // First pass: collect ALL incoming question IDs (including subquestions) to delete removed ones
+      const incomingQuestionIds: string[] = [];
+      if (data.sections) {
+        data.sections.forEach(s => {
+          s.questions?.forEach(q => {
+            if (q.id) incomingQuestionIds.push(q.id);
+            if (q.subQuestions) {
+              q.subQuestions.forEach((sq: any) => {
+                if (sq.id) incomingQuestionIds.push(sq.id);
+              });
+            }
+          });
+        });
+      } else if (data.questions) {
+        data.questions.forEach(q => {
+          if (q.id) incomingQuestionIds.push(q.id);
+          if (q.subQuestions) {
+            q.subQuestions.forEach((sq: any) => {
+              if (sq.id) incomingQuestionIds.push(sq.id);
+            });
+          }
+        });
+      }
 
+      if (data.sections !== undefined || data.questions !== undefined) {
+        const existingQuestions = await tx.question.findMany({ where: { versionId } });
+        const questionsToDelete = existingQuestions.filter(e => !incomingQuestionIds.includes(e.id));
+        if (questionsToDelete.length > 0) {
+          await tx.question.deleteMany({
+            where: { id: { in: questionsToDelete.map(q => q.id) } }
+          });
+        }
+      }
+
+      if (data.sections) {
         for (const s of data.sections) {
           let sectionId = s.id;
           if (sectionId) {
@@ -296,6 +391,7 @@ export class QuestionPapersService {
                 title: s.title,
                 description: s.description,
                 order: s.order,
+                rules: (s.rules as any) ?? null,
               }
             });
           } else {
@@ -305,73 +401,87 @@ export class QuestionPapersService {
                 title: s.title,
                 description: s.description,
                 order: s.order,
+                rules: (s.rules as any) ?? null,
               }
             });
             sectionId = newSection.id;
           }
 
           if (s.questions) {
-            s.questions.forEach(q => {
-              allIncomingQuestions.push({ ...q, sectionId });
-            });
-          }
-        }
-
-        // Sync Questions
-        const existingQuestions = await tx.question.findMany({ where: { versionId } });
-        const incomingQuestionIds = allIncomingQuestions.map(q => q.id).filter(Boolean) as string[];
-        const questionsToDelete = existingQuestions.filter(e => !incomingQuestionIds.includes(e.id));
-
-        if (questionsToDelete.length > 0) {
-          await tx.question.deleteMany({
-            where: { id: { in: questionsToDelete.map(q => q.id) } }
-          });
-        }
-
-        for (const q of allIncomingQuestions) {
-          if (q.id) {
-            await tx.question.update({
-              where: { id: q.id },
-              data: {
-                sectionId: q.sectionId || null,
-                type: q.type,
-                text: q.text,
-                marks: q.marks,
-                options: q.options ? q.options : null,
-                answer: q.answer,
-                order: q.order,
-                timeLimitSeconds: q.timeLimitSeconds ?? null,
+            for (const q of s.questions) {
+              let parentId = q.id;
+              if (q.id) {
+                await tx.question.update({
+                  where: { id: q.id },
+                  data: {
+                    sectionId,
+                    type: q.type,
+                    text: q.text,
+                    marks: q.marks,
+                    options: q.options ? q.options : null,
+                    answer: q.answer,
+                    order: q.order,
+                    timeLimitSeconds: q.timeLimitSeconds ?? null,
+                  }
+                });
+              } else {
+                const newQ = await tx.question.create({
+                  data: {
+                    versionId,
+                    sectionId,
+                    type: q.type,
+                    text: q.text,
+                    marks: q.marks,
+                    options: q.options ? q.options : null,
+                    answer: q.answer,
+                    order: q.order,
+                    timeLimitSeconds: q.timeLimitSeconds ?? null,
+                  }
+                });
+                parentId = newQ.id;
               }
-            });
-          } else {
-            await tx.question.create({
-              data: {
-                versionId,
-                sectionId: q.sectionId || null,
-                type: q.type,
-                text: q.text,
-                marks: q.marks,
-                options: q.options ? q.options : null,
-                answer: q.answer,
-                order: q.order,
-                timeLimitSeconds: q.timeLimitSeconds ?? null,
+
+              if (q.subQuestions) {
+                for (const sq of q.subQuestions as any[]) {
+                  if (sq.id) {
+                    await tx.question.update({
+                      where: { id: sq.id },
+                      data: {
+                        sectionId,
+                        parentId,
+                        type: sq.type,
+                        text: sq.text,
+                        marks: sq.marks,
+                        options: sq.options ? sq.options : null,
+                        answer: sq.answer,
+                        order: sq.order,
+                        timeLimitSeconds: sq.timeLimitSeconds ?? null,
+                      }
+                    });
+                  } else {
+                    await tx.question.create({
+                      data: {
+                        versionId,
+                        sectionId,
+                        parentId,
+                        type: sq.type,
+                        text: sq.text,
+                        marks: sq.marks,
+                        options: sq.options ? sq.options : null,
+                        answer: sq.answer,
+                        order: sq.order,
+                        timeLimitSeconds: sq.timeLimitSeconds ?? null,
+                      }
+                    });
+                  }
+                }
               }
-            });
+            }
           }
         }
       } else if (data.questions) {
-        // Fallback for flat questions list
-        const existing = await tx.question.findMany({ where: { versionId } });
-        const incomingIds = data.questions.map(q => q.id).filter(Boolean) as string[];
-        const toDelete = existing.filter(e => !incomingIds.includes(e.id));
-
-        if (toDelete.length > 0) {
-          await tx.question.deleteMany({
-            where: { id: { in: toDelete.map(d => d.id) } }
-          });
-        }
-
         for (const q of data.questions) {
+          let parentId = q.id;
           if (q.id) {
             await tx.question.update({
               where: { id: q.id },
@@ -386,7 +496,7 @@ export class QuestionPapersService {
               }
             });
           } else {
-            await tx.question.create({
+            const newQ = await tx.question.create({
               data: {
                 versionId,
                 type: q.type,
@@ -398,12 +508,49 @@ export class QuestionPapersService {
                 timeLimitSeconds: q.timeLimitSeconds ?? null,
               }
             });
+            parentId = newQ.id;
+          }
+
+          if (q.subQuestions) {
+            for (const sq of q.subQuestions as any[]) {
+              if (sq.id) {
+                await tx.question.update({
+                  where: { id: sq.id },
+                  data: {
+                    parentId,
+                    type: sq.type,
+                    text: sq.text,
+                    marks: sq.marks,
+                    options: sq.options ? sq.options : null,
+                    answer: sq.answer,
+                    order: sq.order,
+                    timeLimitSeconds: sq.timeLimitSeconds ?? null,
+                  }
+                });
+              } else {
+                await tx.question.create({
+                  data: {
+                    versionId,
+                    parentId,
+                    type: sq.type,
+                    text: sq.text,
+                    marks: sq.marks,
+                    options: sq.options ? sq.options : null,
+                    answer: sq.answer,
+                    order: sq.order,
+                    timeLimitSeconds: sq.timeLimitSeconds ?? null,
+                  }
+                });
+              }
+            }
           }
         }
       }
+
       return this.getVersionDetails(versionId);
     });
   }
+
 
   async getPublishedPapersBySpecializationName(specializationName: string) {
     const specialization = await this.prisma.specialization.findUnique({
@@ -544,13 +691,33 @@ export class QuestionPapersService {
     return updatedAttempt;
   }
 
+  async saveAnswers(versionId: string, userId: string, data: SubmitAttemptDto) {
+    const attempt = await this.prisma.testAttempt.findFirst({
+      where: { userId, versionId, status: AttemptStatus.STARTED },
+    });
+
+    if (!attempt) {
+      throw new BadRequestException('No active attempt found for this test');
+    }
+
+    return this.prisma.testAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        answers: data.answers as any,
+      },
+    });
+  }
+
   async calculateAutoScore(attemptId: string) {
     const attempt = await this.prisma.testAttempt.findUnique({
       where: { id: attemptId },
       include: {
         version: {
           include: {
-            questions: true,
+            questions: {
+              where: { parentId: null },
+              include: { subQuestions: true },
+            },
           },
         },
       },
@@ -562,7 +729,7 @@ export class QuestionPapersService {
     const questionScores: Record<string, number> = {};
     let totalScore = 0;
 
-    for (const question of attempt.version.questions) {
+    const scoreQuestion = (question: any) => {
       if (question.type === QuestionType.MCQ) {
         if (studentAnswers[question.id] === question.answer) {
           questionScores[question.id] = question.marks;
@@ -574,6 +741,16 @@ export class QuestionPapersService {
         // Subjective questions start with 0 score
         questionScores[question.id] = 0;
       }
+      
+      if (question.subQuestions && question.subQuestions.length > 0) {
+        for (const sub of question.subQuestions) {
+          scoreQuestion(sub);
+        }
+      }
+    };
+
+    for (const question of attempt.version.questions) {
+      scoreQuestion(question);
     }
 
     await this.prisma.testAttempt.update({
@@ -657,8 +834,14 @@ export class QuestionPapersService {
         version: {
           include: {
             questions: {
+              where: { parentId: null },
               orderBy: {
                 order: 'asc'
+              },
+              include: {
+                subQuestions: {
+                  orderBy: { order: 'asc' }
+                }
               }
             },
             paper: true

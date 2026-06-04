@@ -68,10 +68,10 @@ export function Footer() {
               Contact
             </h4>
             <a
-              href="mailto:lexassess.official@gmail.com"
+              href="mailto:support@lexassess.in"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              lexassess.official@gmail.com
+              support@lexassess.in
             </a>
             <span className="text-sm text-muted-foreground">
               New Delhi, India

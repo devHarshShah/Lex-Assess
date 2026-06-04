@@ -62,7 +62,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: '/dashboard/specializations',
         icon: ShieldCheck,
         items: [
-          { title: 'Specializations', url: '/dashboard/specializations' },
+          { title: 'Practice Areas', url: '/dashboard/specializations' },
           { title: 'Colleges', url: '/dashboard/colleges' },
           { title: 'Degrees', url: '/dashboard/degrees' },
         ],

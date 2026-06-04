@@ -23,12 +23,24 @@ export interface QuestionPaperWithMeta extends Omit<QuestionPaper, 'versions'> {
   versions: (Pick<QuestionPaperVersion, 'id' | 'versionName' | 'status' | 'createdAt'> & { _count: { questions: number } })[]
 }
 
+export interface SectionRules {
+  allowTabSwitching?: boolean
+  allowExternalResources?: boolean
+  maxViolations?: number
+  wordLimit?: number
+  timeLimitSeconds?: number
+  questionsToAttempt?: number
+  allowedResources?: string[]
+  blockedResources?: string[]
+}
+
 export interface PaperSection {
   id: string
   versionId: string
   title: string
   description?: string
   order: number
+  rules?: SectionRules
   questions?: Question[]
   createdAt: string
   updatedAt: string
@@ -40,6 +52,7 @@ export interface QuestionPaperVersion {
   versionName: string
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   timeLimitMinutes: number
+  instructions?: string
   sections?: PaperSection[]
   questions?: Question[]
   _count?: { questions: number }
@@ -51,6 +64,8 @@ export interface Question {
   id: string
   versionId: string
   sectionId?: string
+  parentId?: string | null
+  subQuestions?: Question[]
   type: 'MCQ' | 'SUBJECTIVE' | 'SUBJECTIVE_WITH_ANSWER'
   text: string
   marks: number
@@ -116,7 +131,7 @@ export async function fetchStudentVersionDetails(versionId: string): Promise<Que
   return api.get<QuestionPaperVersion & { paper: QuestionPaper & { specialization: any } }>(`/student/papers/${versionId}/details`)
 }
 
-export async function updateVersion(versionId: string, data: { status?: string, timeLimitMinutes?: number, sections?: any[], questions?: any[] }): Promise<QuestionPaperVersion> {
+export async function updateVersion(versionId: string, data: { status?: string, timeLimitMinutes?: number, instructions?: string, sections?: any[], questions?: any[] }): Promise<QuestionPaperVersion> {
   return api.put<QuestionPaperVersion>(`/admin/specializations/versions/${versionId}`, data)
 }
 
@@ -147,6 +162,11 @@ export async function deleteVersion(versionId: string): Promise<void> {
 export async function startTestAttempt(versionId: string): Promise<TestAttempt> {
   return api.post<TestAttempt>(`/student/papers/${versionId}/start`)
 }
+
+export async function saveTestAnswers(versionId: string, answers: Record<string, any>): Promise<TestAttempt> {
+  return api.post<TestAttempt>(`/student/papers/${versionId}/save-answers`, { answers }, { skipToast: true })
+}
+
 
 export async function submitTestAttempt(versionId: string, answers: Record<string, any>): Promise<TestAttempt> {
   return api.post<TestAttempt>(`/student/papers/${versionId}/submit`, { answers })

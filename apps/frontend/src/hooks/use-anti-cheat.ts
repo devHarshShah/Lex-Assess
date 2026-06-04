@@ -1,5 +1,12 @@
 import React from 'react'
 import { toast } from 'sonner'
+import type { SectionRules } from '@/lib/question-papers'
+
+export interface ProctoringEvent {
+  type: 'AWAY' | 'RETURN'
+  timestamp: string
+  durationSeconds?: number
+}
 
 export interface AntiCheatState {
   isSecureWindow: boolean
@@ -9,9 +16,10 @@ export interface AntiCheatState {
   micLevel: number
   screenStream: MediaStream | null
   userStream: MediaStream | null
+  events: ProctoringEvent[]
 }
 
-export function useAntiCheat() {
+export function useAntiCheat(sectionRules?: SectionRules | null) {
   const [state, setState] = React.useState<AntiCheatState>({
     isSecureWindow: window.name === 'lex-test-window',
     isScreenShared: false,
@@ -20,18 +28,23 @@ export function useAntiCheat() {
     micLevel: 0,
     screenStream: null,
     userStream: null,
+    events: [],
   })
 
-  // Keep refs for immediate access in cleanup/logic, but use state for UI updates
+  const awayStartTimeRef = React.useRef<number | null>(null)
+  const eventsRef = React.useRef<ProctoringEvent[]>([])
+
   const screenStreamRef = React.useRef<MediaStream | null>(null)
   const userStreamRef = React.useRef<MediaStream | null>(null)
   const analyserRef = React.useRef<AnalyserNode | null>(null)
   const animationFrameRef = React.useRef<number | null>(null)
 
+  // Expose the current violation count via a ref for use in callbacks
+  const violationsRef = React.useRef(0)
+
   // 1. Request Screen Share
   const requestScreenShare = async () => {
     try {
-      console.log('Requesting Screen Share...')
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: { displaySurface: 'monitor' } as any,
         audio: false,
@@ -48,7 +61,6 @@ export function useAntiCheat() {
       }
 
       track.onended = () => {
-        console.log('Screen share ended by user')
         screenStreamRef.current = null
         setState(prev => ({ ...prev, isScreenShared: false, screenStream: null }))
         toast.error('Screen sharing stopped. Please share your screen again.')
@@ -67,12 +79,10 @@ export function useAntiCheat() {
   // 2. Request Cam & Mic
   const requestCamMic = async () => {
     try {
-      console.log('Requesting Cam/Mic...')
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: 320, height: 240 },
         audio: true,
       })
-
       userStreamRef.current = stream
       setState(prev => ({ ...prev, isCamMicAllowed: true, userStream: stream }))
       setupAudioLevel(stream)
@@ -93,9 +103,8 @@ export function useAntiCheat() {
       analyser.fftSize = 256
       source.connect(analyser)
       analyserRef.current = analyser
-
       const dataArray = new Uint8Array(analyser.frequencyBinCount)
-      
+
       const updateLevel = () => {
         if (!analyserRef.current) return
         analyserRef.current.getByteFrequencyData(dataArray)
@@ -103,28 +112,87 @@ export function useAntiCheat() {
         setState(prev => ({ ...prev, micLevel: average }))
         animationFrameRef.current = requestAnimationFrame(updateLevel)
       }
-
       updateLevel()
     } catch (err) {
       console.error('Audio analysis error:', err)
     }
   }
 
-  // Monitor violations
+  const resetViolations = React.useCallback(() => {
+    violationsRef.current = 0
+    setState(prev => ({ ...prev, violations: 0 }))
+  }, [])
+
+  // Monitor violations — respects section rules
   React.useEffect(() => {
     if (!state.isScreenShared || !state.isCamMicAllowed) return
 
+    const allowTabSwitching = sectionRules?.allowTabSwitching ?? false
+    const maxViolations = sectionRules?.maxViolations ?? 5
+
     const handleBlur = () => {
-      if (document.visibilityState === 'visible') {
-        setState(prev => ({ ...prev, violations: prev.violations + 1 }))
-        toast.warning('Warning: Window focus lost.')
+      if (!allowTabSwitching) {
+        if (document.visibilityState === 'visible') {
+          violationsRef.current += 1
+          setState(prev => ({ ...prev, violations: violationsRef.current }))
+          toast.warning(`Warning: Window focus lost. (${violationsRef.current}/${maxViolations})`)
+        }
+      }
+      
+      // Log Away Event
+      if (!awayStartTimeRef.current) {
+        awayStartTimeRef.current = Date.now()
+        const event: ProctoringEvent = { type: 'AWAY', timestamp: new Date().toISOString() }
+        eventsRef.current.push(event)
+        setState(prev => ({ ...prev, events: [...eventsRef.current] }))
       }
     }
 
     const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Log Return Event
+        if (awayStartTimeRef.current) {
+          const duration = Math.floor((Date.now() - awayStartTimeRef.current) / 1000)
+          const event: ProctoringEvent = { 
+            type: 'RETURN', 
+            timestamp: new Date().toISOString(),
+            durationSeconds: duration 
+          }
+          eventsRef.current.push(event)
+          awayStartTimeRef.current = null
+          setState(prev => ({ ...prev, events: [...eventsRef.current] }))
+        }
+
+        if (allowTabSwitching) {
+          if ((sectionRules?.allowedResources?.length ?? 0) > 0 || (sectionRules?.blockedResources?.length ?? 0) > 0) {
+            toast.info('Policy Reminder', {
+              description: `Allowed: ${sectionRules?.allowedResources?.join(', ') || 'Any'}\nBlocked: ${sectionRules?.blockedResources?.join(', ') || 'None'}`,
+              duration: 5000,
+            })
+          }
+        }
+        return
+      }
+
       if (document.visibilityState === 'hidden') {
-        setState(prev => ({ ...prev, violations: prev.violations + 1 }))
-        toast.error('Violation: Tab switched!')
+        // Already logged as AWAY via handleBlur usually, but backup here
+        if (!awayStartTimeRef.current) {
+          awayStartTimeRef.current = Date.now()
+          const event: ProctoringEvent = { type: 'AWAY', timestamp: new Date().toISOString() }
+          eventsRef.current.push(event)
+          setState(prev => ({ ...prev, events: [...eventsRef.current] }))
+        }
+
+        if (!allowTabSwitching) {
+          violationsRef.current += 1
+          setState(prev => ({ ...prev, violations: violationsRef.current }))
+          const remaining = maxViolations - violationsRef.current
+          if (remaining <= 0) {
+            toast.error('Maximum violations reached! This section has been cancelled.')
+          } else {
+            toast.error(`Violation: Tab switched! ${remaining} violation(s) remaining before cancellation.`)
+          }
+        }
       }
     }
 
@@ -145,7 +213,7 @@ export function useAntiCheat() {
       document.removeEventListener('cut', preventDefault)
       document.removeEventListener('contextmenu', preventDefault)
     }
-  }, [state.isScreenShared, state.isCamMicAllowed])
+  }, [state.isScreenShared, state.isCamMicAllowed, sectionRules?.allowTabSwitching, sectionRules?.maxViolations])
 
   // Cleanup on unmount
   React.useEffect(() => {
@@ -166,5 +234,6 @@ export function useAntiCheat() {
     ...state,
     requestScreenShare,
     requestCamMic,
+    resetViolations,
   }
 }

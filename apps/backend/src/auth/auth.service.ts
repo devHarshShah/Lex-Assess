@@ -154,10 +154,8 @@ export class AuthService {
     if (!optionSet.specializations.includes(dto.specialization)) {
       throw new BadRequestException('Invalid specialization option');
     }
-    if (!optionSet.colleges.includes(dto.college)) {
-      throw new BadRequestException('Invalid college option');
-    }
-
+    // Allow any college name (handles "Other" option from UI)
+    
     return this.usersService.upsertProfileStepOne(userId, dto);
   }
 
@@ -336,6 +334,12 @@ export class AuthService {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Google OAuth exchange failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorText,
+      });
       throw new UnauthorizedException('Failed to exchange Google OAuth code');
     }
 
