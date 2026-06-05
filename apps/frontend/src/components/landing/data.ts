@@ -1,6 +1,20 @@
-import type { Feature, Pillar, Step, Track } from './types'
+import type {
+  Feature,
+  NavItem,
+  Pillar,
+  Step,
+  StudentDirectoryEntry,
+  Track,
+} from './types'
 
-export const navItems = ['Process', 'Practice Areas', 'Assessment', 'Internships', 'FAQs']
+export const navItems: NavItem[] = [
+  { label: 'Process', href: '#process' },
+  { label: 'Directory', href: '/directory' },
+  { label: 'Practice Areas', href: '#practice-areas' },
+  { label: 'Assessment', href: '#assessment' },
+  { label: 'Internships', href: '#internships' },
+  { label: 'FAQs', href: '#faqs' },
+]
 
 export const pipelineSteps: Step[] = [
   {
@@ -160,5 +174,38 @@ export const tracks: Track[] = [
     roman: 'XI',
     title: 'Technology Law',
     description: 'IT Act, AI regulation, fintech, platform liability',
+  },
+]
+
+export const studentDirectory: StudentDirectoryEntry[] = [
+  {
+    studentId: 'LX-24017',
+    rank: '01',
+    practiceArea: 'General Corporate',
+  },
+  {
+    studentId: 'LX-24042',
+    rank: '02',
+    practiceArea: 'Disputes',
+  },
+  {
+    studentId: 'LX-24089',
+    rank: '03',
+    practiceArea: 'Banking & Finance',
+  },
+  {
+    studentId: 'LX-24115',
+    rank: '04',
+    practiceArea: 'Intellectual Property',
+  },
+  {
+    studentId: 'LX-24163',
+    rank: '05',
+    practiceArea: 'Capital Markets',
+  },
+  {
+    studentId: 'LX-24208',
+    rank: '06',
+    practiceArea: 'Taxation',
   },
 ]

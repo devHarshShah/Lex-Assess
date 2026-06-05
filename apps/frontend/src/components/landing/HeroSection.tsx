@@ -43,7 +43,10 @@ function PipelineStep({
 
 export function HeroSection() {
   return (
-    <section className="relative flex min-h-screen w-full flex-col justify-center items-center overflow-hidden px-6 pt-28 pb-20 md:px-12">
+    <section
+      id="process"
+      className="relative flex min-h-screen w-full scroll-mt-24 flex-col items-center justify-center overflow-hidden px-6 pt-28 pb-20 md:px-12"
+    >
       <div className="mx-auto w-full max-w-6xl flex-1 flex items-center">
         <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24 w-full">
           {/* Left Column: Headlines */}

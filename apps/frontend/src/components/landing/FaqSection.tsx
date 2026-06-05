@@ -80,7 +80,7 @@ export function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
-    <section className="w-full bg-card py-16 border-y border-border/40" id="eligibility">
+    <section className="w-full scroll-mt-24 bg-card py-16 border-y border-border/40" id="faqs">
       <div className="mx-auto w-full max-w-4xl px-6 md:px-12 lg:py-8">
         <div className="mb-12 text-center">
           <div className="mb-4 text-xs font-bold uppercase tracking-widest text-primary">

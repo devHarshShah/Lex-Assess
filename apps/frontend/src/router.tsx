@@ -1,6 +1,7 @@
 import { createRouter } from '@tanstack/react-router'
 import { homeRoute } from './routes/home'
 import { rootRoute } from './routes/root'
+import { directoryRoute } from './routes/directory'
 import { dashboardRoute, dashboardIndexRoute } from './routes/dashboard'
 import { dashboardUsersRoute } from './routes/dashboard-users'
 import { dashboardSpecializationsRoute } from './routes/dashboard-specializations'
@@ -23,6 +24,7 @@ import { googleCallbackRoute } from './routes/google-callback'
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
+  directoryRoute,
   loginRoute,
   signupRoute,
   googleCallbackRoute,

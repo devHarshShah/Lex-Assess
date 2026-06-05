@@ -1,4 +1,5 @@
 export { ConvictionSection } from './ConvictionSection'
+export { DirectorySection } from './DirectorySection'
 export { FeaturesSection } from './FeaturesSection'
 export { Footer } from './Footer'
 export { Header } from './Header'

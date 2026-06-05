@@ -4,7 +4,10 @@ import { Card } from '@/components/ui/card';
 
 export function FeaturesSection() {
   return (
-    <section className="w-full bg-card py-16 border-y border-border/40">
+    <section
+      id="assessment"
+      className="w-full scroll-mt-24 bg-card py-16 border-y border-border/40"
+    >
       <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
         <div className="mb-6 flex items-center gap-4">
           <span className="h-px w-12 bg-primary" />

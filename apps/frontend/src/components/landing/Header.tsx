@@ -60,13 +60,23 @@ export function Header() {
         </div>
         <nav className="hidden md:flex gap-6">
           {navItems.map((item) => (
-            <a
-              key={item}
-              href="#"
-              className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {item}
-            </a>
+            item.href.startsWith('/') ? (
+              <Link
+                key={item.label}
+                to={item.href}
+                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            ) : (
+              <a
+                key={item.label}
+                href={item.href}
+                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </a>
+            )
           ))}
         </nav>
         <Button

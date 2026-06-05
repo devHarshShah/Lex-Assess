@@ -6,6 +6,11 @@ export type Step = {
   description: string
 }
 
+export type NavItem = {
+  label: string
+  href: string
+}
+
 export type Feature = {
   number: string
   title: string
@@ -23,4 +28,10 @@ export type Track = {
   roman: string
   title: string
   description: string
+}
+
+export type StudentDirectoryEntry = {
+  studentId: string
+  rank: string
+  practiceArea: string
 }
