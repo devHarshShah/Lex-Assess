@@ -1,4 +1,4 @@
-import { AuthProvider, Role, User, VerificationType } from '@prisma/client';
+import { AuthProvider, NotificationPlacement, Role, User, VerificationType } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublicUser, UserManagementRecord, UserProfileDto } from './user.types';
@@ -356,6 +356,63 @@ export class UsersService {
       where: { userId },
       data: { isComplete: verified },
     });
+  }
+
+  listPublicNotifications() {
+    return this.prisma.notification.findMany({
+      where: { isActive: true },
+      orderBy: [{ placement: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  listAllNotifications() {
+    return this.prisma.notification.findMany({
+      orderBy: [{ placement: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  createNotification(input: {
+    placement: NotificationPlacement;
+    label?: string;
+    title: string;
+    description?: string;
+  }) {
+    return this.prisma.notification.create({
+      data: {
+        placement: input.placement,
+        label: input.label?.trim() || null,
+        title: input.title.trim(),
+        description: input.description?.trim() || null,
+      },
+    });
+  }
+
+  updateNotification(
+    id: string,
+    input: {
+      placement?: NotificationPlacement;
+      label?: string;
+      title?: string;
+      description?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    },
+  ) {
+    return this.prisma.notification.update({
+      where: { id },
+      data: {
+        placement: input.placement,
+        label: input.label === undefined ? undefined : input.label.trim() || null,
+        title: input.title?.trim(),
+        description: input.description === undefined ? undefined : input.description.trim() || null,
+        isActive: input.isActive,
+        sortOrder: input.sortOrder,
+      },
+    });
+  }
+
+  deleteNotification(id: string) {
+    return this.prisma.notification.delete({ where: { id } });
   }
 
   async isProfileCompleted(userId: string): Promise<boolean> {

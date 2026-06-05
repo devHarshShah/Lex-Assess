@@ -1,3 +1,6 @@
+import * as React from 'react'
+
+import { fetchPublicNotifications, type NotificationRecord } from '@/lib/auth'
 import {
   ConvictionSection,
   FeaturesSection,
@@ -5,6 +8,7 @@ import {
   Header,
   HeroSection,
   ManifestoSection,
+  NotificationsSection,
   TracksSection,
   TwoColSection,
   FaqSection,
@@ -19,10 +23,19 @@ function Divider() {
 }
 
 export function HomePage() {
+  const [notifications, setNotifications] = React.useState<NotificationRecord[]>([])
+
+  React.useEffect(() => {
+    fetchPublicNotifications()
+      .then(setNotifications)
+      .catch(() => setNotifications([]))
+  }, [])
+
   return (
     <div className="overflow-x-hidden min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary">
       <Header />
-      <HeroSection />
+      <HeroSection notifications={notifications} />
+      <NotificationsSection notifications={notifications} />
       <Divider />
       <FeaturesSection />
       <ManifestoSection />

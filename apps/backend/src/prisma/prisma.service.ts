@@ -53,6 +53,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
     }
 
     await this.seedProfileDefaults();
+    await this.seedNotificationDefaults();
   }
 
   private async seedProfileDefaults(): Promise<void> {
@@ -147,6 +148,74 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         where: { name },
         update: {},
         create: { name },
+      });
+    }
+  }
+
+  private async seedNotificationDefaults(): Promise<void> {
+    const defaults = [
+      {
+        placement: 'BANNER' as const,
+        label: 'Update',
+        title: 'New seats opened for Banking & Finance internship applicants.',
+        description: null,
+        sortOrder: 1,
+      },
+      {
+        placement: 'BANNER' as const,
+        label: 'Update',
+        title: 'Disputes assessment window extended for the current cycle.',
+        description: null,
+        sortOrder: 2,
+      },
+      {
+        placement: 'BANNER' as const,
+        label: 'Update',
+        title: 'Capital Markets review panel is now accepting fresh student submissions.',
+        description: null,
+        sortOrder: 3,
+      },
+      {
+        placement: 'CARD' as const,
+        label: 'Seats Open',
+        title: 'AZB & Partners is hiring in General Corporate',
+        description:
+          'Fresh internship seats are now open for General Corporate applicants in the current cycle.',
+        sortOrder: 1,
+      },
+      {
+        placement: 'CARD' as const,
+        label: 'Application Window',
+        title: 'Disputes applications extended this week',
+        description:
+          'Students targeting disputes can continue submitting assessment-backed applications for the active intake.',
+        sortOrder: 2,
+      },
+      {
+        placement: 'CARD' as const,
+        label: 'Hot Track',
+        title: 'Banking & Finance demand is up across firms',
+        description:
+          'Multiple legal teams are actively scouting ranked students with Banking & Finance assessment performance.',
+        sortOrder: 3,
+      },
+    ];
+
+    for (const item of defaults) {
+      await this.notification.upsert({
+        where: {
+          placement_title: {
+            placement: item.placement,
+            title: item.title,
+          },
+        },
+        update: {
+          label: item.label,
+          description: item.description,
+          sortOrder: item.sortOrder,
+          isActive: true,
+        },
+        create: item,
       });
     }
   }

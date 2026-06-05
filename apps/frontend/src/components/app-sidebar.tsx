@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { BookOpen, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
+import { Bell, BookOpen, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -80,6 +80,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: '/dashboard/submissions',
         icon: ClipboardList,
         items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
+      },
+      {
+        title: 'Marketing',
+        url: '/dashboard/notifications',
+        icon: Bell,
+        items: [{ title: 'Notifications', url: '/dashboard/notifications' }],
       }
     )
   } else if (activeRole === 'ADMIN') {
@@ -97,6 +103,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: '/dashboard/submissions',
         icon: ClipboardList,
         items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
+      },
+      {
+        title: 'Marketing',
+        url: '/dashboard/notifications',
+        icon: Bell,
+        items: [{ title: 'Notifications', url: '/dashboard/notifications' }],
       },
       {
         title: 'Profile',

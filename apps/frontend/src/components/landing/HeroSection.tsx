@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { pipelineSteps } from './data';
 import { Button } from '@/components/ui/button';
 import { ChevronDown } from 'lucide-react';
+import type { NotificationRecord } from '@/lib/auth';
 
 function PipelineStep({
   number,
@@ -41,12 +42,35 @@ function PipelineStep({
   );
 }
 
-export function HeroSection() {
+export function HeroSection({ notifications }: { notifications: NotificationRecord[] }) {
+  const bannerItems = notifications.filter((item) => item.placement === 'BANNER')
+  const marqueeItems = [...bannerItems, ...bannerItems];
+
   return (
     <section
       id="process"
       className="relative flex min-h-screen w-full scroll-mt-24 flex-col items-center justify-center overflow-hidden px-6 pt-28 pb-20 md:px-12"
     >
+      {bannerItems.length > 0 ? (
+        <div className="mx-auto mb-8 w-full max-w-6xl">
+          <div className="overflow-hidden rounded-full border border-primary/20 bg-primary/5">
+            <div className="flex min-w-max animate-marquee items-center gap-10 px-5 py-3">
+              {marqueeItems.map((item, index) => (
+                <div
+                  key={`${item.id}-${index}`}
+                  className="flex items-center gap-3 text-sm text-foreground/80"
+                >
+                  <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.24em] text-primary-foreground">
+                    {item.label || 'Update'}
+                  </span>
+                  <span className="whitespace-nowrap">{item.title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mx-auto w-full max-w-6xl flex-1 flex items-center">
         <div className="grid items-center gap-16 lg:grid-cols-2 lg:gap-24 w-full">
           {/* Left Column: Headlines */}
@@ -96,6 +120,7 @@ export function HeroSection() {
                 For Law Firms
               </Button>
             </motion.div>
+
           </div>
 
           {/* Right Column: Steps */}

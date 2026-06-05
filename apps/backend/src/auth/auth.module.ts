@@ -13,6 +13,8 @@ import { SuperadminCollegesController } from './superadmin-colleges.controller';
 import { SuperadminDegreesController } from './superadmin-degrees.controller';
 import { SuperadminProfilesController } from './superadmin-profiles.controller';
 import { SuperadminUsersController } from './superadmin-users.controller';
+import { NotificationsController } from './notifications.controller';
+import { AdminNotificationsController } from './admin-notifications.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UploadsController } from './uploads.controller';
 import { UploadsService } from './uploads.service';
@@ -38,6 +40,8 @@ import { UploadsService } from './uploads.service';
     SuperadminCollegesController,
     SuperadminDegreesController,
     SuperadminProfilesController,
+    NotificationsController,
+    AdminNotificationsController,
     UploadsController,
   ],
   providers: [AuthService, UsersService, PrismaService, JwtStrategy, UploadsService],

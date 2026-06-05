@@ -8,7 +8,9 @@ import { UsersService } from '../users/users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ProfileStepOneDto } from './dto/profile-step-one.dto';
 import { ProfileVerificationDto } from './dto/profile-verification.dto';
+import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateSpecializationDto } from './dto/update-specialization.dto';
+import { UpdateNotificationDto } from './dto/update-notification.dto';
 
 interface GoogleTokenInfo {
   sub: string;
@@ -229,6 +231,26 @@ export class AuthService {
 
   verifyProfileForSuperadmin(userId: string, verified: boolean) {
     return this.usersService.verifyUserProfile(userId, verified);
+  }
+
+  listPublicNotifications() {
+    return this.usersService.listPublicNotifications();
+  }
+
+  listAllNotifications() {
+    return this.usersService.listAllNotifications();
+  }
+
+  createNotification(dto: CreateNotificationDto) {
+    return this.usersService.createNotification(dto);
+  }
+
+  updateNotification(id: string, dto: UpdateNotificationDto) {
+    return this.usersService.updateNotification(id, dto);
+  }
+
+  deleteNotification(id: string) {
+    return this.usersService.deleteNotification(id);
   }
 
   createSpecialization(name: string) {

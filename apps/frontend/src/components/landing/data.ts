@@ -1,11 +1,4 @@
-import type {
-  Feature,
-  NavItem,
-  Pillar,
-  Step,
-  StudentDirectoryEntry,
-  Track,
-} from './types'
+import type { Feature, NavItem, Pillar, Step, StudentDirectoryEntry, Track } from './types'
 
 export const navItems: NavItem[] = [
   { label: 'Process', href: '#process' },
@@ -207,5 +200,25 @@ export const studentDirectory: StudentDirectoryEntry[] = [
     studentId: 'LX-24208',
     rank: '06',
     practiceArea: 'Taxation',
+  },
+  {
+    studentId: 'LX-24231',
+    rank: '07',
+    practiceArea: 'Competition Law',
+  },
+  {
+    studentId: 'LX-24256',
+    rank: '08',
+    practiceArea: 'Data Protection',
+  },
+  {
+    studentId: 'LX-24284',
+    rank: '09',
+    practiceArea: 'Technology Law',
+  },
+  {
+    studentId: 'LX-24312',
+    rank: '10',
+    practiceArea: 'Maritime & Aviation',
   },
 ]

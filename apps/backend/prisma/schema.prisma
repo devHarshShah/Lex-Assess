@@ -47,6 +47,11 @@ enum AttemptStatus {
   EXPIRED
 }
 
+enum NotificationPlacement {
+  BANNER
+  CARD
+}
+
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
@@ -132,6 +137,21 @@ model DegreeOption {
   name      String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id          String                @id @default(cuid())
+  placement   NotificationPlacement
+  label       String?
+  title       String
+  description String?
+  isActive    Boolean               @default(true)
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([placement, isActive, sortOrder])
+  @@unique([placement, title])
 }
 
 model QuestionPaper {

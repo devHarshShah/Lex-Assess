@@ -47,6 +47,20 @@ export interface ManagedUserProfileRecord {
   profile: UserProfile | null
 }
 
+export type NotificationPlacement = 'BANNER' | 'CARD'
+
+export interface NotificationRecord {
+  id: string
+  placement: NotificationPlacement
+  label: string | null
+  title: string
+  description: string | null
+  isActive: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type VerificationType = 'ONGOING' | 'GRADUATED'
 
 export interface UserProfile {
@@ -260,6 +274,41 @@ export async function fetchSuperadminProfiles(): Promise<ManagedUserProfileRecor
 
 export async function verifySuperadminProfile(userId: string, verified: boolean) {
   return api.patch(`/superadmin/profiles/${userId}/verify`, { verified })
+}
+
+export async function fetchPublicNotifications(): Promise<NotificationRecord[]> {
+  return api.get<NotificationRecord[]>('/notifications')
+}
+
+export async function fetchAdminNotifications(): Promise<NotificationRecord[]> {
+  return api.get<NotificationRecord[]>('/admin/notifications')
+}
+
+export async function createAdminNotification(input: {
+  placement: NotificationPlacement
+  label?: string
+  title: string
+  description?: string
+}) {
+  return api.post<NotificationRecord>('/admin/notifications', input)
+}
+
+export async function updateAdminNotification(
+  id: string,
+  input: {
+    placement?: NotificationPlacement
+    label?: string
+    title?: string
+    description?: string
+    isActive?: boolean
+    sortOrder?: number
+  },
+) {
+  return api.patch<NotificationRecord>(`/admin/notifications/${id}`, input)
+}
+
+export async function deleteAdminNotification(id: string) {
+  return api.delete(`/admin/notifications/${id}`)
 }
 
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {
