@@ -12,7 +12,7 @@ export function NotificationsSection({ notifications }: { notifications: Notific
 
   return (
     <section className="w-full bg-muted/20 py-10 border-y border-border/40">
-      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-12">
         <div className="mb-6 flex items-center gap-4">
           <span className="h-px w-10 bg-primary" />
           <span className="text-xs font-bold uppercase tracking-widest text-primary">

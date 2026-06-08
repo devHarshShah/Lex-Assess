@@ -4,7 +4,7 @@ import { pillars } from './data';
 export function ConvictionSection() {
   return (
     <section className="w-full bg-card py-16 border-y border-border/40">
-      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-12">
         <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-24">
           {/* Left Column */}
           <motion.div

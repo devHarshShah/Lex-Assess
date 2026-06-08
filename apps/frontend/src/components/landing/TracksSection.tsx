@@ -8,7 +8,7 @@ export function TracksSection() {
       id="practice-areas"
       className="w-full scroll-mt-24 bg-muted/20 py-16 border-y border-border/40"
     >
-      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-12">
         <div className="mb-6 flex items-center justify-center gap-4">
           <span className="h-px w-12 bg-primary" />
           <span className="text-xs font-bold uppercase tracking-widest text-primary text-center">

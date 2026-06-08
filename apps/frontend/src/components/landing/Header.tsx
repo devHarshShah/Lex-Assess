@@ -9,9 +9,6 @@ export function Header() {
   const springConfig = { mass: 0.1, stiffness: 100, damping: 20 };
   const smoothScrollY = useSpring(scrollY, springConfig);
 
-  const width = useTransform(smoothScrollY, [0, 150], ['75%', '100%']);
-  const maxWidth = useTransform(smoothScrollY, [0, 150], ['800px', '100%']);
-  const borderRadius = useTransform(smoothScrollY, [0, 150], ['9999px', '0px']);
   const y = useTransform(smoothScrollY, [0, 150], [20, 0]);
   const paddingX = useTransform(smoothScrollY, [0, 150], ['24px', '32px']);
 
@@ -38,56 +35,55 @@ export function Header() {
 
   return (
     <div className="fixed top-0 z-50 flex w-full justify-center pointer-events-none">
-      <motion.header
-        style={{
-          width,
-          maxWidth,
-          borderRadius,
-          y,
-          paddingLeft: paddingX,
-          paddingRight: paddingX,
-          backgroundColor,
-          borderColor,
-          boxShadow,
-        }}
-        className="pointer-events-auto border backdrop-blur-md supports-[backdrop-filter]:bg-background/60 flex h-16 w-full items-center justify-between shadow-sm"
-      >
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.png" alt="LexAssess logo" className="h-9 w-11 object-contain" />
-          <span className="font-heading text-lg font-bold tracking-tight text-foreground">
-            Lex<span className="text-primary">Assess</span>
-          </span>
-        </div>
-        <nav className="hidden md:flex gap-6">
-          {navItems.map((item) => (
-            item.href.startsWith('/') ? (
-              <Link
-                key={item.label}
-                to={item.href}
-                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {item.label}
-              </Link>
-            ) : (
-              <a
-                key={item.label}
-                href={item.href}
-                className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {item.label}
-              </a>
-            )
-          ))}
-        </nav>
-        <Button
-          asChild
-          size="sm"
-          variant="outline"
-          className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border text-foreground hover:bg-muted rounded-full"
+      <div className="w-full max-w-7xl px-6 pt-4 md:px-12">
+        <motion.header
+          style={{
+            y,
+            paddingLeft: paddingX,
+            paddingRight: paddingX,
+            backgroundColor,
+            borderColor,
+            boxShadow,
+          }}
+          className="pointer-events-auto flex h-16 w-full items-center justify-between border backdrop-blur-md supports-[backdrop-filter]:bg-background/80 shadow-sm rounded-full"
         >
-          <Link to="/signup">Register</Link>
-        </Button>
-      </motion.header>
+          <div className="flex items-center gap-2.5">
+            <img src="/logo.png" alt="LexAssess logo" className="h-9 w-11 object-contain" />
+            <span className="font-heading text-lg font-bold tracking-tight text-foreground">
+              Lex<span className="text-primary">Assess</span>
+            </span>
+          </div>
+          <nav className="hidden md:flex gap-6">
+            {navItems.map((item) => (
+              item.href.startsWith('/') ? (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </Link>
+              ) : (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  {item.label}
+                </a>
+              )
+            ))}
+          </nav>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest border-border text-foreground hover:bg-muted rounded-full"
+          >
+            <Link to="/signup">Register</Link>
+          </Button>
+        </motion.header>
+      </div>
     </div>
   );
 }

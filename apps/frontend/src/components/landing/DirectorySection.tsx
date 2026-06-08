@@ -15,7 +15,7 @@ import { studentDirectory } from './data'
 export function DirectorySection() {
   return (
     <section className="w-full bg-card py-16 border-y border-border/40">
-      <div className="mx-auto w-full max-w-6xl px-6 md:px-12">
+      <div className="mx-auto w-full max-w-7xl px-6 md:px-12">
         <div className="mb-5 flex items-center gap-4">
           <span className="h-px w-12 bg-primary" />
           <span className="text-xs font-bold uppercase tracking-widest text-primary">

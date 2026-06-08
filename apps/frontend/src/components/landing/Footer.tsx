@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 export function Footer() {
   return (
     <footer className="w-full border-t border-border/40 bg-muted/20">
-      <div className="mx-auto max-w-6xl px-6 py-16 md:px-12">
+      <div className="mx-auto max-w-7xl px-6 py-16 md:px-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
           {/* Brand Info */}
           <div className="md:col-span-2 flex flex-col gap-4">

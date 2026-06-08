@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 export function ManifestoSection() {
   return (
     <section className="relative overflow-hidden border-y border-border/40 bg-muted/20 text-center">
-      <div className="mx-auto w-full max-w-6xl px-6 py-20 md:px-12 relative z-10">
+      <div className="mx-auto w-full max-w-7xl px-6 py-20 md:px-12 relative z-10">
         <div className="mb-10 text-xs font-bold uppercase tracking-widest text-primary">
           — The LexAssess Founding Principle
         </div>

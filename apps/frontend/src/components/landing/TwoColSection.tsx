@@ -54,7 +54,7 @@ export function TwoColSection() {
   return (
     <section
       id="internships"
-      className="mx-auto w-full max-w-6xl scroll-mt-24 px-6 py-16 md:px-12"
+      className="mx-auto w-full max-w-7xl scroll-mt-24 px-6 py-16 md:px-12"
     >
       <div className="mb-6 flex items-center justify-center gap-4">
         <span className="h-px w-12 bg-primary" />
