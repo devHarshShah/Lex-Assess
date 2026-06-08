@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuth, getApiBaseUrl, loginWithPassword, storeAuth } from '@/lib/auth'
 
-type LoginType = 'student' | 'firm'
+type LoginType = 'student' | 'company'
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate()
@@ -19,7 +19,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
 
   function onTypeSelect(type: LoginType) {
     setLoginType(type)
-    setEmail(type === 'firm' ? 'company@lexassess.com' : 'student@lexassess.com')
+    setEmail(type === 'company' ? 'company@lexassess.com' : 'student@lexassess.com')
     setPassword('Pass@123')
   }
 
@@ -52,14 +52,14 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'div'>) 
             <div className="flex flex-col gap-6">
               <div className="flex flex-col items-center text-center">
                 <h1 className="text-2xl font-bold">Welcome back</h1>
-                <p className="text-balance text-muted-foreground">Login as Student or Firm</p>
+                <p className="text-balance text-muted-foreground">Login as Student or Company</p>
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
                 <Button type="button" variant={loginType === 'student' ? 'default' : 'ghost'} onClick={() => onTypeSelect('student')}>
                   Student Login
                 </Button>
-                <Button type="button" variant={loginType === 'firm' ? 'default' : 'ghost'} onClick={() => onTypeSelect('firm')}>
-                  Firm Login
+                <Button type="button" variant={loginType === 'company' ? 'default' : 'ghost'} onClick={() => onTypeSelect('company')}>
+                  Company Login
                 </Button>
               </div>
               <div className="grid gap-2">

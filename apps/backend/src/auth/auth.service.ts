@@ -40,6 +40,10 @@ export class AuthService {
   }): Promise<AuthResponseDto> {
     const existingUser = await this.usersService.findByEmail(input.email);
     if (existingUser) {
+      if (existingUser.role === Role.USER && input.role === Role.COMPANY) {
+        throw new BadRequestException('This email is already linked to a student account. Use a different email to register as a company.');
+      }
+
       throw new BadRequestException('Email is already registered');
     }
 
@@ -280,10 +284,16 @@ export class AuthService {
     return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
   }
 
-  async loginWithGoogleCode(code: string): Promise<AuthResponseDto> {
+  async loginWithGoogleCode(code: string, state?: string): Promise<AuthResponseDto> {
     const idToken = await this.exchangeGoogleCodeForIdToken(code);
     const tokenInfo = await this.verifyGoogleIdToken(idToken);
-    return this.loginWithGoogleTokenInfo(tokenInfo);
+
+    let role: Role | undefined;
+    if (state === Role.COMPANY || state === Role.USER) {
+      role = state as Role;
+    }
+
+    return this.loginWithGoogleTokenInfo(tokenInfo, role);
   }
 
   async me(userId: string): Promise<AuthResponseDto['user']> {
@@ -372,7 +382,7 @@ export class AuthService {
     return payload.id_token;
   }
 
-  private async loginWithGoogleTokenInfo(tokenInfo: GoogleTokenInfo): Promise<AuthResponseDto> {
+  private async loginWithGoogleTokenInfo(tokenInfo: GoogleTokenInfo, role?: Role): Promise<AuthResponseDto> {
     if (tokenInfo.email_verified !== 'true') {
       throw new UnauthorizedException('Google email is not verified');
     }
@@ -382,6 +392,7 @@ export class AuthService {
       name: tokenInfo.name,
       googleId: tokenInfo.sub,
       avatarUrl: tokenInfo.picture,
+      role,
     });
 
     const profileCompleted = await this.usersService.isProfileCompleted(user.id);

@@ -2,7 +2,7 @@ import React from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { getActiveRole, hasRole } from '@/lib/auth'
+import { getActiveRole, hasRole, type AuthUser } from '@/lib/auth'
 import { fetchStudentPapers, type QuestionPaper } from '@/lib/question-papers'
 import {
   Clock,
@@ -21,18 +21,31 @@ import {
 import { useRazorpay } from 'react-razorpay'
 import { createSubscription, verifyPayment } from '@/lib/payments'
 import { toast } from 'sonner'
+import { CompanyDashboardPage } from './CompanyDashboardPage'
 
 export function DashboardPage() {
   const user = useRouterState({
     select: (state) => state.matches.find((match) => match.routeId === '/dashboard')?.context.user,
   })
 
+  if (!user) return null
+
+  const role = getActiveRole(user)
+
+  if (role === 'COMPANY') {
+    return <CompanyDashboardPage />
+  }
+
+  return <StudentDashboardPage user={user} />
+}
+
+function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [papers, setPapers] = React.useState<QuestionPaper[]>([])
   const [loading, setLoading] = React.useState(false)
   const [subscribing, setSubscribing] = React.useState(false)
   const { Razorpay } = useRazorpay()
 
-  const role = user ? getActiveRole(user) : 'USER'
+  const role = getActiveRole(user)
   const isStudent = role === 'USER'
 
   React.useEffect(() => {
@@ -43,8 +56,6 @@ export function DashboardPage() {
         .finally(() => setLoading(false))
     }
   }, [isStudent])
-
-  if (!user) return null
 
   const handleSubscribe = async () => {
     try {

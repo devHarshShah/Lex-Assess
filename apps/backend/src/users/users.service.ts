@@ -55,6 +55,7 @@ export class UsersService {
     name?: string;
     googleId: string;
     avatarUrl?: string;
+    role?: Role;
   }): Promise<User> {
     const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -72,6 +73,7 @@ export class UsersService {
         googleId: input.googleId,
         avatarUrl: input.avatarUrl,
         authProvider: AuthProvider.GOOGLE,
+        role: input.role ?? Role.USER,
       },
     });
   }

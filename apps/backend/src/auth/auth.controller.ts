@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -38,12 +38,12 @@ export class AuthController {
 
   @Post('google/exchange')
   googleExchange(@Body() dto: GoogleCodeExchangeDto) {
-    return this.authService.loginWithGoogleCode(dto.code);
+    return this.authService.loginWithGoogleCode(dto.code, dto.state);
   }
 
   @Get('google/start')
-  googleStart(@Res() res: Response) {
-    const googleUrl = this.authService.buildGoogleStartUrl();
+  googleStart(@Res() res: Response, @Query('role') role?: string) {
+    const googleUrl = this.authService.buildGoogleStartUrl(role);
     return res.redirect(googleUrl);
   }
 

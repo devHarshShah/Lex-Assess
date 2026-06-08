@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuth, getApiBaseUrl, loginWithPassword, storeAuth } from '@/lib/auth'
 
-type LoginType = 'student' | 'firm'
+type LoginType = 'student' | 'company'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -20,7 +20,7 @@ export function LoginPage() {
 
   function onTypeSelect(type: LoginType) {
     setLoginType(type)
-    setEmail(type === 'firm' ? 'company@lexassess.com' : 'student@lexassess.com')
+    setEmail(type === 'company' ? 'company@lexassess.com' : 'student@lexassess.com')
     setPassword('Pass@123')
   }
 
@@ -42,7 +42,8 @@ export function LoginPage() {
   }
 
   function onGoogleOAuthStart() {
-    window.location.href = `${getApiBaseUrl()}/auth/google/start`
+    const role = loginType === 'company' ? 'COMPANY' : 'USER'
+    window.location.href = `${getApiBaseUrl()}/auth/google/start?role=${role}`
   }
 
   return (
@@ -59,8 +60,8 @@ export function LoginPage() {
             <Button type="button" variant={loginType === 'student' ? 'default' : 'ghost'} onClick={() => onTypeSelect('student')}>
               Student Login
             </Button>
-            <Button type="button" variant={loginType === 'firm' ? 'default' : 'ghost'} onClick={() => onTypeSelect('firm')}>
-              Firm Login
+            <Button type="button" variant={loginType === 'company' ? 'default' : 'ghost'} onClick={() => onTypeSelect('company')}>
+              Company Login
             </Button>
           </div>
 
@@ -127,7 +128,7 @@ export function LoginPage() {
               </div>
               <div className="rounded-2xl border bg-background/70 p-4">
                 <BriefcaseBusiness className="mb-2 size-5 text-primary" />
-                <p className="text-sm font-medium">Firm Benchmarks</p>
+                <p className="text-sm font-medium">Company Benchmarks</p>
                 <p className="mt-1 text-xs text-muted-foreground">Compare teams on practical outcomes.</p>
               </div>
               <div className="rounded-2xl border bg-background/70 p-4">

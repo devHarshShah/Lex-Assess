@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuth, getApiBaseUrl, registerWithPassword, storeAuth, type Role } from '@/lib/auth'
 
-type SignupType = 'student' | 'firm'
+type SignupType = 'student' | 'company'
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -24,7 +24,7 @@ export function SignupPage() {
     setError(null)
     setLoading(true)
 
-    const role: Role = signupType === 'firm' ? 'COMPANY' : 'USER'
+    const role: Role = signupType === 'company' ? 'COMPANY' : 'USER'
 
     try {
       const auth = await registerWithPassword({ name, email, password, role })
@@ -39,7 +39,8 @@ export function SignupPage() {
   }
 
   function onGoogleOAuthStart() {
-    window.location.href = `${getApiBaseUrl()}/auth/google/start`
+    const role = signupType === 'company' ? 'COMPANY' : 'USER'
+    window.location.href = `${getApiBaseUrl()}/auth/google/start?role=${role}`
   }
 
   return (
@@ -56,8 +57,8 @@ export function SignupPage() {
             <Button type="button" variant={signupType === 'student' ? 'default' : 'ghost'} onClick={() => setSignupType('student')}>
               Register Student
             </Button>
-            <Button type="button" variant={signupType === 'firm' ? 'default' : 'ghost'} onClick={() => setSignupType('firm')}>
-              Register Firm
+            <Button type="button" variant={signupType === 'company' ? 'default' : 'ghost'} onClick={() => setSignupType('company')}>
+              Register Company
             </Button>
           </div>
 
@@ -78,7 +79,7 @@ export function SignupPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>
-              Begin as {signupType === 'firm' ? 'Firm' : 'Student'}
+              Begin as {signupType === 'company' ? 'Company' : 'Student'}
             </Button>
             <Button type="button" variant="outline" className="w-full" onClick={onGoogleOAuthStart} disabled={loading}>
               <span className="inline-flex items-center gap-2">

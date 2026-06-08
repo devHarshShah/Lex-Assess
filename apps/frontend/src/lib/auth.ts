@@ -138,8 +138,8 @@ export function storeUser(user: AuthUser) {
   syncActiveRole(user)
 }
 
-export async function exchangeGoogleCode(code: string): Promise<AuthResponse> {
-  return api.post<AuthResponse>('/auth/google/exchange', { code })
+export async function exchangeGoogleCode(code: string, state?: string | null): Promise<AuthResponse> {
+  return api.post<AuthResponse>('/auth/google/exchange', { code, state })
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser> {

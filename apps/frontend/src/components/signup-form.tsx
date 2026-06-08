@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuth, registerWithPassword, storeAuth, type Role } from '@/lib/auth'
 
-type SignupType = 'student' | 'firm'
+type SignupType = 'student' | 'company'
 
 export function SignupForm({ className, ...props }: React.ComponentProps<'div'>) {
   const navigate = useNavigate()
@@ -23,7 +23,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'div'>)
     setError(null)
     setLoading(true)
 
-    const role: Role = signupType === 'firm' ? 'COMPANY' : 'USER'
+    const role: Role = signupType === 'company' ? 'COMPANY' : 'USER'
 
     try {
       const auth = await registerWithPassword({ name, email, password, role })
@@ -45,14 +45,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'div'>)
             <div className="flex flex-col gap-6">
               <div className="flex flex-col items-center text-center">
                 <h1 className="text-2xl font-bold">Create account</h1>
-                <p className="text-balance text-muted-foreground">Register as Student or Firm</p>
+                <p className="text-balance text-muted-foreground">Register as Student or Company</p>
               </div>
               <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
                 <Button type="button" variant={signupType === 'student' ? 'default' : 'ghost'} onClick={() => setSignupType('student')}>
                   Student
                 </Button>
-                <Button type="button" variant={signupType === 'firm' ? 'default' : 'ghost'} onClick={() => setSignupType('firm')}>
-                  Firm
+                <Button type="button" variant={signupType === 'company' ? 'default' : 'ghost'} onClick={() => setSignupType('company')}>
+                  Company
                 </Button>
               </div>
               <div className="grid gap-2">
@@ -68,7 +68,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'div'>)
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
-                Sign up as {signupType === 'firm' ? 'Firm' : 'Student'}
+                Sign up as {signupType === 'company' ? 'Company' : 'Student'}
               </Button>
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
               <div className="text-center text-sm">

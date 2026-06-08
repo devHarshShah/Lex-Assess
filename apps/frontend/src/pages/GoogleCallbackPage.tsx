@@ -1,14 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Scale } from 'lucide-react'
 import { clearAuth, exchangeGoogleCode, storeAuth } from '@/lib/auth'
 
 export function GoogleCallbackPage() {
   const navigate = useNavigate()
+  const hasExchanged = useRef(false)
 
   useEffect(() => {
+    if (hasExchanged.current) return
+
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
+    const state = params.get('state')
 
     if (!code) {
       clearAuth()
@@ -16,9 +20,11 @@ export function GoogleCallbackPage() {
       return
     }
 
+    hasExchanged.current = true
+
     void (async () => {
       try {
-        const auth = await exchangeGoogleCode(code)
+        const auth = await exchangeGoogleCode(code, state || undefined)
         storeAuth(auth)
         await navigate({
           to: auth.user.role === 'USER' && !auth.user.profileCompleted ? '/dashboard/setup' : '/dashboard',

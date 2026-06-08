@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Bell, BookOpen, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
+import { Bell, BookOpen, Building2, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -117,6 +117,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'My Profile', url: '/dashboard/profile' }],
       }
     )
+  } else if (activeRole === 'COMPANY') {
+    navMainItems = [{
+      title: 'Candidate Directory',
+      url: '/dashboard',
+      icon: Building2,
+      items: [
+        { title: 'All Candidates', url: '/dashboard' },
+      ],
+    }]
   } else {
     navMainItems.push(
       {
