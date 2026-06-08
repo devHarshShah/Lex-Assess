@@ -28,6 +28,8 @@ export type Track = {
   roman: string
   title: string
   description: string
+  icon?: React.ComponentType<{ className?: string }>
+  color?: string
 }
 
 export type StudentDirectoryEntry = {

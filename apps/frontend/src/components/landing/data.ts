@@ -1,3 +1,16 @@
+import { 
+  BarChart3, 
+  Building2, 
+  Gavel, 
+  Ship, 
+  Lightbulb, 
+  Receipt, 
+  Wallet, 
+  Scale, 
+  Users, 
+  Shield, 
+  Cpu 
+} from 'lucide-react'
 import type { Feature, NavItem, Pillar, Step, StudentDirectoryEntry, Track } from './types'
 
 export const navItems: NavItem[] = [
@@ -114,59 +127,81 @@ export const tracks: Track[] = [
   {
     roman: 'I',
     title: 'Capital Markets',
-    description: 'SEBI, securities law, listings, debt & equity transactions',
+    description: "SEBI, securities law, listings, debt & equity transactions. Master the complexities of public offerings, private placements, and the regulatory framework governing India's financial markets.",
+    icon: BarChart3,
+    color: 'text-blue-500',
   },
   {
     roman: 'II',
     title: 'General Corporate',
     description:
-      'Company law, M&A, governance, shareholder agreements',
+      'Company law, M&A, governance, shareholder agreements. Navigate the lifecycle of a business from incorporation and funding to complex mergers, acquisitions, and everyday corporate governance.',
+    icon: Building2,
+    color: 'text-emerald-500',
   },
   {
     roman: 'III',
     title: 'Disputes',
     description:
-      'Litigation, arbitration, civil procedure & appellate practice',
+      'Litigation, arbitration, civil procedure & appellate practice. Develop the strategy and drafting skills required for civil litigation, commercial arbitration, and representing clients before various judicial forums.',
+    icon: Gavel,
+    color: 'text-amber-500',
   },
   {
     roman: 'IV',
     title: 'Maritime & Aviation',
-    description: 'Admiralty law, aircraft financing, regulatory compliance',
+    description: 'Admiralty law, aircraft financing, regulatory compliance. Explore the specialized legal regimes governing international shipping, vessel arrests, aircraft leasing, and global logistics regulations.',
+    icon: Ship,
+    color: 'text-cyan-500',
   },
   {
     roman: 'V',
     title: 'Intellectual Property',
-    description: 'Patents, trademarks, copyright & IP transactions',
+    description: 'Patents, trademarks, copyright & IP transactions. Protect innovation and creativity through the management of IP portfolios, infringement litigation, and complex licensing agreements.',
+    icon: Lightbulb,
+    color: 'text-yellow-500',
   },
   {
     roman: 'VI',
     title: 'Taxation',
-    description: 'Direct tax, GST, transfer pricing & tax disputes',
+    description: 'Direct tax, GST, transfer pricing & tax disputes. Understand the intricacies of corporate taxation, indirect tax compliance, and the strategic planning required to manage global tax risks.',
+    icon: Receipt,
+    color: 'text-rose-500',
   },
   {
     roman: 'VII',
     title: 'Banking & Finance',
-    description: 'Lending, security interests, RBI regulation, insolvency',
+    description: 'Lending, security interests, RBI regulation, insolvency. Master the legal aspects of project finance, structured debt, regulatory compliance for banks, and the Insolvency and Bankruptcy Code.',
+    icon: Wallet,
+    color: 'text-indigo-500',
   },
   {
     roman: 'VIII',
     title: 'Competition Law',
-    description: 'CCI practice, mergers, dominance & cartel regulation',
+    description: 'CCI practice, mergers, dominance & cartel regulation. Analyze market behavior through the lens of antitrust laws, merger control regimes, and the prevention of anti-competitive agreements.',
+    icon: Scale,
+    color: 'text-orange-500',
   },
   {
     roman: 'IX',
     title: 'Labour & Employment',
-    description: 'Labour codes, industrial disputes, service law',
+    description: 'Labour codes, industrial disputes, service law. Navigate the evolving landscape of employment contracts, workplace policies, collective bargaining, and the new labour codes in India.',
+    icon: Users,
+    color: 'text-violet-500',
   },
   {
     roman: 'X',
     title: 'Data Protection',
-    description: 'DPDP Act, privacy law, cross-border data flows',
+    description: 'DPDP Act, privacy law, cross-border data flows. Implement robust data privacy frameworks, handle data breach responses, and ensure compliance with the Digital Personal Data Protection Act.',
+    icon: Shield,
+    color: 'text-green-500',
   },
   {
     roman: 'XI',
     title: 'Technology Law',
-    description: 'IT Act, AI regulation, fintech, platform liability',
+    description: 'IT Act, AI regulation, fintech, platform liability. Address the legal challenges of the digital age, including cybersecurity, AI ethics, e-commerce regulations, and fintech innovations.',
+    icon: Cpu,
+    color: 'text-purple-500',
   },
 ]
 
