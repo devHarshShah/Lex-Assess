@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AttemptStatus, Prisma } from '@prisma/client';
+import { AttemptStatus, Prisma, CandidateWorkflowStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { CompanyCandidateFilterStatus, UpdateCompanyCandidateDto } from './dto/update-company-candidate.dto';
 
 type CandidateListQuery = {
@@ -44,7 +45,10 @@ type CandidateDecision = Prisma.CompanyCandidateDecisionGetPayload<{
 
 @Injectable()
 export class CompanyCandidatesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async listCandidates(companyId: string, query: CandidateListQuery) {
     const search = query.search?.trim().toLowerCase();
@@ -170,13 +174,13 @@ export class CompanyCandidatesService {
         },
       },
       update: {
-        status: input.status,
+        status: input.status as CandidateWorkflowStatus,
         notes: input.notes?.trim() || null,
       },
       create: {
         companyId,
         attemptId,
-        status: input.status,
+        status: input.status as CandidateWorkflowStatus,
         notes: input.notes?.trim() || null,
       },
       select: {

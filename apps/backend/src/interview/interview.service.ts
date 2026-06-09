@@ -1,12 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
+import { GoogleCalendarService } from '../mail/google-calendar.service';
 import { Role, InterviewStatus, AttemptStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto } from './dto/interview.dto';
 
 @Injectable()
 export class InterviewService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(InterviewService.name);
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+    private readonly calendarService: GoogleCalendarService,
+  ) {}
 
   async getInterviewerSlots(interviewerId: string) {
     return this.prisma.interviewSlot.findMany({
@@ -95,7 +102,7 @@ export class InterviewService {
     const defaultPassword = 'Interviewer@123';
     const passwordHash = await bcrypt.hash(defaultPassword, 10);
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         email: data.email,
         name: data.name,
@@ -112,7 +119,15 @@ export class InterviewService {
       },
       include: { interviewerProfile: { include: { specializations: true } } },
     });
-    // TODO: In a real app, send email to interviewer with tempPassword
+
+    try {
+      await this.mailService.sendInterviewerWelcome(data.email, data.name, defaultPassword);
+    } catch (error) {
+      // Don't fail the whole request if email fails, but log it
+      console.error('Failed to send welcome email to interviewer:', error);
+    }
+
+    return user;
   }
 
   async getAllInterviewers() {
@@ -219,6 +234,18 @@ export class InterviewService {
       throw new ForbiddenException('You must complete all domain tests before scheduling an interview');
     }
 
+    // Check if student already has an interview
+    const existingInterview = await this.prisma.interview.findFirst({
+      where: { 
+        studentId,
+        status: { in: [InterviewStatus.SCHEDULED, InterviewStatus.COMPLETED] }
+      }
+    });
+
+    if (existingInterview) {
+      throw new BadRequestException('You have already scheduled or completed an interview. Only one interview is allowed per student.');
+    }
+
     const slot = await this.prisma.interviewSlot.findUnique({
       where: { id: data.slotId },
       include: { interviewer: true }
@@ -229,26 +256,73 @@ export class InterviewService {
     }
 
     // Mark slot as booked and create interview
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.interviewSlot.update({
         where: { id: slot.id },
         data: { isBooked: true }
       });
 
-      const interview = await tx.interview.create({
-        data: {
-          studentId,
-          interviewerId: slot.interviewerId,
-          slotId: slot.id,
-          status: InterviewStatus.SCHEDULED,
-          meetLink: `https://meet.google.com/mock-${Math.random().toString(36).slice(-4)}-${Math.random().toString(36).slice(-4)}` // Mock meet link
-        },
-        include: { interviewer: true, slot: true }
-      });
+      const student = await tx.user.findUnique({ where: { id: studentId } });
+      if (!student) throw new NotFoundException('Student not found');
 
-      return interview;
+      try {
+        const event = await this.calendarService.createInterviewEvent({
+          studentName: student.name,
+          studentEmail: student.email,
+          interviewerName: slot.interviewer.name,
+          interviewerEmail: slot.interviewer.email,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        });
+
+        const interview = await tx.interview.create({
+          data: {
+            studentId,
+            interviewerId: slot.interviewerId,
+            slotId: slot.id,
+            status: InterviewStatus.SCHEDULED,
+            meetLink: event.meetLink,
+            googleEventId: event.eventId,
+          },
+          include: { 
+            interviewer: true, 
+            student: true,
+            slot: true 
+          }
+        });
+
+        return interview;
+      } catch (error: any) {
+        this.logger.error('Failed to schedule interview due to calendar error:', error);
+        throw new BadRequestException(`Failed to schedule interview: ${error.message || 'Google Calendar error'}`);
+      }
     });
-    // TODO: Send Google Meet invite to both parties
+
+    // Send emails
+    try {
+      if (result.student && result.interviewer && result.slot) {
+        await Promise.all([
+          this.mailService.sendInterviewScheduled(
+            result.student.email,
+            result.student.name,
+            result.interviewer.name,
+            result.slot.startTime,
+            result.meetLink!
+          ),
+          this.mailService.sendInterviewScheduled(
+            result.interviewer.email,
+            result.student.name,
+            result.interviewer.name,
+            result.slot.startTime,
+            result.meetLink!
+          )
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to send interview scheduled emails:', error);
+    }
+
+    return result;
   }
 
   async getInterviewerSessions(interviewerId: string) {

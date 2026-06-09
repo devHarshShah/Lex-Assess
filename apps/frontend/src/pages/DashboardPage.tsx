@@ -168,13 +168,13 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-8">
         <div>
           <h2 className="text-3xl font-extrabold tracking-tight text-foreground">
             Welcome back, <span style={{ color: '#d97706' }}>{user.name}</span>!
           </h2>
           <p className="mt-1 text-muted-foreground text-sm">
-            Here are the tests available for your practice area.
+            Manage your assessment journey and expert sessions.
           </p>
         </div>
         {user.hasActiveSubscription && (
@@ -188,7 +188,14 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
         )}
       </div>
 
-      <InterviewScheduleCard specialization={user.profile?.specialization} />
+      <div className="mb-12">
+        <InterviewScheduleCard specialization={user.profile?.specialization} />
+      </div>
+
+      <div className="mb-6">
+        <h3 className="text-xl font-bold text-slate-900 tracking-tight">Practice Assessments</h3>
+        <p className="text-sm text-slate-500">Master your domain with these curated test papers.</p>
+      </div>
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

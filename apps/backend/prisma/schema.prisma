@@ -168,6 +168,7 @@ model Interview {
   slotId          String   @unique
   slot            InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
   meetLink        String?
+  googleEventId   String?
   marks           Int?
   notes           String?
   status          InterviewStatus @default(SCHEDULED)
