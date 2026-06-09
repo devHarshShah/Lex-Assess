@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { CompanyModule } from './company/company.module';
 import { QuestionPapersModule } from './question-papers/question-papers.module';
 import { PaymentsModule } from './payments/payments.module';
+import { InterviewModule } from './interview/interview.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PaymentsModule } from './payments/payments.module';
     CompanyModule,
     QuestionPapersModule,
     PaymentsModule,
+    InterviewModule,
   ],
   controllers: [AppController],
   providers: [AppService],

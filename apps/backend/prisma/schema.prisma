@@ -11,6 +11,7 @@ enum Role {
   ADMIN
   COMPANY
   USER
+  INTERVIEWER
 }
 
 enum AuthProvider {
@@ -60,6 +61,12 @@ enum CandidateWorkflowStatus {
   REJECTED
 }
 
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
 model User {
   id            String       @id @default(cuid())
   email         String       @unique
@@ -70,11 +77,15 @@ model User {
   avatarUrl     String?
   authProvider  AuthProvider @default(EMAIL)
   profile       UserProfile?
+  interviewerProfile InterviewerProfile?
   questionPapers QuestionPaper[]
   testAttempts    TestAttempt[] @relation("UserAttempts")
   markedAttempts  TestAttempt[] @relation("MarkedAttempts")
   transactions    Transaction[]
   companyCandidateDecisionsAsCompany CompanyCandidateDecision[] @relation("CompanyDecisionCompany")
+  interviewsAsInterviewer Interview[] @relation("InterviewerInterviews")
+  interviewsAsStudent     Interview[] @relation("StudentInterviews")
+  interviewSlots          InterviewSlot[]
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
   hasActiveSubscription  Boolean      @default(false)
@@ -124,12 +135,56 @@ model UserProfile {
   updatedAt         DateTime         @updatedAt
 }
 
+model InterviewerProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specializations Specialization[]
+  bio             String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model InterviewSlot {
+  id              String   @id @default(cuid())
+  interviewerId   String
+  interviewer     User     @relation(fields: [interviewerId], references: [id], onDelete: Cascade)
+  startTime       DateTime
+  endTime         DateTime
+  isBooked        Boolean  @default(false)
+  interview       Interview?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([interviewerId, startTime])
+}
+
+model Interview {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         User     @relation("StudentInterviews", fields: [studentId], references: [id], onDelete: Cascade)
+  interviewerId   String
+  interviewer     User     @relation("InterviewerInterviews", fields: [interviewerId], references: [id], onDelete: Cascade)
+  slotId          String   @unique
+  slot            InterviewSlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  meetLink        String?
+  marks           Int?
+  notes           String?
+  status          InterviewStatus @default(SCHEDULED)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([studentId])
+  @@index([interviewerId])
+}
+
 model Specialization {
   id             String          @id @default(cuid())
   name           String          @unique
   isActive       Boolean         @default(true)
   sortOrder      Int             @default(0)
   questionPapers QuestionPaper[]
+  interviewers   InterviewerProfile[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }

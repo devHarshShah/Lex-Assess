@@ -7,12 +7,12 @@ import { NavProjects } from '@/components/nav-projects'
 import { NavUser } from '@/components/nav-user'
 import { TeamSwitcher } from '@/components/team-switcher'
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarRail } from '@/components/ui/sidebar'
-import { getActiveRole, getAvailableRoles, setActiveRole } from '@/lib/auth'
+import { getActiveRole, getAvailableRoles, setActiveRole, type AuthUser } from '@/lib/auth'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const user = useRouterState({
     select: (state) => state.matches.find((match) => match.routeId === '/dashboard')?.context.user,
-  })
+  }) as unknown as AuthUser
 
   const [, forceRerender] = React.useState(0)
 
@@ -82,6 +82,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
       },
       {
+        title: 'Interviews',
+        url: '/dashboard/interviewers',
+        icon: GraduationCap,
+        items: [{ title: 'Manage Interviewers', url: '/dashboard/interviewers' }],
+      },
+      {
         title: 'Marketing',
         url: '/dashboard/notifications',
         icon: Bell,
@@ -105,6 +111,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'View Submissions', url: '/dashboard/submissions' }],
       },
       {
+        title: 'Interviews',
+        url: '/dashboard/interviewers',
+        icon: GraduationCap,
+        items: [{ title: 'Manage Interviewers', url: '/dashboard/interviewers' }],
+      },
+      {
         title: 'Marketing',
         url: '/dashboard/notifications',
         icon: Bell,
@@ -117,6 +129,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'My Profile', url: '/dashboard/profile' }],
       }
     )
+  } else if (activeRole === 'INTERVIEWER') {
+    navMainItems = [
+      {
+        title: 'Dashboard',
+        url: '/dashboard',
+        icon: SquareTerminal,
+        items: [{ title: 'Sessions', url: '/dashboard' }],
+      },
+      {
+        title: 'Profile',
+        url: '/dashboard/profile',
+        icon: UserCircle2,
+        items: [{ title: 'My Profile', url: '/dashboard/profile' }],
+      }
+    ]
   } else if (activeRole === 'COMPANY') {
     navMainItems = [{
       title: 'Candidate Directory',

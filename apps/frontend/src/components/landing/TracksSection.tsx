@@ -14,7 +14,7 @@ export function TracksSection() {
   const renderTrack = (track: typeof tracks[0], globalIdx: number) => {
     const Icon = track.icon
     const isHovered = hoveredIndex === globalIdx
-    const colorClass = track.color // e.g., text-blue-500
+    const colorClass = track.color || 'text-primary' // e.g., text-blue-500
     const bgColorClass = colorClass.replace('text-', 'bg-') // e.g., bg-blue-500
     
     return (

@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import { getActiveRole } from '@/lib/auth'
+import { getActiveRole, type AuthUser } from '@/lib/auth'
 import {
   fetchCompanyCandidates,
   updateCompanyCandidateDecision,
@@ -67,7 +67,7 @@ function buildDrafts(candidates: CompanyCandidateRecord[]) {
 export function CompanyDashboardPage() {
   const user = useRouterState({
     select: (state) => state.matches.find((match) => match.routeId === '/dashboard')?.context.user,
-  })
+  }) as unknown as AuthUser
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')

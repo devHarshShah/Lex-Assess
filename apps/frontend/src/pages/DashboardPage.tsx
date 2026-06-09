@@ -22,11 +22,13 @@ import { useRazorpay } from 'react-razorpay'
 import { createSubscription, verifyPayment } from '@/lib/payments'
 import { toast } from 'sonner'
 import { CompanyDashboardPage } from './CompanyDashboardPage'
+import { InterviewerDashboardPage } from './InterviewerDashboardPage'
+import { InterviewScheduleCard } from '../components/InterviewScheduleCard'
 
 export function DashboardPage() {
   const user = useRouterState({
     select: (state) => state.matches.find((match) => match.routeId === '/dashboard')?.context.user,
-  })
+  }) as unknown as AuthUser
 
   if (!user) return null
 
@@ -34,6 +36,10 @@ export function DashboardPage() {
 
   if (role === 'COMPANY') {
     return <CompanyDashboardPage />
+  }
+
+  if (role === 'INTERVIEWER') {
+    return <InterviewerDashboardPage />
   }
 
   return <StudentDashboardPage user={user} />
@@ -181,6 +187,8 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
           </div>
         )}
       </div>
+
+      <InterviewScheduleCard specialization={user.profile?.specialization} />
 
       {loading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

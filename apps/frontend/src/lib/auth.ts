@@ -9,7 +9,7 @@ import {
   UNAUTHORIZED_EVENT,
 } from './auth-storage'
 
-export type Role = 'SUPERADMIN' | 'ADMIN' | 'COMPANY' | 'USER'
+export type Role = 'SUPERADMIN' | 'ADMIN' | 'COMPANY' | 'USER' | 'INTERVIEWER'
 
 export interface AuthUser {
   id: string
@@ -20,6 +20,7 @@ export interface AuthUser {
   avatarUrl: string | null
   profileCompleted: boolean
   hasActiveSubscription: boolean
+  profile?: UserProfile
 }
 
 export interface AuthResponse {
@@ -314,9 +315,10 @@ export async function deleteAdminNotification(id: string) {
 export function hasRole(userRole: Role, requiredRoles: Role[]): boolean {
   const hierarchy: Record<Role, number> = {
     USER: 1,
-    COMPANY: 2,
-    ADMIN: 3,
-    SUPERADMIN: 4,
+    INTERVIEWER: 2,
+    COMPANY: 3,
+    ADMIN: 4,
+    SUPERADMIN: 5,
   }
 
   return requiredRoles.some((requiredRole) => hierarchy[userRole] >= hierarchy[requiredRole])
