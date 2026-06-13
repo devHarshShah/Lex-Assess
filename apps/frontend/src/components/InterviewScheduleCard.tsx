@@ -1,10 +1,10 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { checkCanSchedule, fetchAvailableSlots, scheduleInterview, fetchMyInterviews, type InterviewSlot, type Interview } from '@/lib/interview';
-import { Calendar, Video, CheckCircle2, ExternalLink } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Calendar, Video, CheckCircle2, ExternalLink, Sparkles, Lock } from 'lucide-react';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from './ui/dialog';
 import { format } from 'date-fns';
 
 export function InterviewScheduleCard({ specialization }: { specialization?: string }) {
@@ -14,11 +14,7 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
   const [myInterviews, setMyInterviews] = React.useState<Interview[]>([]);
   const [isBookingOpen, setIsBookingOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    init();
-  }, [specialization]);
-
-  const init = async () => {
+  const init = React.useCallback(async () => {
     try {
       const [can, slots, interviews] = await Promise.all([
         checkCanSchedule(),
@@ -28,12 +24,16 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
       setCanSchedule(can);
       setAvailableSlots(slots);
       setMyInterviews(interviews);
-    } catch (error) {
-      console.error(error);
+    } catch {
+      // Error is logged or handled elsewhere if needed
     } finally {
       setLoading(false);
     }
-  };
+  }, [specialization]);
+
+  React.useEffect(() => {
+    init();
+  }, [specialization, init]);
 
   const handleBookSlot = async (slotId: string) => {
     try {
@@ -41,7 +41,7 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
       toast.success('Interview scheduled successfully!');
       setIsBookingOpen(false);
       init();
-    } catch (error) {
+    } catch {
       toast.error('Failed to schedule interview');
     }
   };
@@ -78,7 +78,7 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                 <p className="text-xs text-slate-500">Professional industry expert interviews</p>
               </div>
             </div>
-            
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {myInterviews.map((interview) => (
                 <div key={interview.id} className="group p-5 bg-slate-50/50 rounded-2xl border border-slate-100 transition-all hover:border-amber-200 hover:bg-white hover:shadow-md">
@@ -95,10 +95,10 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                     </div>
 
                     <div className="flex items-center gap-3 py-3 border-y border-slate-100/50">
-                       <div className="space-y-0.5">
-                         <p className="text-[10px] text-slate-400 font-medium">INTERVIEWER</p>
-                         <p className="text-sm font-bold text-slate-700">{interview.interviewer?.name}</p>
-                       </div>
+                      <div className="space-y-0.5">
+                        <p className="text-[10px] text-slate-400 font-medium">INTERVIEWER</p>
+                        <p className="text-sm font-bold text-slate-700">{interview.interviewer?.name}</p>
+                      </div>
                     </div>
 
                     <div className="pt-1">
@@ -124,30 +124,30 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
         <Card className="border-amber-600/20 bg-white shadow-xl overflow-hidden relative group">
           {/* Subtle accent line at top */}
           <div className="absolute top-0 left-0 w-full h-1" style={{ background: 'linear-gradient(90deg, #f59e0b, #d97706, #b45309)' }} />
-          
+
           <div className="p-8 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
             <div className="flex-1 space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold uppercase tracking-wider border border-amber-100">
                 <Sparkles className="h-3 w-3" />
                 Premium Feature Unlocked
               </div>
-              
+
               <div>
                 <h2 className="text-3xl font-black text-slate-900 leading-tight">Expert Interview Ready</h2>
                 <p className="text-slate-500 mt-2 text-lg max-w-xl">
-                  Great job! You've cleared all domain tests. Now, schedule a session with an industry professional to complete your assessment.
+                  Great job! You&apos;ve cleared all domain tests. Now, schedule a session with an industry professional to complete your assessment.
                 </p>
               </div>
 
               <div className="flex items-center gap-6 pt-2">
-                 <div className="flex -space-x-2">
-                   {[1,2,3].map(i => (
-                     <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
-                       {String.fromCharCode(64 + i)}
-                     </div>
-                   ))}
-                 </div>
-                 <p className="text-xs font-medium text-slate-400">Join 500+ students interviewed by experts</p>
+                <div className="flex -space-x-2">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="h-8 w-8 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                      {String.fromCharCode(64 + i)}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs font-medium text-slate-400">Join 500+ students interviewed by experts</p>
               </div>
             </div>
 
@@ -163,16 +163,15 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                     <DialogTitle className="text-3xl font-black">Available Slots</DialogTitle>
                     <p className="text-slate-400 mt-1">Select a time that works best for you</p>
                   </div>
-                  
+
                   <div className="p-8 max-h-[60vh] overflow-y-auto">
                     {availableSlots.length > 0 ? (
                       <div className="grid gap-4 sm:grid-cols-2">
                         {availableSlots.map((slot) => (
-                          <button 
-                            key={slot.id} 
+                          <button
+                            key={slot.id}
                             onClick={() => handleBookSlot(slot.id)}
                             className="group flex flex-col items-start p-5 border border-slate-100 rounded-2xl hover:bg-amber-50/30 transition-all text-left relative overflow-hidden"
-                            style={{ borderHoverColor: '#d97706' }}
                           >
                             <style>{`
                               .group:hover { border-color: #d97706 !important; }
@@ -182,17 +181,17 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                                 <CheckCircle2 className="h-3 w-3 text-white" />
                               </div>
                             </div>
-                            
+
                             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-amber-600">
                               {format(new Date(slot.startTime), 'EEEE, MMM do')}
                             </div>
                             <div className="text-xl font-black text-slate-900 group-hover:text-amber-900 leading-none mb-4">{format(new Date(slot.startTime), 'p')}</div>
-                            
+
                             <div className="flex items-center gap-2 mt-auto">
-                               <div className="h-6 w-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600">
-                                 {slot.interviewer.name.charAt(0)}
-                               </div>
-                               <span className="text-xs font-bold text-slate-600 group-hover:text-amber-900">{slot.interviewer.name}</span>
+                              <div className="h-6 w-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600">
+                                {slot.interviewer.name.charAt(0)}
+                              </div>
+                              <span className="text-xs font-bold text-slate-600 group-hover:text-amber-900">{slot.interviewer.name}</span>
                             </div>
                           </button>
                         ))}
