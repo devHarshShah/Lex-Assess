@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { cn } from '@/lib/utils'
+import { cn, isPublicEmailProvider } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -24,6 +24,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'div'>)
     setLoading(true)
 
     const role: Role = signupType === 'company' ? 'COMPANY' : 'USER'
+
+    if (role === 'COMPANY' && isPublicEmailProvider(email)) {
+      setError('Please use a company email address to register as a company.')
+      setLoading(false)
+      return
+    }
 
     try {
       const auth = await registerWithPassword({ name, email, password, role })

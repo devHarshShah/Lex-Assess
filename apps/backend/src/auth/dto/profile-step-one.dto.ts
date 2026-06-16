@@ -46,4 +46,12 @@ export class ProfileStepOneDto {
   @IsOptional()
   @IsString()
   profilePhotoUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  internshipGoal?: string;
+
+  @IsOptional()
+  @IsString()
+  internshipDuration?: string;
 }

@@ -7,6 +7,7 @@ import { GoogleIcon } from '@/components/google-icon'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { clearAuth, getApiBaseUrl, registerWithPassword, storeAuth, type Role } from '@/lib/auth'
+import { isPublicEmailProvider } from '@/lib/utils'
 
 type SignupType = 'student' | 'company'
 
@@ -25,6 +26,12 @@ export function SignupPage() {
     setLoading(true)
 
     const role: Role = signupType === 'company' ? 'COMPANY' : 'USER'
+
+    if (role === 'COMPANY' && isPublicEmailProvider(email)) {
+      setError('Please use a company email address to register as a company.')
+      setLoading(false)
+      return
+    }
 
     try {
       const auth = await registerWithPassword({ name, email, password, role })

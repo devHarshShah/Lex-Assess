@@ -44,6 +44,8 @@ const FALLBACK_PROFILE_OPTIONS: ProfileOptions = {
     'Data Protection',
     'Technology',
   ],
+  internshipGoals: ['Law Firms', 'Advocates', 'Corporate Houses', 'NGOs', 'Judiciary', 'Government Bodies', 'Other'],
+  internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months', 'Long Term (6+ Months)'],
 }
 
 const MAX_PROFILE_PHOTO_BYTES = 1 * 1024 * 1024
@@ -68,6 +70,8 @@ function getStepOneMissingMessage(input: {
   gender: 'MALE' | 'FEMALE' | 'OTHER'
   countryCode: string
   mobileNumber: string
+  internshipGoal: string
+  internshipDuration: string
 }) {
   if (!input.fullName.trim()) return 'Please enter your full name'
   if (!input.college.trim()) return 'Please select your college'
@@ -75,6 +79,8 @@ function getStepOneMissingMessage(input: {
   if (!input.degree.trim()) return 'Please select your degree'
   if (!input.currentYear.trim()) return 'Please select your current year'
   if (!input.specialization.trim()) return 'Please select your practice area'
+  if (!input.internshipGoal.trim()) return 'Please select your internship goal'
+  if (!input.internshipDuration.trim()) return 'Please select your internship duration'
   if (!input.gender.trim()) return 'Please select your gender'
   if (!input.countryCode.trim() || !input.mobileNumber.trim()) return 'Please enter your phone number'
   return null
@@ -99,6 +105,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   const [degree, setDegree] = React.useState('')
   const [currentYear, setCurrentYear] = React.useState('')
   const [specialization, setSpecialization] = React.useState('')
+  const [internshipGoal, setInternshipGoal] = React.useState('')
+  const [internshipDuration, setInternshipDuration] = React.useState('')
 
   const isPracticeAreaLocked = currentYear === '1' || currentYear === '2' || currentYear === '3'
 
@@ -147,6 +155,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         setDegree(profile.degree || '')
         setCurrentYear(profile.currentYear || '')
         setSpecialization(profile.specialization || '')
+        setInternshipGoal(profile.internshipGoal || '')
+        setInternshipDuration(profile.internshipDuration || '')
         setGender((profile.gender as 'MALE' | 'FEMALE' | 'OTHER' | null) ?? 'MALE')
         setCountryCode(profile.countryCode || '+91')
         setMobileNumber(profile.mobileNumber || '')
@@ -216,6 +226,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
     gender,
     countryCode,
     mobileNumber,
+    internshipGoal,
+    internshipDuration,
   })
   const isStep1Complete = step1MissingMessage === null
   const isStep2Complete = Boolean(verificationDocUrl)
@@ -239,6 +251,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         linkedinUrl: linkedinUrl || undefined,
         resumeUrl: resumeUrl || undefined,
         profilePhotoUrl: profilePhotoUrl || undefined,
+        internshipGoal,
+        internshipDuration,
       })
       storeUser({
         ...user,
@@ -277,6 +291,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         linkedinUrl: linkedinUrl || undefined,
         resumeUrl: resumeUrl || undefined,
         profilePhotoUrl: profilePhotoUrl || undefined,
+        internshipGoal,
+        internshipDuration,
       })
       if (verificationDocUrl) {
         await saveProfileVerification({
@@ -476,6 +492,38 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                           </p>
                         </div>
                       )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Internship Preference</label>
+                    <select
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      value={internshipGoal}
+                      onChange={(e) => setInternshipGoal(e.target.value)}
+                    >
+                      <option value="">Where do you want to intern?</option>
+                      {options.internshipGoals.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Internship Duration</label>
+                    <select
+                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      value={internshipDuration}
+                      onChange={(e) => setInternshipDuration(e.target.value)}
+                    >
+                      <option value="">Select duration</option>
+                      {options.internshipDurations.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Phone</label>

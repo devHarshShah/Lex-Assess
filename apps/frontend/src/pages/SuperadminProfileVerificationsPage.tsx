@@ -35,6 +35,8 @@ export function SuperadminProfileVerificationsPage() {
               <TableHead>Email</TableHead>
               <TableHead>College</TableHead>
               <TableHead>Degree</TableHead>
+              <TableHead>Internship Pref</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead>Verification Doc</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Action</TableHead>
@@ -47,6 +49,8 @@ export function SuperadminProfileVerificationsPage() {
                 <TableCell>{row.email}</TableCell>
                 <TableCell>{row.profile?.college || '-'}</TableCell>
                 <TableCell>{row.profile?.degree || '-'}</TableCell>
+                <TableCell>{row.profile?.internshipGoal || '-'}</TableCell>
+                <TableCell>{row.profile?.internshipDuration || '-'}</TableCell>
                 <TableCell>
                   {row.profile?.verificationDocUrl ? (
                     <a href={row.profile.verificationDocUrl} className="underline" target="_blank" rel="noreferrer">

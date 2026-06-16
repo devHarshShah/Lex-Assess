@@ -6,12 +6,13 @@ export type CompanyActionStatus = Exclude<CompanyWorkflowStatus, 'NEW'>
 export interface CompanyCandidateRecord {
   attemptId: string
   studentId: string
-  studentName: string
-  studentEmail: string
   practiceArea: string
   campaign: string
   versionName: string
   marks: number
+  questionScores: Record<string, number>
+  interviewMarks: number | null
+  interviewerComments: string | null
   workflowStatus: CompanyWorkflowStatus
   notes: string | null
   decisionId: string | null

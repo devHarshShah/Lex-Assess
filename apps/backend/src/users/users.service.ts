@@ -180,6 +180,8 @@ export class UsersService {
       verificationType: profile.verificationType,
       verificationDocUrl: profile.verificationDocUrl,
       isComplete: profile.isComplete,
+      internshipGoal: profile.internshipGoal,
+      internshipDuration: profile.internshipDuration,
     };
   }
 
@@ -197,6 +199,8 @@ export class UsersService {
       linkedinUrl?: string | null;
       resumeUrl?: string | null;
       profilePhotoUrl?: string | null;
+      internshipGoal?: string | null;
+      internshipDuration?: string | null;
     },
   ): Promise<UserProfileDto> {
     await this.prisma.userProfile.upsert({
@@ -213,6 +217,8 @@ export class UsersService {
         linkedinUrl: input.linkedinUrl?.trim() || null,
         resumeUrl: input.resumeUrl?.trim() || null,
         profilePhotoUrl: input.profilePhotoUrl?.trim() || null,
+        internshipGoal: input.internshipGoal?.trim() || null,
+        internshipDuration: input.internshipDuration?.trim() || null,
       },
       create: {
         userId,
@@ -227,6 +233,8 @@ export class UsersService {
         linkedinUrl: input.linkedinUrl?.trim() || null,
         resumeUrl: input.resumeUrl?.trim() || null,
         profilePhotoUrl: input.profilePhotoUrl?.trim() || null,
+        internshipGoal: input.internshipGoal?.trim() || null,
+        internshipDuration: input.internshipDuration?.trim() || null,
       },
     });
 

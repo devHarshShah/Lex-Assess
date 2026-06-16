@@ -87,6 +87,16 @@ export class InterviewController {
     return this.interviewService.scheduleInterview(req.user.id, data);
   }
 
+  @Post('company-schedule/:studentId')
+  @Roles(Role.COMPANY)
+  companyScheduleInterview(
+    @Request() req: any,
+    @Param('studentId') studentId: string,
+    @Body() data: ScheduleInterviewDto,
+  ) {
+    return this.interviewService.scheduleInterviewByCompany(req.user.id, studentId, data);
+  }
+
   @Get('my-interviews')
   @Roles(Role.USER)
   getStudentInterviews(@Request() req: any) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
-import { Loader2, Search, Save, Star } from 'lucide-react'
+import { Loader2, Search, Save, Star, Eye, Calendar } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { getActiveRole, type AuthUser } from '@/lib/auth'
 import {
   fetchCompanyCandidates,
@@ -20,6 +21,7 @@ import {
   type CompanyCandidateRecord,
   type CompanyWorkflowStatus,
 } from '@/lib/company'
+import { fetchAvailableSlots, companyScheduleInterview } from '@/lib/interview'
 import { cn } from '@/lib/utils'
 
 type DraftState = Record<
@@ -75,6 +77,10 @@ export function CompanyDashboardPage() {
   const [practiceArea, setPracticeArea] = useState('all')
   const [status, setStatus] = useState<CompanyWorkflowStatus | 'all'>('all')
   const [drafts, setDrafts] = useState<DraftState>({})
+  const [selectedCandidate, setSelectedCandidate] = useState<CompanyCandidateRecord | null>(null)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isScheduleOpen, setIsScheduleOpen] = useState(false)
+  const [selectedSlotId, setSelectedSlotId] = useState<string>('')
 
   const role = user ? getActiveRole(user) : 'USER'
   const isCompany = role === 'COMPANY'
@@ -89,6 +95,12 @@ export function CompanyDashboardPage() {
         status: status === 'all' ? undefined : status,
       }),
     enabled: isCompany,
+  })
+
+  const slotsQuery = useQuery({
+    queryKey: ['available-slots', selectedCandidate?.practiceArea],
+    queryFn: () => fetchAvailableSlots(selectedCandidate?.practiceArea),
+    enabled: isScheduleOpen && !!selectedCandidate,
   })
 
   useEffect(() => {
@@ -145,6 +157,19 @@ export function CompanyDashboardPage() {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Could not update candidate')
+    },
+  })
+
+  const scheduleMutation = useMutation({
+    mutationFn: async (payload: { studentId: string; slotId: string }) =>
+      companyScheduleInterview(payload.studentId, payload.slotId),
+    onSuccess: () => {
+      toast.success('Interview scheduled successfully')
+      setIsScheduleOpen(false)
+      setSelectedSlotId('')
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Could not schedule interview')
     },
   })
 
@@ -212,7 +237,7 @@ export function CompanyDashboardPage() {
                 id="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Student ID, name, or campaign"
+                placeholder="Student ID or campaign"
                 className="pl-9"
               />
             </div>
@@ -313,7 +338,22 @@ export function CompanyDashboardPage() {
                         <TableCell className="font-mono text-sm">{candidate.studentId}</TableCell>
                         <TableCell>{candidate.practiceArea}</TableCell>
                         <TableCell>{candidate.campaign}</TableCell>
-                        <TableCell className="text-right font-semibold">{candidate.marks}</TableCell>
+                        <TableCell className="text-right font-semibold">
+                          <div className="flex items-center justify-end gap-2">
+                            {candidate.marks}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => {
+                                setSelectedCandidate(candidate)
+                                setIsDetailsOpen(true)
+                              }}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell className="min-w-[180px]">
                           <div className="space-y-2">
                             <Badge className={cn('rounded-full px-2.5 py-0.5 text-xs font-medium', statusBadgeClass(candidate.workflowStatus))}>
@@ -361,38 +401,55 @@ export function CompanyDashboardPage() {
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                saveMutation.mutate({
-                                  attemptId: candidate.attemptId,
-                                  status: 'SHORTLISTED',
-                                  notes: draft.notes,
-                                })
-                              }
-                              disabled={saveMutation.isPending}
-                            >
-                              <Star className="mr-2 h-4 w-4" />
-                              Shortlist
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              onClick={() =>
-                                saveMutation.mutate({
-                                  attemptId: candidate.attemptId,
-                                  status: draft.status || 'SHORTLISTED',
-                                  notes: draft.notes,
-                                })
-                              }
-                              disabled={!canSave}
-                            >
-                              {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                              Save
-                            </Button>
+                          <div className="flex flex-col items-end gap-2">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  saveMutation.mutate({
+                                    attemptId: candidate.attemptId,
+                                    status: 'SHORTLISTED',
+                                    notes: draft.notes,
+                                  })
+                                }
+                                disabled={saveMutation.isPending}
+                              >
+                                <Star className="mr-2 h-4 w-4" />
+                                Shortlist
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={() =>
+                                  saveMutation.mutate({
+                                    attemptId: candidate.attemptId,
+                                    status: draft.status || 'SHORTLISTED',
+                                    notes: draft.notes,
+                                  })
+                                }
+                                disabled={!canSave}
+                              >
+                                {saveMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                Save
+                              </Button>
+                            </div>
+                            {candidate.workflowStatus === 'INTERVIEWING' && (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => {
+                                  setSelectedCandidate(candidate)
+                                  setIsScheduleOpen(true)
+                                }}
+                              >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                Schedule Interview
+                              </Button>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -404,6 +461,151 @@ export function CompanyDashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Detailed Marks Dialog */}
+      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Candidate Profile Details</DialogTitle>
+            <DialogDescription>
+              Detailed performance metrics for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-6 py-4">
+            <div className="grid gap-3">
+              <h3 className="text-lg font-semibold border-b pb-1">Assessment Performance</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Total Assessment Score</div>
+                  <div className="text-2xl font-bold">{selectedCandidate?.marks}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Domain</div>
+                  <div className="text-lg font-medium">{selectedCandidate?.practiceArea}</div>
+                </div>
+              </div>
+              
+              <div className="mt-2">
+                <div className="text-sm text-muted-foreground mb-2">Question-wise Breakdown</div>
+                <div className="rounded-md border p-4 max-h-40 overflow-y-auto">
+                  {selectedCandidate && Object.entries(selectedCandidate.questionScores).length > 0 ? (
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                      {Object.entries(selectedCandidate.questionScores).map(([qId, score], idx) => (
+                        <div key={qId} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Question {idx + 1}</span>
+                          <span className="font-mono font-medium">{score} marks</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground italic">No detailed breakdown available</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <h3 className="text-lg font-semibold border-b pb-1">Interview Performance</h3>
+              {selectedCandidate?.interviewMarks !== undefined && selectedCandidate?.interviewMarks !== null ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Interview Score</div>
+                      <div className="text-2xl font-bold text-violet-600">{selectedCandidate?.interviewMarks}</div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Interviewer Comments</div>
+                    <div className="rounded-md bg-muted p-3 text-sm italic">
+                      "{selectedCandidate?.interviewerComments || 'No comments provided'}"
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-sm text-muted-foreground italic bg-muted/50 p-4 rounded-md text-center">
+                  Interview results not yet available.
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Interview Dialog */}
+      <Dialog open={isScheduleOpen} onOpenChange={setIsScheduleOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Interview</DialogTitle>
+            <DialogDescription>
+              Select an available slot to schedule an interview for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            <div className="grid gap-2">
+              <Label>Available Slots (Domain: {selectedCandidate?.practiceArea})</Label>
+              {slotsQuery.isLoading ? (
+                <div className="flex items-center justify-center p-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : slotsQuery.data && slotsQuery.data.length > 0 ? (
+                <div className="max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-2">
+                  {slotsQuery.data.map((slot) => (
+                    <div 
+                      key={slot.id}
+                      className={cn(
+                        "flex flex-col p-3 rounded-md border cursor-pointer transition-colors hover:bg-accent",
+                        selectedSlotId === slot.id && "bg-accent border-primary ring-1 ring-primary"
+                      )}
+                      onClick={() => setSelectedSlotId(slot.id)}
+                    >
+                      <div className="font-medium text-sm">
+                        {new Intl.DateTimeFormat('en-GB', {
+                          weekday: 'short',
+                          day: 'numeric',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(slot.startTime))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Interviewer: {slot.interviewer.name}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground text-center p-8 bg-muted/50 rounded-md">
+                  No slots available for this specialization.
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
+            <Button 
+              disabled={!selectedSlotId || scheduleMutation.isPending}
+              onClick={() => {
+                if (selectedCandidate && selectedSlotId) {
+                  scheduleMutation.mutate({
+                    studentId: selectedCandidate.studentId,
+                    slotId: selectedSlotId
+                  })
+                }
+              }}
+            >
+              {scheduleMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirm Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

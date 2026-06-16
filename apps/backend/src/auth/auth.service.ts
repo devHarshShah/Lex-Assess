@@ -11,6 +11,7 @@ import { ProfileVerificationDto } from './dto/profile-verification.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateSpecializationDto } from './dto/update-specialization.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { isPublicEmailProvider } from '../common/utils/email.utils';
 
 interface GoogleTokenInfo {
   sub: string;
@@ -50,6 +51,10 @@ export class AuthService {
     const role = input.role ?? Role.USER;
     if (role !== Role.USER && role !== Role.COMPANY) {
       throw new BadRequestException('Invalid role for self registration');
+    }
+
+    if (role === Role.COMPANY && isPublicEmailProvider(input.email)) {
+      throw new BadRequestException('Please use a company email address to register as a company.');
     }
 
     const passwordHash = await hash(input.password, 10);
@@ -133,6 +138,16 @@ export class AuthService {
       colleges: colleges.map((c) => c.name),
       degrees: degrees.map((d) => d.name),
       specializations: specializations.map((s) => s.name),
+      internshipGoals: [
+        'Law Firms',
+        'Advocates',
+        'Corporate Houses',
+        'NGOs',
+        'Judiciary',
+        'Government Bodies',
+        'Other',
+      ],
+      internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months', 'Long Term (6+ Months)'],
     };
   }
 
@@ -147,7 +162,9 @@ export class AuthService {
           profile.specialization &&
           profile.gender &&
           profile.countryCode &&
-          profile.mobileNumber,
+          profile.mobileNumber &&
+          profile.internshipGoal &&
+          profile.internshipDuration,
       ),
       step2Completed: Boolean(profile?.verificationType && profile?.verificationDocUrl),
       profileCompleted: profile?.isComplete ?? false,
@@ -385,6 +402,10 @@ export class AuthService {
   private async loginWithGoogleTokenInfo(tokenInfo: GoogleTokenInfo, role?: Role): Promise<AuthResponseDto> {
     if (tokenInfo.email_verified !== 'true') {
       throw new UnauthorizedException('Google email is not verified');
+    }
+
+    if (role === Role.COMPANY && isPublicEmailProvider(tokenInfo.email)) {
+      throw new BadRequestException('Please use a company email address to register as a company.');
     }
 
     const user = await this.usersService.upsertGoogleUser({

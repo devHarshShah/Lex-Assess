@@ -65,6 +65,10 @@ export const scheduleInterview = async (slotId: string) => {
   return api.post<Interview>('/interviews/schedule', { slotId });
 };
 
+export const companyScheduleInterview = async (studentId: string, slotId: string) => {
+  return api.post<Interview>(`/interviews/company-schedule/${studentId}`, { slotId });
+};
+
 export const fetchMyInterviews = async () => {
   return api.get<Interview[]>('/interviews/my-interviews');
 };

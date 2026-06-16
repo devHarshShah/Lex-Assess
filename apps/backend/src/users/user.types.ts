@@ -31,4 +31,6 @@ export interface UserProfileDto {
   verificationType: 'ONGOING' | 'GRADUATED' | null;
   verificationDocUrl: string | null;
   isComplete: boolean;
+  internshipGoal: string | null;
+  internshipDuration: string | null;
 }

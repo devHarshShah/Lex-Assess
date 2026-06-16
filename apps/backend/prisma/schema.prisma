@@ -131,6 +131,8 @@ model UserProfile {
   verificationType  VerificationType?
   verificationDocUrl String?
   isComplete        Boolean          @default(false)
+  internshipGoal    String?
+  internshipDuration String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 }

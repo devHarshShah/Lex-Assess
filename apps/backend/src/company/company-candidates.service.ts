@@ -16,8 +16,6 @@ type CandidateAttempt = Prisma.TestAttemptGetPayload<{
     user: {
       select: {
         id: true;
-        name: true;
-        email: true;
       };
     };
     version: {
@@ -63,8 +61,6 @@ export class CompanyCandidatesService {
         user: {
           select: {
             id: true,
-            name: true,
-            email: true,
           },
         },
         version: {
@@ -83,8 +79,6 @@ export class CompanyCandidatesService {
     const filteredAttempts = attempts.filter((attempt) => {
       const haystacks = [
         attempt.user.id,
-        attempt.user.name,
-        attempt.user.email,
         attempt.version.paper.title,
         attempt.version.paper.specialization.name,
       ].map((value) => value.toLowerCase());
@@ -104,6 +98,23 @@ export class CompanyCandidatesService {
       return true;
     });
 
+    const studentIds = Array.from(new Set(filteredAttempts.map(a => a.user.id)));
+    
+    // Fetch interviews for these students
+    const interviews = await this.prisma.interview.findMany({
+      where: {
+        studentId: { in: studentIds },
+        status: 'COMPLETED',
+      },
+      select: {
+        studentId: true,
+        marks: true,
+        notes: true,
+      }
+    });
+
+    const interviewsByStudentId = new Map(interviews.map(i => [i.studentId, i]));
+
     const decisions = await this.prisma.companyCandidateDecision.findMany({
       where: {
         companyId,
@@ -122,7 +133,11 @@ export class CompanyCandidatesService {
     const decisionByAttemptId = new Map(decisions.map((decision) => [decision.attemptId, decision]));
 
     return filteredAttempts
-      .map((attempt) => this.toCandidateRecord(attempt, decisionByAttemptId.get(attempt.id) ?? null))
+      .map((attempt) => this.toCandidateRecord(
+        attempt, 
+        decisionByAttemptId.get(attempt.id) ?? null,
+        interviewsByStudentId.get(attempt.user.id) ?? null
+      ))
       .filter((candidate) => {
         if (!query.status) {
           return true;
@@ -146,8 +161,6 @@ export class CompanyCandidatesService {
         user: {
           select: {
             id: true,
-            name: true,
-            email: true,
           },
         },
         version: {
@@ -193,19 +206,35 @@ export class CompanyCandidatesService {
       },
     });
 
-    return this.toCandidateRecord(attempt, decision);
+    const interview = await this.prisma.interview.findFirst({
+      where: {
+        studentId: attempt.user.id,
+        status: 'COMPLETED',
+      },
+      select: {
+        marks: true,
+        notes: true,
+      }
+    });
+
+    return this.toCandidateRecord(attempt, decision, interview);
   }
 
-  private toCandidateRecord(attempt: CandidateAttempt, decision: CandidateDecision | null) {
+  private toCandidateRecord(
+    attempt: CandidateAttempt, 
+    decision: CandidateDecision | null,
+    interview?: { marks: number | null, notes: string | null } | null
+  ) {
     return {
       attemptId: attempt.id,
       studentId: attempt.user.id,
-      studentName: attempt.user.name,
-      studentEmail: attempt.user.email,
       practiceArea: attempt.version.paper.specialization.name,
       campaign: attempt.version.paper.title,
       versionName: attempt.version.versionName,
       marks: attempt.score ?? 0,
+      questionScores: attempt.questionScores ?? {},
+      interviewMarks: interview?.marks ?? null,
+      interviewerComments: interview?.notes ?? null,
       workflowStatus: decision?.status ?? CompanyCandidateFilterStatus.NEW,
       notes: decision?.notes ?? null,
       decisionId: decision?.id ?? null,

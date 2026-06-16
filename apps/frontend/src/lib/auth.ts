@@ -8,6 +8,7 @@ import {
   clearAuth,
   UNAUTHORIZED_EVENT,
 } from './auth-storage'
+import { isPublicEmailProvider } from './utils'
 
 export type Role = 'SUPERADMIN' | 'ADMIN' | 'COMPANY' | 'USER' | 'INTERVIEWER'
 
@@ -79,6 +80,8 @@ export interface UserProfile {
   verificationType: VerificationType | null
   verificationDocUrl: string | null
   isComplete: boolean
+  internshipGoal: string | null
+  internshipDuration: string | null
 }
 
 export interface ProfileOptions {
@@ -86,6 +89,8 @@ export interface ProfileOptions {
   degrees: string[]
   years: string[]
   specializations: string[]
+  internshipGoals: string[]
+  internshipDurations: string[]
 }
 
 export { getApiBaseUrl, getStoredToken, clearAuth, UNAUTHORIZED_EVENT }
@@ -153,6 +158,9 @@ export async function registerWithPassword(input: {
   password: string
   role?: Role
 }): Promise<AuthResponse> {
+  if (input.role === 'COMPANY' && isPublicEmailProvider(input.email)) {
+    throw new Error('Please use a company email address to register as a company.')
+  }
   return api.post<AuthResponse>('/auth/register', input)
 }
 
@@ -202,6 +210,8 @@ export async function saveProfileStepOne(input: {
   linkedinUrl?: string
   resumeUrl?: string
   profilePhotoUrl?: string
+  internshipGoal?: string
+  internshipDuration?: string
 }) {
   return api.patch<UserProfile>('/profile/me', input)
 }
