@@ -45,11 +45,26 @@ const FALLBACK_PROFILE_OPTIONS: ProfileOptions = {
     'Technology',
   ],
   internshipGoals: ['Law Firms', 'Advocates', 'Corporate Houses', 'NGOs', 'Judiciary', 'Government Bodies', 'Other'],
-  internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months', 'Long Term (6+ Months)'],
+  internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months'],
 }
 
 const MAX_PROFILE_PHOTO_BYTES = 1 * 1024 * 1024
 const MAX_RESUME_BYTES = 2 * 1024 * 1024
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function getInternshipPeriods(duration: string): string[] {
+  const months = parseInt(duration, 10)
+  if (!months || months < 1 || months > 12 || 12 % months !== 0) return []
+  const periods: string[] = []
+  for (let start = 0; start < 12; start += months) {
+    const end = start + months - 1
+    const startName = MONTH_NAMES[start]!
+    const endName = MONTH_NAMES[end]!
+    periods.push(months === 1 ? startName : `${startName}-${endName}`)
+  }
+  return periods
+}
 
 function validateFileSize(file: File, maxBytes: number, label: string): boolean {
   if (file.size > maxBytes) {
@@ -72,6 +87,7 @@ function getStepOneMissingMessage(input: {
   mobileNumber: string
   internshipGoal: string
   internshipDuration: string
+  internshipPeriod: string
 }) {
   if (!input.fullName.trim()) return 'Please enter your full name'
   if (!input.college.trim()) return 'Please select your college'
@@ -81,6 +97,7 @@ function getStepOneMissingMessage(input: {
   if (!input.specialization.trim()) return 'Please select your practice area'
   if (!input.internshipGoal.trim()) return 'Please select your internship goal'
   if (!input.internshipDuration.trim()) return 'Please select your internship duration'
+  if (!input.internshipPeriod.trim()) return 'Please select your internship period'
   if (!input.gender.trim()) return 'Please select your gender'
   if (!input.countryCode.trim() || !input.mobileNumber.trim()) return 'Please enter your phone number'
   return null
@@ -107,6 +124,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   const [specialization, setSpecialization] = React.useState('')
   const [internshipGoal, setInternshipGoal] = React.useState('')
   const [internshipDuration, setInternshipDuration] = React.useState('')
+  const [internshipPeriod, setInternshipPeriod] = React.useState('')
 
   const isPracticeAreaLocked = currentYear === '1' || currentYear === '2' || currentYear === '3'
 
@@ -116,6 +134,14 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
       setSpecialization('General')
     }
   }, [isPracticeAreaLocked])
+
+  // Reset period if it's no longer valid for the selected duration
+  React.useEffect(() => {
+    const validPeriods = getInternshipPeriods(internshipDuration)
+    if (internshipPeriod && !validPeriods.includes(internshipPeriod)) {
+      setInternshipPeriod('')
+    }
+  }, [internshipDuration, internshipPeriod])
 
   const [gender, setGender] = React.useState<'MALE' | 'FEMALE' | 'OTHER'>('MALE')
   const [countryCode, setCountryCode] = React.useState('+91')
@@ -157,6 +183,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         setSpecialization(profile.specialization || '')
         setInternshipGoal(profile.internshipGoal || '')
         setInternshipDuration(profile.internshipDuration || '')
+        setInternshipPeriod(profile.internshipPeriod || '')
         setGender((profile.gender as 'MALE' | 'FEMALE' | 'OTHER' | null) ?? 'MALE')
         setCountryCode(profile.countryCode || '+91')
         setMobileNumber(profile.mobileNumber || '')
@@ -228,6 +255,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
     mobileNumber,
     internshipGoal,
     internshipDuration,
+    internshipPeriod,
   })
   const isStep1Complete = step1MissingMessage === null
   const isStep2Complete = Boolean(verificationDocUrl)
@@ -253,6 +281,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         profilePhotoUrl: profilePhotoUrl || undefined,
         internshipGoal,
         internshipDuration,
+        internshipPeriod,
       })
       storeUser({
         ...user,
@@ -293,6 +322,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         profilePhotoUrl: profilePhotoUrl || undefined,
         internshipGoal,
         internshipDuration,
+        internshipPeriod,
       })
       if (verificationDocUrl) {
         await saveProfileVerification({
@@ -510,20 +540,39 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     </select>
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Internship Duration</label>
-                    <select
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={internshipDuration}
-                      onChange={(e) => setInternshipDuration(e.target.value)}
-                    >
-                      <option value="">Select duration</option>
-                      {options.internshipDurations.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Internship Duration</label>
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        value={internshipDuration}
+                        onChange={(e) => setInternshipDuration(e.target.value)}
+                      >
+                        <option value="">Select duration</option>
+                        {options.internshipDurations.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Internship Period</label>
+                      <select
+                        className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:bg-muted disabled:opacity-70 disabled:cursor-not-allowed"
+                        value={internshipPeriod}
+                        onChange={(e) => setInternshipPeriod(e.target.value)}
+                        disabled={!internshipDuration}
+                      >
+                        <option value="">Select period</option>
+                        {getInternshipPeriods(internshipDuration).map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Phone</label>

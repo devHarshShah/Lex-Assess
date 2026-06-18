@@ -76,6 +76,8 @@ export function CompanyDashboardPage() {
   const [campaign, setCampaign] = useState('all')
   const [practiceArea, setPracticeArea] = useState('all')
   const [status, setStatus] = useState<CompanyWorkflowStatus | 'all'>('all')
+  const [internshipDuration, setInternshipDuration] = useState('all')
+  const [internshipPeriod, setInternshipPeriod] = useState('all')
   const [drafts, setDrafts] = useState<DraftState>({})
   const [selectedCandidate, setSelectedCandidate] = useState<CompanyCandidateRecord | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
@@ -87,13 +89,15 @@ export function CompanyDashboardPage() {
   const isCompany = role === 'COMPANY'
 
   const query = useQuery({
-    queryKey: ['company-candidates', { search, campaign, practiceArea, status }],
+    queryKey: ['company-candidates', { search, campaign, practiceArea, status, internshipDuration, internshipPeriod }],
     queryFn: () =>
       fetchCompanyCandidates({
         search: search.trim() || undefined,
         campaign: campaign === 'all' ? undefined : campaign,
         domain: practiceArea === 'all' ? undefined : practiceArea,
         status: status === 'all' ? undefined : status,
+        internshipDuration: internshipDuration === 'all' ? undefined : internshipDuration,
+        internshipPeriod: internshipPeriod === 'all' ? undefined : internshipPeriod,
       }),
     enabled: isCompany,
   })
@@ -109,15 +113,21 @@ export function CompanyDashboardPage() {
   const filterOptions = useMemo(() => {
     const campaigns = new Set<string>()
     const domains = new Set<string>()
+    const durations = new Set<string>()
+    const periods = new Set<string>()
 
     visibleCandidates.forEach((candidate) => {
       campaigns.add(candidate.campaign)
       domains.add(candidate.practiceArea)
+      if (candidate.internshipDuration) durations.add(candidate.internshipDuration)
+      if (candidate.internshipPeriod) periods.add(candidate.internshipPeriod)
     })
 
     return {
       campaigns: Array.from(campaigns).sort((left, right) => left.localeCompare(right)),
       domains: Array.from(domains).sort((left, right) => left.localeCompare(right)),
+      durations: Array.from(durations).sort((left, right) => left.localeCompare(right)),
+      periods: Array.from(periods).sort((left, right) => left.localeCompare(right)),
     }
   }, [visibleCandidates])
 
@@ -224,7 +234,7 @@ export function CompanyDashboardPage() {
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-4">
+        <CardContent className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-6">
           <div className="grid gap-2">
             <Label htmlFor="search">Search</Label>
             <div className="relative">
@@ -285,6 +295,40 @@ export function CompanyDashboardPage() {
                 {actionStatuses.map((option) => (
                   <SelectItem key={option} value={option}>
                     {formatStatus(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Internship duration</Label>
+            <Select value={internshipDuration} onValueChange={setInternshipDuration}>
+              <SelectTrigger>
+                <SelectValue placeholder="All durations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All durations</SelectItem>
+                {filterOptions.durations.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Internship period</Label>
+            <Select value={internshipPeriod} onValueChange={setInternshipPeriod}>
+              <SelectTrigger>
+                <SelectValue placeholder="All periods" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All periods</SelectItem>
+                {filterOptions.periods.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
                   </SelectItem>
                 ))}
               </SelectContent>

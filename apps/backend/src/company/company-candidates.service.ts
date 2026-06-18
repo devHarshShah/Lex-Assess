@@ -9,6 +9,8 @@ type CandidateListQuery = {
   campaign?: string;
   domain?: string;
   status?: CompanyCandidateFilterStatus;
+  internshipDuration?: string;
+  internshipPeriod?: string;
 };
 
 type CandidateAttempt = Prisma.TestAttemptGetPayload<{
@@ -16,6 +18,12 @@ type CandidateAttempt = Prisma.TestAttemptGetPayload<{
     user: {
       select: {
         id: true;
+        profile: {
+          select: {
+            internshipDuration: true;
+            internshipPeriod: true;
+          };
+        };
       };
     };
     version: {
@@ -68,6 +76,8 @@ export class CompanyCandidatesService {
     const search = query.search?.trim().toLowerCase();
     const campaign = query.campaign?.trim().toLowerCase();
     const domain = query.domain?.trim().toLowerCase();
+    const internshipDuration = query.internshipDuration?.trim().toLowerCase();
+    const internshipPeriod = query.internshipPeriod?.trim().toLowerCase();
 
     const attempts = await this.prisma.testAttempt.findMany({
       where: {
@@ -77,6 +87,12 @@ export class CompanyCandidatesService {
         user: {
           select: {
             id: true,
+            profile: {
+              select: {
+                internshipDuration: true,
+                internshipPeriod: true,
+              },
+            },
           },
         },
         version: {
@@ -108,6 +124,14 @@ export class CompanyCandidatesService {
       }
 
       if (domain && !attempt.version.paper.specialization.name.toLowerCase().includes(domain)) {
+        return false;
+      }
+
+      if (internshipDuration && attempt.user.profile?.internshipDuration?.toLowerCase() !== internshipDuration) {
+        return false;
+      }
+
+      if (internshipPeriod && attempt.user.profile?.internshipPeriod?.toLowerCase() !== internshipPeriod) {
         return false;
       }
 
@@ -179,6 +203,12 @@ export class CompanyCandidatesService {
         user: {
           select: {
             id: true,
+            profile: {
+              select: {
+                internshipDuration: true,
+                internshipPeriod: true,
+              },
+            },
           },
         },
         version: {
@@ -258,6 +288,8 @@ export class CompanyCandidatesService {
       questionScores: attempt.questionScores ?? {},
       interviewMarks: interview?.marks ?? null,
       interviewerComments: interview?.notes ?? null,
+      internshipDuration: attempt.user.profile?.internshipDuration ?? null,
+      internshipPeriod: attempt.user.profile?.internshipPeriod ?? null,
       workflowStatus: decision?.status ?? CompanyCandidateFilterStatus.NEW,
       notes: decision?.notes ?? null,
       decisionId: decision?.id ?? null,

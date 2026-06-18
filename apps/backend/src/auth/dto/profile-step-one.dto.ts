@@ -54,4 +54,8 @@ export class ProfileStepOneDto {
   @IsOptional()
   @IsString()
   internshipDuration?: string;
+
+  @IsOptional()
+  @IsString()
+  internshipPeriod?: string;
 }

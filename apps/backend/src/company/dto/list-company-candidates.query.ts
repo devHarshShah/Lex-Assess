@@ -20,4 +20,14 @@ export class ListCompanyCandidatesQueryDto {
   @IsOptional()
   @IsEnum(CompanyCandidateFilterStatus)
   status?: CompanyCandidateFilterStatus;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  internshipDuration?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  internshipPeriod?: string;
 }

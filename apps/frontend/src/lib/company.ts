@@ -13,6 +13,8 @@ export interface CompanyCandidateRecord {
   questionScores: Record<string, number>
   interviewMarks: number | null
   interviewerComments: string | null
+  internshipDuration: string | null
+  internshipPeriod: string | null
   workflowStatus: CompanyWorkflowStatus
   notes: string | null
   decisionId: string | null
@@ -29,12 +31,16 @@ export async function fetchCompanyCandidates(filters?: {
   campaign?: string
   domain?: string
   status?: CompanyWorkflowStatus
+  internshipDuration?: string
+  internshipPeriod?: string
 }): Promise<CompanyCandidateRecord[]> {
   const params = new URLSearchParams()
   if (filters?.search) params.set('search', filters.search)
   if (filters?.campaign) params.set('campaign', filters.campaign)
   if (filters?.domain) params.set('domain', filters.domain)
   if (filters?.status) params.set('status', filters.status)
+  if (filters?.internshipDuration) params.set('internshipDuration', filters.internshipDuration)
+  if (filters?.internshipPeriod) params.set('internshipPeriod', filters.internshipPeriod)
 
   const query = params.toString()
   return api.get<CompanyCandidateRecord[]>(`/company/candidates${query ? `?${query}` : ''}`)

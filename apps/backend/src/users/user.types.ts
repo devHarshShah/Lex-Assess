@@ -33,4 +33,5 @@ export interface UserProfileDto {
   isComplete: boolean;
   internshipGoal: string | null;
   internshipDuration: string | null;
+  internshipPeriod: string | null;
 }

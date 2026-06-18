@@ -150,7 +150,7 @@ export class AuthService {
         'Government Bodies',
         'Other',
       ],
-      internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months', 'Long Term (6+ Months)'],
+      internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months'],
     };
   }
 
@@ -167,7 +167,8 @@ export class AuthService {
           profile.countryCode &&
           profile.mobileNumber &&
           profile.internshipGoal &&
-          profile.internshipDuration,
+          profile.internshipDuration &&
+          profile.internshipPeriod,
       ),
       step2Completed: Boolean(profile?.verificationType && profile?.verificationDocUrl),
       profileCompleted: profile?.isComplete ?? false,

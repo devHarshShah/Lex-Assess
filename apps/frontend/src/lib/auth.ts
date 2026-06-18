@@ -82,6 +82,7 @@ export interface UserProfile {
   isComplete: boolean
   internshipGoal: string | null
   internshipDuration: string | null
+  internshipPeriod: string | null
 }
 
 export interface ProfileOptions {
@@ -216,6 +217,7 @@ export async function saveProfileStepOne(input: {
   profilePhotoUrl?: string
   internshipGoal?: string
   internshipDuration?: string
+  internshipPeriod?: string
 }) {
   return api.patch<UserProfile>('/profile/me', input)
 }

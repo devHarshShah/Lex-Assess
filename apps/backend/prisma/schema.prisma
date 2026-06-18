@@ -154,6 +154,7 @@ model UserProfile {
   isComplete        Boolean          @default(false)
   internshipGoal    String?
   internshipDuration String?
+  internshipPeriod  String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 }
