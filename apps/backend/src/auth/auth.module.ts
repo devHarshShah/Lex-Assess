@@ -7,11 +7,13 @@ import { UsersService } from '../users/users.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ProfileController } from './profile.controller';
+import { CompanyProfileController } from './company-profile.controller';
 import { RbacDemoController } from './rbac-demo.controller';
 import { SuperadminSpecializationsController } from './superadmin-specializations.controller';
 import { SuperadminCollegesController } from './superadmin-colleges.controller';
 import { SuperadminDegreesController } from './superadmin-degrees.controller';
 import { SuperadminProfilesController } from './superadmin-profiles.controller';
+import { SuperadminCompanyProfilesController } from './superadmin-company-profiles.controller';
 import { SuperadminUsersController } from './superadmin-users.controller';
 import { NotificationsController } from './notifications.controller';
 import { AdminNotificationsController } from './admin-notifications.controller';
@@ -34,12 +36,14 @@ import { UploadsService } from './uploads.service';
   controllers: [
     AuthController,
     ProfileController,
+    CompanyProfileController,
     RbacDemoController,
     SuperadminUsersController,
     SuperadminSpecializationsController,
     SuperadminCollegesController,
     SuperadminDegreesController,
     SuperadminProfilesController,
+    SuperadminCompanyProfilesController,
     NotificationsController,
     AdminNotificationsController,
     UploadsController,

@@ -18,12 +18,12 @@ export class UploadsController {
   )
   async upload(
     @Req() req: { user: { sub: string } },
-    @Body('kind') kind: 'profile_photo' | 'resume' | 'verification_doc' | undefined,
+    @Body('kind') kind: 'profile_photo' | 'resume' | 'verification_doc' | 'operator_id_card' | undefined,
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('File is required');
 
-    if (!kind || !['profile_photo', 'resume', 'verification_doc'].includes(kind)) {
+    if (!kind || !['profile_photo', 'resume', 'verification_doc', 'operator_id_card'].includes(kind)) {
       throw new BadRequestException('Invalid upload kind');
     }
 

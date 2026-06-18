@@ -20,7 +20,7 @@ export class UsersService {
   findByIdWithProfile(id: string) {
     return this.prisma.user.findUnique({
       where: { id },
-      include: { profile: true },
+      include: { profile: true, companyProfile: true },
     });
   }
 
@@ -90,14 +90,24 @@ export class UsersService {
     };
   }
 
-  toPublicUserWithProfile(input: User & { profile: { isComplete: boolean } | null }): PublicUser {
+  toPublicUserWithProfile(
+    input: User & {
+      profile: { isComplete: boolean } | null;
+      companyProfile?: { verificationStatus: 'PENDING' | 'APPROVED' | 'REJECTED' } | null;
+    },
+  ): PublicUser {
+    const profileCompleted =
+      input.role === Role.COMPANY
+        ? input.companyProfile?.verificationStatus === 'APPROVED'
+        : (input.profile?.isComplete ?? false);
+
     return {
       id: input.id,
       email: input.email,
       name: input.name,
       role: input.role,
       avatarUrl: input.avatarUrl,
-      profileCompleted: input.profile?.isComplete ?? false,
+      profileCompleted,
       hasActiveSubscription: input.hasActiveSubscription,
     };
   }
@@ -372,6 +382,84 @@ export class UsersService {
     });
   }
 
+  async getCompanyProfile(userId: string) {
+    return this.prisma.companyProfile.findUnique({ where: { userId } });
+  }
+
+  async upsertCompanyProfile(
+    userId: string,
+    input: {
+      companyName: string;
+      companyLegalName: string;
+      companyPan?: string;
+      companyGstin?: string;
+      operatorName: string;
+      operatorDesignation: string;
+      operatorIdCardUrl?: string;
+    },
+  ) {
+    return this.prisma.companyProfile.upsert({
+      where: { userId },
+      update: {
+        companyName: input.companyName.trim(),
+        companyLegalName: input.companyLegalName.trim(),
+        companyPan: input.companyPan?.trim() || null,
+        companyGstin: input.companyGstin?.trim() || null,
+        operatorName: input.operatorName.trim(),
+        operatorDesignation: input.operatorDesignation.trim(),
+        operatorIdCardUrl: input.operatorIdCardUrl?.trim() || undefined,
+        verificationStatus: 'PENDING',
+        rejectionReason: null,
+        reviewedById: null,
+        reviewedAt: null,
+      },
+      create: {
+        userId,
+        companyName: input.companyName.trim(),
+        companyLegalName: input.companyLegalName.trim(),
+        companyPan: input.companyPan?.trim() || null,
+        companyGstin: input.companyGstin?.trim() || null,
+        operatorName: input.operatorName.trim(),
+        operatorDesignation: input.operatorDesignation.trim(),
+        operatorIdCardUrl: input.operatorIdCardUrl?.trim() || null,
+        verificationStatus: 'PENDING',
+      },
+    });
+  }
+
+  async listCompanyProfilesForSuperadmin() {
+    const users = await this.prisma.user.findMany({
+      where: { role: Role.COMPANY },
+      orderBy: { createdAt: 'desc' },
+      include: { companyProfile: true },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      avatarUrl: u.avatarUrl,
+      profile: u.companyProfile,
+    }));
+  }
+
+  async reviewCompanyProfile(
+    reviewerId: string,
+    userId: string,
+    status: 'APPROVED' | 'REJECTED',
+    rejectionReason: string | null,
+  ) {
+    return this.prisma.companyProfile.update({
+      where: { userId },
+      data: {
+        verificationStatus: status,
+        rejectionReason: status === 'REJECTED' ? rejectionReason : null,
+        reviewedById: reviewerId,
+        reviewedAt: new Date(),
+      },
+    });
+  }
+
   listPublicNotifications() {
     return this.prisma.notification.findMany({
       where: { isActive: true },
@@ -430,6 +518,17 @@ export class UsersService {
   }
 
   async isProfileCompleted(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    if (!user) return false;
+
+    if (user.role === Role.COMPANY) {
+      const companyProfile = await this.prisma.companyProfile.findUnique({
+        where: { userId },
+        select: { verificationStatus: true },
+      });
+      return companyProfile?.verificationStatus === 'APPROVED';
+    }
+
     const profile = await this.prisma.userProfile.findUnique({
       where: { userId },
       select: { isComplete: true },

@@ -32,6 +32,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'Complete Profile', url: '/dashboard/setup' }],
       },
     ]
+  } else if (user.role === 'COMPANY' && !user.profileCompleted) {
+    navMainItems = [
+      {
+        title: 'Company Setup',
+        url: '/dashboard/company-setup',
+        icon: Building2,
+        isActive: true,
+        items: [{ title: 'Complete Company Profile', url: '/dashboard/company-setup' }],
+      },
+    ]
   } else {
     navMainItems = [
       {
@@ -56,6 +66,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: '/dashboard/profile-verifications',
         icon: UserCheck,
         items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
+      },
+      {
+        title: 'Company Review',
+        url: '/dashboard/company-profile-verifications',
+        icon: UserCheck,
+        items: [{ title: 'Verify Companies', url: '/dashboard/company-profile-verifications' }],
       },
       {
         title: 'Profile Options',

@@ -4,12 +4,13 @@ import { randomUUID } from 'crypto';
 import { Client } from 'minio';
 import { fileTypeFromBuffer } from 'file-type';
 
-type UploadKind = 'profile_photo' | 'resume' | 'verification_doc';
+type UploadKind = 'profile_photo' | 'resume' | 'verification_doc' | 'operator_id_card';
 
 const ALLOWED_MIME_TYPES: Record<UploadKind, string[]> = {
   profile_photo: ['image/jpeg', 'image/png', 'image/webp'],
   resume: ['application/pdf'],
   verification_doc: ['application/pdf', 'image/jpeg', 'image/png'],
+  operator_id_card: ['image/jpeg', 'image/png', 'image/webp'],
 };
 
 @Injectable()
@@ -40,6 +41,7 @@ export class UploadsService implements OnModuleInit {
       profile_photo: 1 * 1024 * 1024,
       resume: 2 * 1024 * 1024,
       verification_doc: 2 * 1024 * 1024,
+      operator_id_card: 2 * 1024 * 1024,
     };
 
     if (file.size > maxBytesByKind[kind]) {

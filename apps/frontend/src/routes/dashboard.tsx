@@ -17,13 +17,19 @@ export const dashboardRoute = createRoute({
     try {
       const user = await fetchCurrentUser()
       const { pathname } = window.location
-      
-      const isSetupOrSuccess = pathname === '/dashboard/setup' || pathname === '/dashboard/payment-success'
-      
+
+      const isSetupOrSuccess =
+        pathname === '/dashboard/setup' ||
+        pathname === '/dashboard/company-setup' ||
+        pathname === '/dashboard/payment-success'
+
       if (user.role === 'USER' && !user.profileCompleted && !isSetupOrSuccess) {
         throw redirect({ to: '/dashboard/setup' })
       }
-      
+      if (user.role === 'COMPANY' && !user.profileCompleted && !isSetupOrSuccess) {
+        throw redirect({ to: '/dashboard/company-setup' })
+      }
+
       storeUser(user)
       return { user }
     } catch (error) {
@@ -32,11 +38,17 @@ export const dashboardRoute = createRoute({
       }
       const cachedUser = getStoredUser()
       const { pathname } = window.location
-      const isSetupOrSuccess = pathname === '/dashboard/setup' || pathname === '/dashboard/payment-success'
-      
+      const isSetupOrSuccess =
+        pathname === '/dashboard/setup' ||
+        pathname === '/dashboard/company-setup' ||
+        pathname === '/dashboard/payment-success'
+
       if (cachedUser) {
         if (cachedUser.role === 'USER' && !cachedUser.profileCompleted && !isSetupOrSuccess) {
           throw redirect({ to: '/dashboard/setup' })
+        }
+        if (cachedUser.role === 'COMPANY' && !cachedUser.profileCompleted && !isSetupOrSuccess) {
+          throw redirect({ to: '/dashboard/company-setup' })
         }
         return { user: cachedUser }
       }

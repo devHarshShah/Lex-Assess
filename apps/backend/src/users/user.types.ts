@@ -35,3 +35,18 @@ export interface UserProfileDto {
   internshipDuration: string | null;
   internshipPeriod: string | null;
 }
+
+export type CompanyVerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface CompanyProfileDto {
+  companyName: string;
+  companyLegalName: string;
+  companyPan: string | null;
+  companyGstin: string | null;
+  operatorName: string;
+  operatorDesignation: string;
+  operatorIdCardUrl: string | null;
+  verificationStatus: CompanyVerificationStatus;
+  rejectionReason: string | null;
+  reviewedAt: Date | null;
+}

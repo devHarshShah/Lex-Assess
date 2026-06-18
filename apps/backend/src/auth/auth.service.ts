@@ -9,6 +9,7 @@ import { UsersService } from '../users/users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ProfileStepOneDto } from './dto/profile-step-one.dto';
 import { ProfileVerificationDto } from './dto/profile-verification.dto';
+import { CompanyProfileDto } from './dto/company-profile.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateSpecializationDto } from './dto/update-specialization.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
@@ -243,7 +244,7 @@ export class AuthService {
   async listProfilesForSuperadmin() {
     const users = await this.usersService.listUsersWithProfiles();
     return users
-      .filter((user) => user.role === Role.USER || user.role === Role.COMPANY)
+      .filter((user) => user.role === Role.USER)
       .map((user) => ({
         id: user.id,
         email: user.email,
@@ -256,6 +257,26 @@ export class AuthService {
 
   verifyProfileForSuperadmin(userId: string, verified: boolean) {
     return this.usersService.verifyUserProfile(userId, verified);
+  }
+
+  async getCompanyProfile(userId: string) {
+    return this.usersService.getCompanyProfile(userId);
+  }
+
+  async upsertCompanyProfile(userId: string, dto: CompanyProfileDto) {
+    return this.usersService.upsertCompanyProfile(userId, dto);
+  }
+
+  async listCompanyProfilesForSuperadmin() {
+    return this.usersService.listCompanyProfilesForSuperadmin();
+  }
+
+  async reviewCompanyProfileForSuperadmin(
+    reviewerId: string,
+    userId: string,
+    dto: { status: 'APPROVED' | 'REJECTED'; rejectionReason?: string },
+  ) {
+    return this.usersService.reviewCompanyProfile(reviewerId, userId, dto.status, dto.rejectionReason ?? null);
   }
 
   listPublicNotifications() {

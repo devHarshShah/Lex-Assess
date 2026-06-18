@@ -226,7 +226,10 @@ export async function saveProfileVerification(input: { verificationType: Verific
   return api.patch<UserProfile>('/profile/verification', input)
 }
 
-export async function uploadProfileAsset(file: File, kind: 'profile_photo' | 'resume' | 'verification_doc') {
+export async function uploadProfileAsset(
+  file: File,
+  kind: 'profile_photo' | 'resume' | 'verification_doc' | 'operator_id_card',
+) {
   const formData = new FormData()
   formData.append('kind', kind)
   formData.append('file', file)

@@ -10,6 +10,8 @@ import { dashboardDegreesRoute } from './routes/dashboard-degrees'
 import { dashboardProfileVerificationsRoute } from './routes/dashboard-profile-verifications'
 import { dashboardProfileRoute } from './routes/dashboard-profile'
 import { dashboardProfileSetupRoute } from './routes/dashboard-profile-setup'
+import { dashboardCompanySetupRoute } from './routes/dashboard-company-setup'
+import { dashboardCompanyProfileVerificationsRoute } from './routes/dashboard-company-profile-verifications'
 import { dashboardSpecializationPapersRoute } from './routes/dashboard-specialization-papers'
 import { dashboardPaperBuilderRoute } from './routes/dashboard-paper-builder'
 import { dashboardAllPapersRoute } from './routes/dashboard-all-papers'
@@ -40,8 +42,10 @@ const routeTree = rootRoute.addChildren([
     dashboardCollegesRoute,
     dashboardDegreesRoute,
     dashboardProfileVerificationsRoute,
+    dashboardCompanyProfileVerificationsRoute,
     dashboardProfileRoute,
     dashboardProfileSetupRoute,
+    dashboardCompanySetupRoute,
     dashboardSpecializationPapersRoute,
     dashboardPaperBuilderRoute,
     dashboardAllPapersRoute,
