@@ -2,8 +2,15 @@ import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Client } from 'minio';
+import { fileTypeFromBuffer } from 'file-type';
 
 type UploadKind = 'profile_photo' | 'resume' | 'verification_doc';
+
+const ALLOWED_MIME_TYPES: Record<UploadKind, string[]> = {
+  profile_photo: ['image/jpeg', 'image/png', 'image/webp'],
+  resume: ['application/pdf'],
+  verification_doc: ['application/pdf', 'image/jpeg', 'image/png'],
+};
 
 @Injectable()
 export class UploadsService implements OnModuleInit {
@@ -16,8 +23,8 @@ export class UploadsService implements OnModuleInit {
       endPoint: this.configService.get<string>('MINIO_ENDPOINT') || 'localhost',
       port: Number(this.configService.get<string>('MINIO_PORT') || 9000),
       useSSL: this.configService.get<string>('MINIO_USE_SSL') === 'true',
-      accessKey: this.configService.get<string>('MINIO_ACCESS_KEY') || 'minioadmin',
-      secretKey: this.configService.get<string>('MINIO_SECRET_KEY') || 'minioadmin',
+      accessKey: this.configService.getOrThrow<string>('MINIO_ACCESS_KEY'),
+      secretKey: this.configService.getOrThrow<string>('MINIO_SECRET_KEY'),
     });
   }
 
@@ -39,11 +46,15 @@ export class UploadsService implements OnModuleInit {
       throw new BadRequestException('File too large for upload type');
     }
 
-    const extension = this.getExtension(file.originalname);
-    const objectKey = `${kind}/${userId}/${Date.now()}-${randomUUID()}${extension}`;
+    const detectedType = await fileTypeFromBuffer(file.buffer);
+    if (!detectedType || !ALLOWED_MIME_TYPES[kind].includes(detectedType.mime)) {
+      throw new BadRequestException('File content does not match an allowed type for this upload');
+    }
+
+    const objectKey = `${kind}/${userId}/${Date.now()}-${randomUUID()}.${detectedType.ext}`;
 
     await this.client.putObject(this.bucket, objectKey, file.buffer, file.size, {
-      'Content-Type': file.mimetype,
+      'Content-Type': detectedType.mime,
     });
 
     const publicBaseUrl = this.configService.get<string>('MINIO_PUBLIC_BASE_URL') || 'http://localhost:9000';
@@ -51,11 +62,5 @@ export class UploadsService implements OnModuleInit {
       objectKey,
       url: `${publicBaseUrl}/${this.bucket}/${objectKey}`,
     };
-  }
-
-  private getExtension(filename: string): string {
-    const index = filename.lastIndexOf('.');
-    if (index === -1) return '';
-    return filename.slice(index);
   }
 }

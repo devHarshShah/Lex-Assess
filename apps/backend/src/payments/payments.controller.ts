@@ -1,4 +1,5 @@
 import { Controller, Post, Get, Headers, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -13,6 +14,7 @@ export class PaymentsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('verify-payment')
   async verifyPayment(
     @Request() req: any,

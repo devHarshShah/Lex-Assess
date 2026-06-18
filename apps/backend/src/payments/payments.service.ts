@@ -10,22 +10,23 @@ export class PaymentsService {
   private razorpay: any;
   private planId: string;
   private readonly webhookSecret: string;
+  private readonly keyId: string;
+  private readonly keySecret: string;
   private planInitializationPromise: Promise<void>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) {
-    const key_id = this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_SxGFcVQMhIXANS';
-    const key_secret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'zVFLV4QaIAPOBOm2gL7SPJH4';
-    
-    // In a real app we'd load this from env. For now we try to create/fetch a plan or use a fallback.
+    this.keyId = this.configService.getOrThrow<string>('RAZORPAY_KEY_ID');
+    this.keySecret = this.configService.getOrThrow<string>('RAZORPAY_KEY_SECRET');
+
     this.planId = this.configService.get<string>('RAZORPAY_PLAN_ID') || '';
-    this.webhookSecret = this.configService.get<string>('RAZORPAY_WEBHOOK_SECRET') || 'lexassess_secret';
+    this.webhookSecret = this.configService.getOrThrow<string>('RAZORPAY_WEBHOOK_SECRET');
 
     this.razorpay = new Razorpay({
-      key_id,
-      key_secret,
+      key_id: this.keyId,
+      key_secret: this.keySecret,
     });
     
     this.planInitializationPromise = this.initializePlan();
@@ -124,7 +125,7 @@ export class PaymentsService {
 
       return {
         subscriptionId: subscription.id,
-        keyId: this.configService.get<string>('RAZORPAY_KEY_ID') || 'rzp_test_SxGFcVQMhIXANS',
+        keyId: this.keyId,
       };
     } catch (error: any) {
       this.logger.error('Failed to create Razorpay subscription', error?.response || error);
@@ -219,10 +220,16 @@ export class PaymentsService {
   }) {
     const { razorpay_payment_id, razorpay_subscription_id, razorpay_signature } = data;
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+
+    if (!user.razorpaySubscriptionId || user.razorpaySubscriptionId !== razorpay_subscription_id) {
+      throw new BadRequestException('Subscription does not belong to this user');
+    }
+
     // Razorpay signature for subscriptions: HMAC_SHA256(payment_id + '|' + subscription_id, key_secret)
-    const key_secret = this.configService.get<string>('RAZORPAY_KEY_SECRET') || 'zVFLV4QaIAPOBOm2gL7SPJH4';
     const expected = crypto
-      .createHmac('sha256', key_secret)
+      .createHmac('sha256', this.keySecret)
       .update(`${razorpay_payment_id}|${razorpay_subscription_id}`)
       .digest('hex');
 
@@ -230,7 +237,21 @@ export class PaymentsService {
       throw new BadRequestException('Payment signature verification failed');
     }
 
-    // Mark the user's subscription as active immediately
+    // Defense in depth: confirm with Razorpay that the subscription is actually active
+    // before trusting the client-supplied callback.
+    let subscription: any;
+    try {
+      subscription = await this.razorpay.subscriptions.fetch(razorpay_subscription_id);
+    } catch (error) {
+      this.logger.error('Failed to fetch subscription status from Razorpay', error);
+      throw new BadRequestException('Unable to verify subscription status');
+    }
+
+    const activeStatuses = ['active', 'authenticated', 'charged'];
+    if (!activeStatuses.includes(subscription?.status)) {
+      throw new BadRequestException('Subscription is not active');
+    }
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {

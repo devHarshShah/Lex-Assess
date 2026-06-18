@@ -23,6 +23,7 @@ import { dashboardInterviewersRoute } from './routes/dashboard-interviewers'
 import { loginRoute } from './routes/login'
 import { signupRoute } from './routes/signup'
 import { googleCallbackRoute } from './routes/google-callback'
+import { setPasswordRoute } from './routes/set-password'
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
@@ -30,6 +31,7 @@ const routeTree = rootRoute.addChildren([
   loginRoute,
   signupRoute,
   googleCallbackRoute,
+  setPasswordRoute,
   dashboardTestAttemptRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,

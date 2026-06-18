@@ -80,3 +80,19 @@ export class AddFeedbackDto {
   @IsNotEmpty()
   notes!: string;
 }
+
+export class ScheduleCompanyInterviewDto {
+  @IsDateString()
+  @IsNotEmpty()
+  scheduledAt!: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class CompleteCompanyInterviewDto {
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}

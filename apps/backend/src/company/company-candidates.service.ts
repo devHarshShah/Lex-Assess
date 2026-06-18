@@ -48,6 +48,22 @@ export class CompanyCandidatesService {
     private readonly mailService: MailService,
   ) {}
 
+  /**
+   * A candidate is only visible/actionable by companies once they've completed
+   * both stages used to generate their rank: the domain test and the LexAssess interview.
+   */
+  private async getEligibleStudentIds(studentIds: string[]): Promise<Set<string>> {
+    const completedInterviews = await this.prisma.interview.findMany({
+      where: {
+        studentId: { in: studentIds },
+        status: 'COMPLETED',
+      },
+      select: { studentId: true },
+    });
+
+    return new Set(completedInterviews.map((interview) => interview.studentId));
+  }
+
   async listCandidates(companyId: string, query: CandidateListQuery) {
     const search = query.search?.trim().toLowerCase();
     const campaign = query.campaign?.trim().toLowerCase();
@@ -99,11 +115,13 @@ export class CompanyCandidatesService {
     });
 
     const studentIds = Array.from(new Set(filteredAttempts.map(a => a.user.id)));
-    
+    const eligibleStudentIds = await this.getEligibleStudentIds(studentIds);
+    const eligibleAttempts = filteredAttempts.filter((attempt) => eligibleStudentIds.has(attempt.user.id));
+
     // Fetch interviews for these students
     const interviews = await this.prisma.interview.findMany({
       where: {
-        studentId: { in: studentIds },
+        studentId: { in: Array.from(eligibleStudentIds) },
         status: 'COMPLETED',
       },
       select: {
@@ -118,7 +136,7 @@ export class CompanyCandidatesService {
     const decisions = await this.prisma.companyCandidateDecision.findMany({
       where: {
         companyId,
-        attemptId: { in: filteredAttempts.map((attempt) => attempt.id) },
+        attemptId: { in: eligibleAttempts.map((attempt) => attempt.id) },
       },
       select: {
         id: true,
@@ -132,9 +150,9 @@ export class CompanyCandidatesService {
 
     const decisionByAttemptId = new Map(decisions.map((decision) => [decision.attemptId, decision]));
 
-    return filteredAttempts
+    return eligibleAttempts
       .map((attempt) => this.toCandidateRecord(
-        attempt, 
+        attempt,
         decisionByAttemptId.get(attempt.id) ?? null,
         interviewsByStudentId.get(attempt.user.id) ?? null
       ))
@@ -176,6 +194,11 @@ export class CompanyCandidatesService {
     });
 
     if (!attempt) {
+      throw new NotFoundException('Candidate not found');
+    }
+
+    const eligibleStudentIds = await this.getEligibleStudentIds([attempt.user.id]);
+    if (!eligibleStudentIds.has(attempt.user.id)) {
       throw new NotFoundException('Candidate not found');
     }
 

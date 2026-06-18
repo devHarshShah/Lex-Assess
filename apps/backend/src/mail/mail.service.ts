@@ -62,29 +62,22 @@ export class MailService {
     }
   }
 
-  async sendInterviewerWelcome(email: string, name: string, tempPassword: string) {
-    const subject = 'Welcome to LexAssess - Your Interviewer Account';
+  async sendInterviewerWelcome(email: string, name: string, setupToken: string) {
+    const subject = 'Welcome to LexAssess - Set Up Your Interviewer Account';
+    const setPasswordUrl = `${this.configService.get('FRONTEND_ORIGIN')}/set-password?token=${setupToken}`;
     const html = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #d97706;">Welcome to LexAssess, ${name}!</h2>
         <p>You have been registered as an interviewer on the LexAssess platform.</p>
-        <p>You can now log in to your dashboard to manage your availability and conduct interviews.</p>
-        
-        <div style="background-color: #fffbeb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p style="margin: 0; font-weight: bold;">Your Login Credentials:</p>
-          <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
-          <p style="margin: 5px 0;"><strong>Password:</strong> ${tempPassword}</p>
-        </div>
+        <p>Your account email is <strong>${email}</strong>. To get started, set your password using the link below.</p>
 
-        <p>We recommend changing your password after your first login.</p>
-        
-        <a href="${this.configService.get('FRONTEND_ORIGIN')}/login" 
+        <a href="${setPasswordUrl}"
            style="display: inline-block; background-color: #d97706; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Log In to Dashboard
+          Set Your Password
         </a>
 
         <p style="margin-top: 30px; font-size: 12px; color: #666;">
-          If you did not expect this email, please ignore it.
+          This link expires in 24 hours. If you did not expect this email, please ignore it.
         </p>
       </div>
     `;

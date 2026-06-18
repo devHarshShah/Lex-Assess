@@ -168,6 +168,10 @@ export async function loginWithPassword(email: string, password: string): Promis
   return api.post<AuthResponse>('/auth/login', { email, password })
 }
 
+export async function setPasswordWithToken(token: string, password: string): Promise<void> {
+  return api.post('/auth/set-password', { token, password })
+}
+
 export async function fetchAllUsersForSuperadmin(): Promise<ManagedUser[]> {
   return api.get<ManagedUser[]>('/superadmin/users')
 }

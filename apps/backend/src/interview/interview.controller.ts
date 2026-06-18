@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, UseGuards, Query, Param, Request, Delete } from '@nestjs/common';
 import { InterviewService } from './interview.service';
-import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto } from './dto/interview.dto';
+import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto, ScheduleCompanyInterviewDto, CompleteCompanyInterviewDto } from './dto/interview.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -87,14 +87,31 @@ export class InterviewController {
     return this.interviewService.scheduleInterview(req.user.id, data);
   }
 
+  // COMPANY: Own hiring-stage interview, separate from the LexAssess interview
   @Post('company-schedule/:studentId')
   @Roles(Role.COMPANY)
   companyScheduleInterview(
     @Request() req: any,
     @Param('studentId') studentId: string,
-    @Body() data: ScheduleInterviewDto,
+    @Body() data: ScheduleCompanyInterviewDto,
   ) {
-    return this.interviewService.scheduleInterviewByCompany(req.user.id, studentId, data);
+    return this.interviewService.scheduleCompanyInterview(req.user.id, studentId, data);
+  }
+
+  @Get('company-interviews')
+  @Roles(Role.COMPANY)
+  getCompanyInterviews(@Request() req: any) {
+    return this.interviewService.getCompanyInterviews(req.user.id);
+  }
+
+  @Post('company-interviews/:id/complete')
+  @Roles(Role.COMPANY)
+  completeCompanyInterview(
+    @Request() req: any,
+    @Param('id') id: string,
+    @Body() data: CompleteCompanyInterviewDto,
+  ) {
+    return this.interviewService.completeCompanyInterview(req.user.id, id, data);
   }
 
   @Get('my-interviews')

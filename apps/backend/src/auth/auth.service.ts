@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { hash, compare } from 'bcryptjs';
+import { randomBytes, createHash } from 'crypto';
 import { Role } from '@prisma/client';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { UsersService } from '../users/users.service';
@@ -27,6 +28,8 @@ interface GoogleTokenExchangeResponse {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
@@ -301,6 +304,27 @@ export class AuthService {
     return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
   }
 
+  async createPasswordSetupToken(userId: string): Promise<string> {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.usersService.createPasswordSetupToken(userId, tokenHash, expiresAt);
+    return token;
+  }
+
+  async setPasswordViaToken(token: string, password: string): Promise<void> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const setupToken = await this.usersService.findValidPasswordSetupToken(tokenHash);
+
+    if (!setupToken) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+
+    const passwordHash = await hash(password, 10);
+    await this.usersService.consumePasswordSetupToken(setupToken.id, setupToken.userId, passwordHash);
+  }
+
   async loginWithGoogleCode(code: string, state?: string): Promise<AuthResponseDto> {
     const idToken = await this.exchangeGoogleCodeForIdToken(code);
     const tokenInfo = await this.verifyGoogleIdToken(idToken);
@@ -381,12 +405,7 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Google OAuth exchange failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-      });
+      this.logger.error(`Google OAuth exchange failed: ${response.status} ${response.statusText}`);
       throw new UnauthorizedException('Failed to exchange Google OAuth code');
     }
 

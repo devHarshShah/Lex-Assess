@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { GoogleCalendarService } from '../mail/google-calendar.service';
 import { Role, InterviewStatus, AttemptStatus } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { randomBytes, createHash } from 'crypto';
 import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto } from './dto/interview.dto';
 
 @Injectable()
@@ -98,16 +98,12 @@ export class InterviewService {
     const existing = await this.prisma.user.findUnique({ where: { email: data.email } });
     if (existing) throw new BadRequestException('User with this email already exists');
 
-    // Create user with INTERVIEWER role and a default password
-    const defaultPassword = 'Interviewer@123';
-    const passwordHash = await bcrypt.hash(defaultPassword, 10);
-
+    // Create user with INTERVIEWER role; password is set later via emailed token
     const user = await this.prisma.user.create({
       data: {
         email: data.email,
         name: data.name,
         role: Role.INTERVIEWER,
-        passwordHash,
         interviewerProfile: {
           create: {
             specializations: {
@@ -121,10 +117,18 @@ export class InterviewService {
     });
 
     try {
-      await this.mailService.sendInterviewerWelcome(data.email, data.name, defaultPassword);
+      const token = randomBytes(32).toString('hex');
+      const tokenHash = createHash('sha256').update(token).digest('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await this.prisma.passwordSetupToken.create({
+        data: { userId: user.id, tokenHash, expiresAt },
+      });
+
+      await this.mailService.sendInterviewerWelcome(data.email, data.name, token);
     } catch (error) {
       // Don't fail the whole request if email fails, but log it
-      console.error('Failed to send welcome email to interviewer:', error);
+      this.logger.error('Failed to send welcome email to interviewer', error);
     }
 
     return user;
@@ -319,102 +323,83 @@ export class InterviewService {
         ]);
       }
     } catch (error) {
-      console.error('Failed to send interview scheduled emails:', error);
+      this.logger.error('Failed to send interview scheduled emails', error);
     }
 
     return result;
   }
 
-  async scheduleInterviewByCompany(companyId: string, studentId: string, data: ScheduleInterviewDto) {
-    // Check if student already has an interview
-    const existingInterview = await this.prisma.interview.findFirst({
-      where: { 
+  /**
+   * The company's own hiring-stage interview, separate from the LexAssess interview
+   * used to generate rank. A company may only schedule this once it has shortlisted
+   * the candidate (a CompanyCandidateDecision exists) and the candidate has completed
+   * both the test and the LexAssess interview.
+   */
+  async scheduleCompanyInterview(companyId: string, studentId: string, data: { scheduledAt: string; notes?: string }) {
+    const relationship = await this.prisma.companyCandidateDecision.findFirst({
+      where: {
+        companyId,
+        attempt: { userId: studentId },
+      },
+    });
+
+    if (!relationship) {
+      throw new ForbiddenException('You are not authorized to schedule an interview for this candidate');
+    }
+
+    const completedLexAssessInterview = await this.prisma.interview.findFirst({
+      where: { studentId, status: InterviewStatus.COMPLETED },
+    });
+
+    if (!completedLexAssessInterview) {
+      throw new ForbiddenException('This candidate has not completed the LexAssess interview yet');
+    }
+
+    const student = await this.prisma.user.findUnique({ where: { id: studentId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const companyInterview = await this.prisma.companyInterview.upsert({
+      where: { companyId_studentId: { companyId, studentId } },
+      update: {
+        scheduledAt: new Date(data.scheduledAt),
+        notes: data.notes,
+        status: 'SCHEDULED',
+      },
+      create: {
+        companyId,
         studentId,
-        status: { in: [InterviewStatus.SCHEDULED, InterviewStatus.COMPLETED] }
-      }
+        scheduledAt: new Date(data.scheduledAt),
+        notes: data.notes,
+      },
     });
 
-    if (existingInterview) {
-      throw new BadRequestException('This student already has an interview scheduled or completed.');
-    }
+    return companyInterview;
+  }
 
-    const slot = await this.prisma.interviewSlot.findUnique({
-      where: { id: data.slotId },
-      include: { interviewer: true }
+  async getCompanyInterviews(companyId: string) {
+    return this.prisma.companyInterview.findMany({
+      where: { companyId },
+      include: { student: { select: { id: true, name: true, email: true } } },
+      orderBy: { scheduledAt: 'desc' },
+    });
+  }
+
+  async completeCompanyInterview(companyId: string, companyInterviewId: string, data: { notes?: string }) {
+    const companyInterview = await this.prisma.companyInterview.findUnique({
+      where: { id: companyInterviewId },
     });
 
-    if (!slot || slot.isBooked) {
-      throw new BadRequestException('Slot is no longer available');
+    if (!companyInterview || companyInterview.companyId !== companyId) {
+      throw new NotFoundException('Company interview not found');
     }
 
-    // Mark slot as booked and create interview
-    const result = await this.prisma.$transaction(async (tx) => {
-      await tx.interviewSlot.update({
-        where: { id: slot.id },
-        data: { isBooked: true }
-      });
-
-      const student = await tx.user.findUnique({ where: { id: studentId } });
-      if (!student) throw new NotFoundException('Student not found');
-
-      try {
-        const event = await this.calendarService.createInterviewEvent({
-          studentName: student.name,
-          studentEmail: student.email,
-          interviewerName: slot.interviewer.name,
-          interviewerEmail: slot.interviewer.email,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        });
-
-        const interview = await tx.interview.create({
-          data: {
-            studentId,
-            interviewerId: slot.interviewerId,
-            slotId: slot.id,
-            status: InterviewStatus.SCHEDULED,
-            meetLink: event.meetLink,
-            googleEventId: event.eventId,
-          },
-          include: { 
-            interviewer: true, 
-            student: true,
-            slot: true 
-          }
-        });
-
-        return interview;
-      } catch (error: any) {
-        this.logger.error('Failed to schedule interview by company due to calendar error:', error);
-        throw new BadRequestException(`Failed to schedule interview: ${error.message || 'Google Calendar error'}`);
-      }
+    return this.prisma.companyInterview.update({
+      where: { id: companyInterviewId },
+      data: {
+        status: 'COMPLETED',
+        notes: data.notes ?? companyInterview.notes,
+      },
     });
-
-    // Send emails
-    try {
-      if (result.student && result.interviewer && result.slot) {
-        await Promise.all([
-          this.mailService.sendInterviewScheduled(
-            result.student.email,
-            result.student.name,
-            result.interviewer.name,
-            result.slot.startTime,
-            result.meetLink!
-          ),
-          this.mailService.sendInterviewScheduled(
-            result.interviewer.email,
-            result.student.name,
-            result.interviewer.name,
-            result.slot.startTime,
-            result.meetLink!
-          )
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to send interview scheduled emails:', error);
-    }
-
-    return result;
   }
 
   async getInterviewerSessions(interviewerId: string) {

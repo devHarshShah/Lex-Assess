@@ -65,8 +65,26 @@ export const scheduleInterview = async (slotId: string) => {
   return api.post<Interview>('/interviews/schedule', { slotId });
 };
 
-export const companyScheduleInterview = async (studentId: string, slotId: string) => {
-  return api.post<Interview>(`/interviews/company-schedule/${studentId}`, { slotId });
+export interface CompanyInterview {
+  id: string;
+  companyId: string;
+  studentId: string;
+  student?: { id: string; name: string; email: string };
+  scheduledAt: string;
+  notes?: string | null;
+  status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+}
+
+export const companyScheduleInterview = async (studentId: string, scheduledAt: string, notes?: string) => {
+  return api.post<CompanyInterview>(`/interviews/company-schedule/${studentId}`, { scheduledAt, notes });
+};
+
+export const fetchCompanyInterviews = async () => {
+  return api.get<CompanyInterview[]>('/interviews/company-interviews');
+};
+
+export const completeCompanyInterview = async (companyInterviewId: string, notes?: string) => {
+  return api.post<CompanyInterview>(`/interviews/company-interviews/${companyInterviewId}/complete`, { notes });
 };
 
 export const fetchMyInterviews = async () => {

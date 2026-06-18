@@ -432,4 +432,29 @@ export class UsersService {
     });
     return profile?.isComplete ?? false;
   }
+
+  createPasswordSetupToken(userId: string, tokenHash: string, expiresAt: Date) {
+    return this.prisma.passwordSetupToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+  }
+
+  findValidPasswordSetupToken(tokenHash: string) {
+    return this.prisma.passwordSetupToken.findFirst({
+      where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
+    });
+  }
+
+  async consumePasswordSetupToken(tokenId: string, userId: string, passwordHash: string) {
+    await this.prisma.$transaction([
+      this.prisma.passwordSetupToken.update({
+        where: { id: tokenId },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash },
+      }),
+    ]);
+  }
 }

@@ -21,7 +21,7 @@ import {
   type CompanyCandidateRecord,
   type CompanyWorkflowStatus,
 } from '@/lib/company'
-import { fetchAvailableSlots, companyScheduleInterview } from '@/lib/interview'
+import { companyScheduleInterview } from '@/lib/interview'
 import { cn } from '@/lib/utils'
 
 type DraftState = Record<
@@ -80,7 +80,8 @@ export function CompanyDashboardPage() {
   const [selectedCandidate, setSelectedCandidate] = useState<CompanyCandidateRecord | null>(null)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
-  const [selectedSlotId, setSelectedSlotId] = useState<string>('')
+  const [scheduledAt, setScheduledAt] = useState<string>('')
+  const [scheduleNotes, setScheduleNotes] = useState<string>('')
 
   const role = user ? getActiveRole(user) : 'USER'
   const isCompany = role === 'COMPANY'
@@ -95,12 +96,6 @@ export function CompanyDashboardPage() {
         status: status === 'all' ? undefined : status,
       }),
     enabled: isCompany,
-  })
-
-  const slotsQuery = useQuery({
-    queryKey: ['available-slots', selectedCandidate?.practiceArea],
-    queryFn: () => fetchAvailableSlots(selectedCandidate?.practiceArea),
-    enabled: isScheduleOpen && !!selectedCandidate,
   })
 
   useEffect(() => {
@@ -161,12 +156,13 @@ export function CompanyDashboardPage() {
   })
 
   const scheduleMutation = useMutation({
-    mutationFn: async (payload: { studentId: string; slotId: string }) =>
-      companyScheduleInterview(payload.studentId, payload.slotId),
+    mutationFn: async (payload: { studentId: string; scheduledAt: string; notes?: string }) =>
+      companyScheduleInterview(payload.studentId, payload.scheduledAt, payload.notes),
     onSuccess: () => {
       toast.success('Interview scheduled successfully')
       setIsScheduleOpen(false)
-      setSelectedSlotId('')
+      setScheduledAt('')
+      setScheduleNotes('')
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Could not schedule interview')
@@ -542,60 +538,42 @@ export function CompanyDashboardPage() {
           <DialogHeader>
             <DialogTitle>Schedule Interview</DialogTitle>
             <DialogDescription>
-              Select an available slot to schedule an interview for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
+              Schedule your own hiring interview for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4 space-y-4">
             <div className="grid gap-2">
-              <Label>Available Slots (Domain: {selectedCandidate?.practiceArea})</Label>
-              {slotsQuery.isLoading ? (
-                <div className="flex items-center justify-center p-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : slotsQuery.data && slotsQuery.data.length > 0 ? (
-                <div className="max-h-[300px] overflow-y-auto border rounded-md p-2 space-y-2">
-                  {slotsQuery.data.map((slot) => (
-                    <div 
-                      key={slot.id}
-                      className={cn(
-                        "flex flex-col p-3 rounded-md border cursor-pointer transition-colors hover:bg-accent",
-                        selectedSlotId === slot.id && "bg-accent border-primary ring-1 ring-primary"
-                      )}
-                      onClick={() => setSelectedSlotId(slot.id)}
-                    >
-                      <div className="font-medium text-sm">
-                        {new Intl.DateTimeFormat('en-GB', {
-                          weekday: 'short',
-                          day: 'numeric',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        }).format(new Date(slot.startTime))}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Interviewer: {slot.interviewer.name}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-sm text-muted-foreground text-center p-8 bg-muted/50 rounded-md">
-                  No slots available for this specialization.
-                </div>
-              )}
+              <Label htmlFor="scheduledAt">Date &amp; time</Label>
+              <Input
+                id="scheduledAt"
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(event) => setScheduledAt(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="scheduleNotes">Notes (optional)</Label>
+              <Textarea
+                id="scheduleNotes"
+                value={scheduleNotes}
+                onChange={(event) => setScheduleNotes(event.target.value)}
+                placeholder="Add any notes for this interview"
+                rows={3}
+              />
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
-            <Button 
-              disabled={!selectedSlotId || scheduleMutation.isPending}
+            <Button
+              disabled={!scheduledAt || scheduleMutation.isPending}
               onClick={() => {
-                if (selectedCandidate && selectedSlotId) {
+                if (selectedCandidate && scheduledAt) {
                   scheduleMutation.mutate({
                     studentId: selectedCandidate.studentId,
-                    slotId: selectedSlotId
+                    scheduledAt: new Date(scheduledAt).toISOString(),
+                    notes: scheduleNotes.trim() || undefined,
                   })
                 }
               }}
