@@ -89,6 +89,7 @@ model User {
   avatarUrl     String?
   authProvider  AuthProvider @default(EMAIL)
   profile       UserProfile?
+  certificate   Certificate?
   companyProfile        CompanyProfile?  @relation("CompanyProfileUser")
   companyProfileReviews CompanyProfile[] @relation("CompanyProfileReviewer")
   interviewerProfile InterviewerProfile?
@@ -393,4 +394,21 @@ model CompanyInterview {
 
   @@unique([companyId, studentId])
   @@index([studentId])
+}
+
+model Certificate {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verificationCode String   @unique
+  rollNumber       String?
+  fullName         String
+  practiceArea     String
+  rank             Int
+  commonScore      Float
+  pdfUrl           String
+  issuedAt         DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([verificationCode])
 }

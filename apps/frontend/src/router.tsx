@@ -23,14 +23,17 @@ import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success
 import { dashboardNotificationsRoute } from './routes/dashboard-notifications'
 import { dashboardInterviewersRoute } from './routes/dashboard-interviewers'
 import { dashboardRankingRoute } from './routes/dashboard-ranking'
+import { dashboardCertificateRoute } from './routes/dashboard-certificate'
 import { loginRoute } from './routes/login'
 import { signupRoute } from './routes/signup'
 import { googleCallbackRoute } from './routes/google-callback'
 import { setPasswordRoute } from './routes/set-password'
+import { verifyRoute } from './routes/verify'
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
   directoryRoute,
+  verifyRoute,
   loginRoute,
   signupRoute,
   googleCallbackRoute,
@@ -57,6 +60,7 @@ const routeTree = rootRoute.addChildren([
     dashboardNotificationsRoute,
     dashboardInterviewersRoute as any,
     dashboardRankingRoute,
+    dashboardCertificateRoute,
   ]),
 ])
 

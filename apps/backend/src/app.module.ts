@@ -11,6 +11,7 @@ import { QuestionPapersModule } from './question-papers/question-papers.module';
 import { PaymentsModule } from './payments/payments.module';
 import { InterviewModule } from './interview/interview.module';
 import { RankingModule } from './ranking/ranking.module';
+import { CertificatesModule } from './certificates/certificates.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { RankingModule } from './ranking/ranking.module';
     PaymentsModule,
     InterviewModule,
     RankingModule,
+    CertificatesModule,
   ],
   controllers: [AppController],
   providers: [
