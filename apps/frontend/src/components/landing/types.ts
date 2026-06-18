@@ -31,9 +31,3 @@ export type Track = {
   icon?: React.ComponentType<{ className?: string }>
   color?: string
 }
-
-export type StudentDirectoryEntry = {
-  studentId: string
-  rank: string
-  practiceArea: string
-}

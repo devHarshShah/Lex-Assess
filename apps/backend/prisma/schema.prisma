@@ -163,8 +163,14 @@ model UserProfile {
   internshipGoal    String?
   internshipDuration String?
   internshipPeriod  String?
+  rollNumber        String?          @unique
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
+}
+
+model RollNumberCounter {
+  year         Int @id
+  lastSequence Int @default(0)
 }
 
 model CompanyProfile {

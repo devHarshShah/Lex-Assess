@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { useQuery } from '@tanstack/react-query'
 
 import { Card } from '@/components/ui/card'
 import {
@@ -10,9 +11,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
-import { studentDirectory } from './data'
+import { fetchPublicLeaderboard } from '@/lib/ranking'
 
 export function DirectorySection() {
+  const { data: entries = [] } = useQuery({
+    queryKey: ['public-leaderboard'],
+    queryFn: () => fetchPublicLeaderboard(10),
+  })
+
   return (
     <section className="w-full bg-card py-16 border-y border-border/40">
       <div className="mx-auto w-full max-w-7xl px-6 md:px-12">
@@ -56,13 +62,13 @@ export function DirectorySection() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {studentDirectory.map((entry) => (
-                <TableRow key={entry.studentId}>
+              {entries.map((entry) => (
+                <TableRow key={entry.anonymizedId}>
                   <TableCell className="font-heading text-lg font-bold text-primary">
-                    #{entry.rank}
+                    #{String(entry.rank).padStart(2, '0')}
                   </TableCell>
                   <TableCell className="font-semibold text-foreground">
-                    {entry.studentId}
+                    {entry.anonymizedId}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {entry.practiceArea}
@@ -74,9 +80,9 @@ export function DirectorySection() {
         </Card>
 
         <div className="grid gap-4 md:hidden">
-          {studentDirectory.map((entry) => (
+          {entries.map((entry) => (
             <Card
-              key={entry.studentId}
+              key={entry.anonymizedId}
               className="border-border/60 bg-background p-5 shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
@@ -85,7 +91,7 @@ export function DirectorySection() {
                     Student ID
                   </div>
                   <div className="mt-1 text-lg font-semibold text-foreground">
-                    {entry.studentId}
+                    {entry.anonymizedId}
                   </div>
                 </div>
                 <div className="text-right">
@@ -93,7 +99,7 @@ export function DirectorySection() {
                     Rank
                   </div>
                   <div className="mt-1 font-heading text-2xl font-bold text-primary">
-                    #{entry.rank}
+                    #{String(entry.rank).padStart(2, '0')}
                   </div>
                 </div>
               </div>

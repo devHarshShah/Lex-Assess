@@ -11,7 +11,7 @@ import {
   Shield, 
   Cpu 
 } from 'lucide-react'
-import type { Feature, NavItem, Pillar, Step, StudentDirectoryEntry, Track } from './types'
+import type { Feature, NavItem, Pillar, Step, Track } from './types'
 
 export const navItems: NavItem[] = [
   { label: 'Process', href: '#process' },
@@ -205,55 +205,3 @@ export const tracks: Track[] = [
   },
 ]
 
-export const studentDirectory: StudentDirectoryEntry[] = [
-  {
-    studentId: 'LX-24017',
-    rank: '01',
-    practiceArea: 'General Corporate',
-  },
-  {
-    studentId: 'LX-24042',
-    rank: '02',
-    practiceArea: 'Disputes',
-  },
-  {
-    studentId: 'LX-24089',
-    rank: '03',
-    practiceArea: 'Banking & Finance',
-  },
-  {
-    studentId: 'LX-24115',
-    rank: '04',
-    practiceArea: 'Intellectual Property',
-  },
-  {
-    studentId: 'LX-24163',
-    rank: '05',
-    practiceArea: 'Capital Markets',
-  },
-  {
-    studentId: 'LX-24208',
-    rank: '06',
-    practiceArea: 'Taxation',
-  },
-  {
-    studentId: 'LX-24231',
-    rank: '07',
-    practiceArea: 'Competition Law',
-  },
-  {
-    studentId: 'LX-24256',
-    rank: '08',
-    practiceArea: 'Data Protection',
-  },
-  {
-    studentId: 'LX-24284',
-    rank: '09',
-    practiceArea: 'Technology Law',
-  },
-  {
-    studentId: 'LX-24312',
-    rank: '10',
-    practiceArea: 'Maritime & Aviation',
-  },
-]

@@ -1,4 +1,4 @@
-import { AuthProvider, NotificationPlacement, Role, User, VerificationType } from '@prisma/client';
+import { AuthProvider, NotificationPlacement, Prisma, Role, User, VerificationType } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PublicUser, UserManagementRecord, UserProfileDto } from './user.types';
@@ -193,7 +193,26 @@ export class UsersService {
       internshipGoal: profile.internshipGoal,
       internshipDuration: profile.internshipDuration,
       internshipPeriod: profile.internshipPeriod,
+      rollNumber: profile.rollNumber,
     };
+  }
+
+  /**
+   * Issues the next sequential roll number for the current year (format LX{YY}-{0001}).
+   * The per-year counter row is upserted+incremented inside the caller's transaction so
+   * concurrent completions can't collide on the same sequence number.
+   */
+  private async issueRollNumber(tx: Prisma.TransactionClient): Promise<string> {
+    const year = new Date().getFullYear();
+    const yearSuffix = String(year).slice(-2);
+
+    const counter = await tx.rollNumberCounter.upsert({
+      where: { year },
+      update: { lastSequence: { increment: 1 } },
+      create: { year, lastSequence: 1 },
+    });
+
+    return `LX${yearSuffix}-${String(counter.lastSequence).padStart(4, '0')}`;
   }
 
   async upsertProfileStepOne(
@@ -262,24 +281,31 @@ export class UsersService {
       verificationDocUrl: string;
     },
   ): Promise<UserProfileDto> {
-    await this.prisma.userProfile.upsert({
-      where: { userId },
-      update: {
-        verificationType: input.verificationType,
-        verificationDocUrl: input.verificationDocUrl.trim(),
-        isComplete: true,
-      },
-      create: {
-        userId,
-        fullName: '',
-        college: '',
-        degree: '',
-        currentYear: '',
-        specialization: '',
-        verificationType: input.verificationType,
-        verificationDocUrl: input.verificationDocUrl.trim(),
-        isComplete: true,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.userProfile.findUnique({ where: { userId }, select: { rollNumber: true } });
+      const rollNumber = existing?.rollNumber ?? (await this.issueRollNumber(tx));
+
+      await tx.userProfile.upsert({
+        where: { userId },
+        update: {
+          verificationType: input.verificationType,
+          verificationDocUrl: input.verificationDocUrl.trim(),
+          isComplete: true,
+          rollNumber,
+        },
+        create: {
+          userId,
+          fullName: '',
+          college: '',
+          degree: '',
+          currentYear: '',
+          specialization: '',
+          verificationType: input.verificationType,
+          verificationDocUrl: input.verificationDocUrl.trim(),
+          isComplete: true,
+          rollNumber,
+        },
+      });
     });
 
     return this.getProfile(userId) as Promise<UserProfileDto>;
@@ -376,9 +402,21 @@ export class UsersService {
   }
 
   async verifyUserProfile(userId: string, verified: boolean) {
-    return this.prisma.userProfile.update({
-      where: { userId },
-      data: { isComplete: verified },
+    if (!verified) {
+      return this.prisma.userProfile.update({
+        where: { userId },
+        data: { isComplete: false },
+      });
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.userProfile.findUnique({ where: { userId }, select: { rollNumber: true } });
+      const rollNumber = existing?.rollNumber ?? (await this.issueRollNumber(tx));
+
+      return tx.userProfile.update({
+        where: { userId },
+        data: { isComplete: true, rollNumber },
+      });
     });
   }
 

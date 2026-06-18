@@ -31,6 +31,7 @@ export function SuperadminProfileVerificationsPage() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Roll No.</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>College</TableHead>
@@ -45,6 +46,7 @@ export function SuperadminProfileVerificationsPage() {
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.id}>
+                <TableCell>{row.profile?.rollNumber || '-'}</TableCell>
                 <TableCell>{row.name}</TableCell>
                 <TableCell>{row.email}</TableCell>
                 <TableCell>{row.profile?.college || '-'}</TableCell>

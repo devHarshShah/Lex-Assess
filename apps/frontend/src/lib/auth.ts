@@ -83,6 +83,7 @@ export interface UserProfile {
   internshipGoal: string | null
   internshipDuration: string | null
   internshipPeriod: string | null
+  rollNumber: string | null
 }
 
 export interface ProfileOptions {

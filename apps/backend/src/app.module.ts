@@ -10,6 +10,7 @@ import { CompanyModule } from './company/company.module';
 import { QuestionPapersModule } from './question-papers/question-papers.module';
 import { PaymentsModule } from './payments/payments.module';
 import { InterviewModule } from './interview/interview.module';
+import { RankingModule } from './ranking/ranking.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { InterviewModule } from './interview/interview.module';
     QuestionPapersModule,
     PaymentsModule,
     InterviewModule,
+    RankingModule,
   ],
   controllers: [AppController],
   providers: [
