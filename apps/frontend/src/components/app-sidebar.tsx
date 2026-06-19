@@ -145,6 +145,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'Common Rank Leaderboard', url: '/dashboard/ranking' }],
       },
       {
+        title: 'Profile Review',
+        url: '/dashboard/profile-verifications',
+        icon: UserCheck,
+        items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
+      },
+      {
         title: 'Marketing',
         url: '/dashboard/notifications',
         icon: Bell,

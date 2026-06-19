@@ -1,18 +1,36 @@
 import * as React from 'react'
+import { type ColumnDef } from '@tanstack/react-table'
 import { toast } from 'sonner'
 
-import { fetchSuperadminProfiles, verifySuperadminProfile, type ManagedUserProfileRecord } from '@/lib/auth'
+import {
+  fetchSuperadminProfiles,
+  getActiveRole,
+  getStoredUser,
+  setCvScoreForSuperadmin,
+  verifySuperadminProfile,
+  type ManagedUserProfileRecord,
+} from '@/lib/auth'
+import { DocumentPreviewDialog } from '@/components/document-preview-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTable, SortableHeader } from '@/components/ui/data-table'
+import { Input } from '@/components/ui/input'
 
 export function SuperadminProfileVerificationsPage() {
   const [rows, setRows] = React.useState<ManagedUserProfileRecord[]>([])
+  const [cvScoreInputs, setCvScoreInputs] = React.useState<Record<string, string>>({})
+  const [preview, setPreview] = React.useState<{ title: string; url: string } | null>(null)
+  const storedUser = getStoredUser()
+  const canVerify = storedUser ? getActiveRole(storedUser) === 'SUPERADMIN' : false
 
   async function load() {
     try {
-      setRows(await fetchSuperadminProfiles())
+      const profiles = await fetchSuperadminProfiles()
+      setRows(profiles)
+      setCvScoreInputs(
+        Object.fromEntries(profiles.map((row) => [row.id, row.profile?.cvScore?.toString() ?? ''])),
+      )
     } catch {
       toast.error('Could not load profiles')
     }
@@ -22,71 +40,172 @@ export function SuperadminProfileVerificationsPage() {
     void load()
   }, [])
 
+  async function handleSaveCvScore(userId: string) {
+    const raw = cvScoreInputs[userId]
+    const score = Number(raw)
+    if (raw === '' || Number.isNaN(score) || score < 0 || score > 100) {
+      toast.error('CV score must be a number between 0 and 100')
+      return
+    }
+    try {
+      await setCvScoreForSuperadmin(userId, score)
+      await load()
+      toast.success('CV score saved')
+    } catch {
+      toast.error('Could not save CV score')
+    }
+  }
+
+  const columns = React.useMemo<ColumnDef<ManagedUserProfileRecord>[]>(() => {
+    const base: ColumnDef<ManagedUserProfileRecord>[] = [
+      {
+        accessorKey: 'name',
+        header: ({ column }) => <SortableHeader label="Name" column={column} />,
+        cell: ({ row }) => {
+          const profile = row.original.profile
+          return (
+            <div className="min-w-40 max-w-64">
+              <div className="font-medium truncate">{row.original.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{row.original.email}</div>
+              {profile?.rollNumber && (
+                <div className="text-xs text-muted-foreground">{profile.rollNumber}</div>
+              )}
+            </div>
+          )
+        },
+      },
+      {
+        id: 'education',
+        header: 'Education',
+        cell: ({ row }) => {
+          const profile = row.original.profile
+          return (
+            <div className="min-w-40 max-w-64">
+              <div className="truncate">{profile?.college || '-'}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {profile?.degree || '-'}
+                {profile?.internshipGoal ? ` · ${profile.internshipGoal}` : ''}
+              </div>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'documents',
+        header: 'Documents',
+        cell: ({ row }) => {
+          const profile = row.original.profile
+          return (
+            <div className="flex flex-col items-start gap-1 text-sm">
+              {profile?.verificationDocUrl ? (
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() =>
+                    setPreview({ title: `Verification Doc — ${row.original.name}`, url: profile.verificationDocUrl! })
+                  }
+                >
+                  Verification Doc
+                </button>
+              ) : (
+                <span className="text-muted-foreground">No verification doc</span>
+              )}
+              {profile?.resumeUrl ? (
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => setPreview({ title: `CV — ${row.original.name}`, url: profile.resumeUrl! })}
+                >
+                  CV
+                </button>
+              ) : (
+                <span className="text-muted-foreground">No CV</span>
+              )}
+            </div>
+          )
+        },
+      },
+      {
+        id: 'cvScore',
+        header: ({ column }) => <SortableHeader label="CV Score" column={column} />,
+        accessorFn: (row) => row.profile?.cvScore ?? -1,
+        cell: ({ row }) => {
+          const userId = row.original.id
+          return (
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                className="w-16 h-8"
+                value={cvScoreInputs[userId] ?? ''}
+                onChange={(e) => setCvScoreInputs((prev) => ({ ...prev, [userId]: e.target.value }))}
+              />
+              <Button size="sm" variant="outline" onClick={() => handleSaveCvScore(userId)}>
+                Save
+              </Button>
+            </div>
+          )
+        },
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        cell: ({ row }) => (
+          <Badge variant={row.original.profile?.isComplete ? 'secondary' : 'outline'}>
+            {row.original.profile?.isComplete ? 'Verified' : 'Pending'}
+          </Badge>
+        ),
+      },
+    ]
+
+    if (canVerify) {
+      base.push({
+        id: 'action',
+        header: 'Action',
+        cell: ({ row }) => {
+          const profile = row.original.profile
+          return (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                try {
+                  await verifySuperadminProfile(row.original.id, !(profile?.isComplete ?? false))
+                  await load()
+                  toast.success('Verification updated')
+                } catch {
+                  toast.error('Could not update verification')
+                }
+              }}
+            >
+              {profile?.isComplete ? 'Mark Pending' : 'Mark Verified'}
+            </Button>
+          )
+        },
+      })
+    }
+
+    return base
+  }, [cvScoreInputs, canVerify])
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>User Profile Verification</CardTitle>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Roll No.</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>College</TableHead>
-              <TableHead>Degree</TableHead>
-              <TableHead>Internship Pref</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Verification Doc</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.profile?.rollNumber || '-'}</TableCell>
-                <TableCell>{row.name}</TableCell>
-                <TableCell>{row.email}</TableCell>
-                <TableCell>{row.profile?.college || '-'}</TableCell>
-                <TableCell>{row.profile?.degree || '-'}</TableCell>
-                <TableCell>{row.profile?.internshipGoal || '-'}</TableCell>
-                <TableCell>{row.profile?.internshipDuration || '-'}</TableCell>
-                <TableCell>
-                  {row.profile?.verificationDocUrl ? (
-                    <a href={row.profile.verificationDocUrl} className="underline" target="_blank" rel="noreferrer">
-                      View
-                    </a>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={row.profile?.isComplete ? 'secondary' : 'outline'}>{row.profile?.isComplete ? 'Verified' : 'Pending'}</Badge>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={async () => {
-                      try {
-                        await verifySuperadminProfile(row.id, !(row.profile?.isComplete ?? false))
-                        await load()
-                        toast.success('Verification updated')
-                      } catch {
-                        toast.error('Could not update verification')
-                      }
-                    }}
-                  >
-                    {row.profile?.isComplete ? 'Mark Pending' : 'Mark Verified'}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable columns={columns} data={rows} searchKey="name" searchPlaceholder="Search by name..." />
       </CardContent>
+
+      <DocumentPreviewDialog
+        title={preview?.title ?? ''}
+        url={preview?.url ?? null}
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null)
+        }}
+      />
     </Card>
   )
 }

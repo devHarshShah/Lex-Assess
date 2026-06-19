@@ -259,6 +259,10 @@ export class AuthService {
     return this.usersService.verifyUserProfile(userId, verified);
   }
 
+  setCvScoreForAdmin(userId: string, score: number) {
+    return this.usersService.setCvScore(userId, score);
+  }
+
   async getCompanyProfile(userId: string) {
     return this.usersService.getCompanyProfile(userId);
   }

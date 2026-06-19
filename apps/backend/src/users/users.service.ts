@@ -194,6 +194,7 @@ export class UsersService {
       internshipDuration: profile.internshipDuration,
       internshipPeriod: profile.internshipPeriod,
       rollNumber: profile.rollNumber,
+      cvScore: profile.cvScore,
     };
   }
 
@@ -417,6 +418,13 @@ export class UsersService {
         where: { userId },
         data: { isComplete: true, rollNumber },
       });
+    });
+  }
+
+  async setCvScore(userId: string, score: number) {
+    return this.prisma.userProfile.update({
+      where: { userId },
+      data: { cvScore: score },
     });
   }
 

@@ -35,6 +35,7 @@ export interface UserProfileDto {
   internshipDuration: string | null;
   internshipPeriod: string | null;
   rollNumber: string | null;
+  cvScore: number | null;
 }
 
 export type CompanyVerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';

@@ -33,6 +33,7 @@ export function AdminRankingPage() {
               <TableHead>Practice Area</TableHead>
               <TableHead>Test Score</TableHead>
               <TableHead>Interview Marks</TableHead>
+              <TableHead>CV Score</TableHead>
               <TableHead>Common Score</TableHead>
             </TableRow>
           </TableHeader>
@@ -46,6 +47,7 @@ export function AdminRankingPage() {
                   {row.testScore} / {row.testMaxScore} ({row.normalizedTest.toFixed(1)}%)
                 </TableCell>
                 <TableCell>{row.interviewMarks}</TableCell>
+                <TableCell>{row.cvScore}</TableCell>
                 <TableCell className="font-semibold">{row.commonScore.toFixed(1)}</TableCell>
               </TableRow>
             ))}

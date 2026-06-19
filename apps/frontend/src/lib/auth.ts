@@ -84,6 +84,7 @@ export interface UserProfile {
   internshipDuration: string | null
   internshipPeriod: string | null
   rollNumber: string | null
+  cvScore: number | null
 }
 
 export interface ProfileOptions {
@@ -295,6 +296,10 @@ export async function fetchSuperadminProfiles(): Promise<ManagedUserProfileRecor
 
 export async function verifySuperadminProfile(userId: string, verified: boolean) {
   return api.patch(`/superadmin/profiles/${userId}/verify`, { verified })
+}
+
+export async function setCvScoreForSuperadmin(userId: string, score: number) {
+  return api.patch(`/superadmin/profiles/${userId}/cv-score`, { score })
 }
 
 export async function fetchPublicNotifications(): Promise<NotificationRecord[]> {

@@ -12,6 +12,7 @@ export interface FullLeaderboardEntry extends LeaderboardEntry {
   testMaxScore: number
   normalizedTest: number
   interviewMarks: number
+  cvScore: number
   commonScore: number
 }
 

@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { AttemptStatus, InterviewStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { RANK_WEIGHT_INTERVIEW, RANK_WEIGHT_TEST } from './ranking.constants';
+import { RANK_WEIGHT_CV, RANK_WEIGHT_INTERVIEW, RANK_WEIGHT_TEST } from './ranking.constants';
+import { computeVersionMarks, SectionQuestionMark, SectionRule } from './scoring.util';
 
 export interface RankedCandidate {
   rank: number;
@@ -12,6 +13,7 @@ export interface RankedCandidate {
   testMaxScore: number;
   normalizedTest: number;
   interviewMarks: number;
+  cvScore: number;
   commonScore: number;
 }
 
@@ -23,6 +25,7 @@ interface CandidateAccumulator {
   testMaxScore: number;
   normalizedTest: number;
   interviewMarks: number;
+  cvScore: number;
   commonScore: number;
 }
 
@@ -34,7 +37,7 @@ export class RankingService {
     const attempts = await this.prisma.testAttempt.findMany({
       where: { status: AttemptStatus.SUBMITTED, score: { not: null } },
       include: {
-        user: { select: { id: true, profile: { select: { rollNumber: true } } } },
+        user: { select: { id: true, profile: { select: { rollNumber: true, cvScore: true } } } },
         version: { include: { paper: { include: { specialization: true } } } },
       },
     });
@@ -53,23 +56,44 @@ export class RankingService {
     }
 
     const versionIds = [...new Set(attempts.map((attempt) => attempt.versionId))];
-    const sums = await this.prisma.question.groupBy({
-      by: ['versionId'],
-      where: { versionId: { in: versionIds } },
-      _sum: { marks: true },
+
+    const parentQuestions = await this.prisma.question.findMany({
+      where: { versionId: { in: versionIds }, parentId: null },
+      select: { id: true, versionId: true, sectionId: true, marks: true },
     });
-    const maxScoreByVersionId = new Map(sums.map((sum) => [sum.versionId, sum._sum.marks ?? 0]));
+    const questionsByVersionId = new Map<string, SectionQuestionMark[]>();
+    for (const question of parentQuestions) {
+      const list = questionsByVersionId.get(question.versionId) ?? [];
+      list.push({ questionId: question.id, sectionId: question.sectionId, marks: question.marks });
+      questionsByVersionId.set(question.versionId, list);
+    }
+
+    const sections = await this.prisma.paperSection.findMany({
+      where: { versionId: { in: versionIds } },
+      select: { id: true, rules: true },
+    });
+    const sectionRules = new Map<string, SectionRule>(
+      sections.map((section) => [section.id, (section.rules as SectionRule | null) ?? {}]),
+    );
 
     const bestByStudentId = new Map<string, CandidateAccumulator>();
     for (const attempt of attempts) {
       const interviewMarks = interviewByStudentId.get(attempt.user.id);
       if (interviewMarks === undefined) continue;
 
-      const maxScore = maxScoreByVersionId.get(attempt.versionId) ?? 0;
-      if (maxScore === 0) continue;
+      const cvScore = attempt.user.profile?.cvScore;
+      if (cvScore === undefined || cvScore === null) continue;
 
-      const normalizedTest = (attempt.score! / maxScore) * 100;
-      const commonScore = RANK_WEIGHT_TEST * normalizedTest + RANK_WEIGHT_INTERVIEW * interviewMarks;
+      const questions = questionsByVersionId.get(attempt.versionId) ?? [];
+      const achievedByQuestionId = new Map<string, number>(
+        Object.entries((attempt.questionScores as Record<string, number> | null) ?? {}),
+      );
+      const { maxMarks, achievedMarks } = computeVersionMarks(questions, sectionRules, achievedByQuestionId);
+      if (maxMarks === 0) continue;
+
+      const normalizedTest = (achievedMarks / maxMarks) * 100;
+      const commonScore =
+        RANK_WEIGHT_TEST * normalizedTest + RANK_WEIGHT_INTERVIEW * interviewMarks + RANK_WEIGHT_CV * cvScore;
 
       const existing = bestByStudentId.get(attempt.user.id);
       if (!existing || commonScore > existing.commonScore) {
@@ -77,10 +101,11 @@ export class RankingService {
           studentId: attempt.user.id,
           rollNumber: attempt.user.profile?.rollNumber ?? null,
           practiceArea: attempt.version.paper.specialization.name,
-          testScore: attempt.score!,
-          testMaxScore: maxScore,
+          testScore: achievedMarks,
+          testMaxScore: maxMarks,
           normalizedTest,
           interviewMarks,
+          cvScore,
           commonScore,
         });
       }
