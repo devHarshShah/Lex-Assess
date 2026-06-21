@@ -38,8 +38,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = exception.meta?.cause || 'Record not found';
       error = 'Not Found';
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // Log full detail server-side, but do not leak internal error messages
+      // (DB errors, stack-adjacent info) to the client.
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
+      message = 'Internal server error';
+      error = 'Internal Server Error';
     }
 
     // Standardize message to be a string

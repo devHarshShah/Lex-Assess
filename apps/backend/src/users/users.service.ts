@@ -1,11 +1,15 @@
 import { AuthProvider, NotificationPlacement, Prisma, Role, User, VerificationType } from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { UploadsService, READ_URL_EXPIRY_SECONDS } from '../auth/uploads.service';
 import { PublicUser, UserManagementRecord, UserProfileDto } from './user.types';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly uploadsService: UploadsService,
+  ) {}
 
   findByEmail(email: string): Promise<User | null> {
     return this.prisma.user.findUnique({
@@ -122,10 +126,26 @@ export class UsersService {
   }
 
   async listUsersWithProfiles() {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'desc' },
       include: { profile: true },
     });
+
+    // Resolve private storage keys to short-lived presigned URLs for reviewers.
+    return Promise.all(
+      users.map(async (user) => {
+        if (!user.profile) return user;
+        const [resumeUrl, profilePhotoUrl, verificationDocUrl] = await Promise.all([
+          this.uploadsService.getPresignedUrl(user.profile.resumeUrl, READ_URL_EXPIRY_SECONDS),
+          this.uploadsService.getPresignedUrl(user.profile.profilePhotoUrl, READ_URL_EXPIRY_SECONDS),
+          this.uploadsService.getPresignedUrl(user.profile.verificationDocUrl, READ_URL_EXPIRY_SECONDS),
+        ]);
+        return {
+          ...user,
+          profile: { ...user.profile, resumeUrl, profilePhotoUrl, verificationDocUrl },
+        };
+      }),
+    );
   }
 
   async updateUserById(
@@ -175,6 +195,15 @@ export class UsersService {
     });
 
     if (!profile) return null;
+
+    // Stored values are private object keys (or legacy full URLs). Resolve them
+    // to short-lived presigned URLs so the private bucket stays private.
+    const [resumeUrl, profilePhotoUrl, verificationDocUrl] = await Promise.all([
+      this.uploadsService.getPresignedUrl(profile.resumeUrl, READ_URL_EXPIRY_SECONDS),
+      this.uploadsService.getPresignedUrl(profile.profilePhotoUrl, READ_URL_EXPIRY_SECONDS),
+      this.uploadsService.getPresignedUrl(profile.verificationDocUrl, READ_URL_EXPIRY_SECONDS),
+    ]);
+
     return {
       fullName: profile.fullName,
       college: profile.college,
@@ -185,10 +214,10 @@ export class UsersService {
       countryCode: profile.countryCode,
       mobileNumber: profile.mobileNumber,
       linkedinUrl: profile.linkedinUrl,
-      resumeUrl: profile.resumeUrl,
-      profilePhotoUrl: profile.profilePhotoUrl,
+      resumeUrl,
+      profilePhotoUrl,
       verificationType: profile.verificationType,
-      verificationDocUrl: profile.verificationDocUrl,
+      verificationDocUrl,
       isComplete: profile.isComplete,
       internshipGoal: profile.internshipGoal,
       internshipDuration: profile.internshipDuration,
@@ -429,7 +458,12 @@ export class UsersService {
   }
 
   async getCompanyProfile(userId: string) {
-    return this.prisma.companyProfile.findUnique({ where: { userId } });
+    const profile = await this.prisma.companyProfile.findUnique({ where: { userId } });
+    if (!profile) return null;
+    return {
+      ...profile,
+      operatorIdCardUrl: await this.uploadsService.getPresignedUrl(profile.operatorIdCardUrl, READ_URL_EXPIRY_SECONDS),
+    };
   }
 
   async upsertCompanyProfile(
@@ -479,14 +513,21 @@ export class UsersService {
       orderBy: { createdAt: 'desc' },
       include: { companyProfile: true },
     });
-    return users.map((u) => ({
-      id: u.id,
-      email: u.email,
-      name: u.name,
-      role: u.role,
-      avatarUrl: u.avatarUrl,
-      profile: u.companyProfile,
-    }));
+    return Promise.all(
+      users.map(async (u) => ({
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        avatarUrl: u.avatarUrl,
+        profile: u.companyProfile
+          ? {
+              ...u.companyProfile,
+              operatorIdCardUrl: await this.uploadsService.getPresignedUrl(u.companyProfile.operatorIdCardUrl, READ_URL_EXPIRY_SECONDS),
+            }
+          : u.companyProfile,
+      })),
+    );
   }
 
   async reviewCompanyProfile(

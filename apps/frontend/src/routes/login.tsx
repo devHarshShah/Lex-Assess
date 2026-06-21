@@ -1,13 +1,13 @@
 import { createRoute, redirect } from '@tanstack/react-router'
 import { rootRoute } from './root'
 import { LoginPage } from '@/pages/LoginPage'
-import { getStoredToken } from '@/lib/auth'
+import { isAuthenticated } from '@/lib/auth'
 
 export const loginRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/login',
   beforeLoad: () => {
-    if (getStoredToken()) {
+    if (isAuthenticated()) {
       throw redirect({ to: '/dashboard' })
     }
   },

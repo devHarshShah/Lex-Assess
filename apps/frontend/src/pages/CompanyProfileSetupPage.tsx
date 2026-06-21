@@ -49,7 +49,11 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
   const [companyGstin, setCompanyGstin] = React.useState('')
   const [operatorName, setOperatorName] = React.useState('')
   const [operatorDesignation, setOperatorDesignation] = React.useState('')
+  // `Url` previews the (presigned) image; `Key` holds the object key from a
+  // fresh upload (what we persist). Submit prefers the key, falling back to the
+  // loaded URL so an unchanged field is never wiped.
   const [operatorIdCardUrl, setOperatorIdCardUrl] = React.useState('')
+  const [operatorIdCardKey, setOperatorIdCardKey] = React.useState('')
 
   React.useEffect(() => {
     let isMounted = true
@@ -99,7 +103,7 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
         companyGstin: companyGstin.trim() || undefined,
         operatorName,
         operatorDesignation,
-        operatorIdCardUrl: operatorIdCardUrl.trim() || undefined,
+        operatorIdCardUrl: operatorIdCardKey || operatorIdCardUrl.trim() || undefined,
       })
       setProfile(saved)
 
@@ -217,6 +221,7 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
                   try {
                     const upload = await uploadProfileAsset(file, 'operator_id_card')
                     setOperatorIdCardUrl(upload.url)
+                    setOperatorIdCardKey(upload.objectKey)
                     toast.success('ID card photo uploaded')
                   } catch {
                     toast.error('Could not upload ID card photo')

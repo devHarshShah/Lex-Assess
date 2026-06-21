@@ -29,11 +29,41 @@ interface CandidateAccumulator {
   commonScore: number;
 }
 
+const RANKING_CACHE_TTL_MS = 60_000;
+
 @Injectable()
 export class RankingService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Computing the global ranking is expensive (several queries + full in-memory
+  // scoring over every submitted attempt). The result is identical for every
+  // caller, so memoize it briefly to absorb leaderboard/rank request bursts.
+  private rankingCache: { value: RankedCandidate[]; expiresAt: number } | null = null;
+  private inFlight: Promise<RankedCandidate[]> | null = null;
+
   async computeGlobalRanking(): Promise<RankedCandidate[]> {
+    const now = Date.now();
+    if (this.rankingCache && this.rankingCache.expiresAt > now) {
+      return this.rankingCache.value;
+    }
+    // Collapse concurrent recomputations into a single DB pass.
+    if (this.inFlight) {
+      return this.inFlight;
+    }
+
+    this.inFlight = this.computeGlobalRankingUncached()
+      .then((value) => {
+        this.rankingCache = { value, expiresAt: Date.now() + RANKING_CACHE_TTL_MS };
+        return value;
+      })
+      .finally(() => {
+        this.inFlight = null;
+      });
+
+    return this.inFlight;
+  }
+
+  private async computeGlobalRankingUncached(): Promise<RankedCandidate[]> {
     const attempts = await this.prisma.testAttempt.findMany({
       where: { status: AttemptStatus.SUBMITTED, score: { not: null } },
       include: {

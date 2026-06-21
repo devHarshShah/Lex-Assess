@@ -143,6 +143,14 @@ model Transaction {
   @@index([userId])
 }
 
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  // Razorpay event identifier (x-razorpay-event-id header) used to dedupe retries
+  eventId     String   @unique
+  event       String
+  processedAt DateTime @default(now())
+}
+
 model UserProfile {
   id                String           @id @default(cuid())
   userId            String           @unique

@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { getStoredToken, getApiBaseUrl, UNAUTHORIZED_EVENT } from './auth-storage'
+import { getApiBaseUrl, UNAUTHORIZED_EVENT } from './auth-storage'
 
 interface RequestOptions extends RequestInit {
   skipToast?: boolean
@@ -8,14 +8,10 @@ interface RequestOptions extends RequestInit {
 export async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
   const { skipToast = false, ...fetchOptions } = options
   const API_BASE_URL = getApiBaseUrl()
-  const token = getStoredToken()
 
   const headers = new Headers(fetchOptions.headers || {})
   if (!headers.has('Content-Type') && !(fetchOptions.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
-  }
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`)
   }
 
   const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
@@ -24,6 +20,8 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
     const response = await fetch(url, {
       ...fetchOptions,
       headers,
+      // Send/receive the httpOnly auth cookie on every request.
+      credentials: 'include',
     })
 
     const isNoContent = response.status === 204

@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -10,6 +11,7 @@ export class RankingController {
   constructor(private readonly rankingService: RankingService) {}
 
   @Get('leaderboard')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async leaderboard(@Query('limit') limit?: string) {
     const all = await this.rankingService.computeGlobalRanking();
     const parsedLimit = limit ? Number(limit) : undefined;

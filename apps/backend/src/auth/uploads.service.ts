@@ -1,10 +1,15 @@
-import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { Client } from 'minio';
 import { fileTypeFromBuffer } from 'file-type';
 
 type UploadKind = 'profile_photo' | 'resume' | 'verification_doc' | 'operator_id_card';
+
+/** Expiry for one-off URLs returned right after upload (short preview window). */
+export const UPLOAD_PREVIEW_EXPIRY_SECONDS = 300;
+/** Expiry for URLs rendered in dashboards/admin lists (long-lived sessions). */
+export const READ_URL_EXPIRY_SECONDS = 3600;
 
 const ALLOWED_MIME_TYPES: Record<UploadKind, string[]> = {
   profile_photo: ['image/jpeg', 'image/png', 'image/webp'],
@@ -15,6 +20,7 @@ const ALLOWED_MIME_TYPES: Record<UploadKind, string[]> = {
 
 @Injectable()
 export class UploadsService implements OnModuleInit {
+  private readonly logger = new Logger(UploadsService.name);
   private readonly client: Client;
   private readonly bucket: string;
 
@@ -59,10 +65,52 @@ export class UploadsService implements OnModuleInit {
       'Content-Type': detectedType.mime,
     });
 
-    const publicBaseUrl = this.configService.get<string>('MINIO_PUBLIC_BASE_URL') || 'http://localhost:9000';
+    // The bucket is private. We return the objectKey (the canonical value to
+    // persist) plus a short-lived presigned URL for immediate preview.
     return {
       objectKey,
-      url: `${publicBaseUrl}/${this.bucket}/${objectKey}`,
+      url: await this.getPresignedUrl(objectKey),
     };
+  }
+
+  /**
+   * Resolve a stored value to a fresh, short-lived presigned GET URL.
+   * Accepts either a bare objectKey (the canonical persisted value) or a
+   * legacy full URL (older rows) and extracts the key from it.
+   */
+  async getPresignedUrl(
+    objectKeyOrUrl: string | null | undefined,
+    expirySeconds = UPLOAD_PREVIEW_EXPIRY_SECONDS,
+  ): Promise<string | null> {
+    if (!objectKeyOrUrl) return null;
+
+    const objectKey = this.toObjectKey(objectKeyOrUrl);
+    if (!objectKey) return null;
+
+    try {
+      return await this.client.presignedGetObject(this.bucket, objectKey, expirySeconds);
+    } catch (error) {
+      // A storage outage should degrade to a missing link, not 500 the whole
+      // profile/admin endpoint that embeds this URL.
+      this.logger.error(`Failed to presign object "${objectKey}"`, error as Error);
+      return null;
+    }
+  }
+
+  /** Strip any host/bucket prefix from a legacy full URL to recover the objectKey. */
+  private toObjectKey(value: string): string | null {
+    if (!value) return null;
+    if (!value.startsWith('http://') && !value.startsWith('https://')) {
+      return value; // already an objectKey
+    }
+    try {
+      const { pathname } = new URL(value);
+      // pathname looks like /<bucket>/<objectKey...>
+      const trimmed = pathname.replace(/^\/+/, '');
+      const prefix = `${this.bucket}/`;
+      return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+    } catch {
+      return null;
+    }
   }
 }

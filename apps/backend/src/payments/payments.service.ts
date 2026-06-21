@@ -147,14 +147,42 @@ export class PaymentsService {
     }
   }
 
-  async verifyWebhook(signature: string, payload: any) {
+  async verifyWebhook(signature: string, rawBody: Buffer, eventId?: string) {
+    // Razorpay signs the exact bytes of the request body. We must HMAC the raw
+    // buffer, not a re-stringified parse of it (JSON.stringify is not guaranteed
+    // to reproduce the original bytes).
     const expectedSignature = crypto
       .createHmac('sha256', this.webhookSecret)
-      .update(JSON.stringify(payload))
+      .update(rawBody)
       .digest('hex');
 
-    if (expectedSignature !== signature) {
+    const expectedBuf = Buffer.from(expectedSignature, 'utf8');
+    const receivedBuf = Buffer.from(signature ?? '', 'utf8');
+    if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
       throw new BadRequestException('Invalid signature');
+    }
+
+    let payload: any;
+    try {
+      payload = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      throw new BadRequestException('Invalid webhook payload');
+    }
+
+    // Idempotency: Razorpay retries deliveries with the same x-razorpay-event-id.
+    // Record the id first; if it already exists, this is a replay — skip processing.
+    if (eventId) {
+      try {
+        await this.prisma.webhookEvent.create({
+          data: { eventId, event: payload.event ?? 'unknown' },
+        });
+      } catch (error: any) {
+        if (error?.code === 'P2002') {
+          this.logger.log(`Webhook ${eventId} already processed; skipping replay`);
+          return;
+        }
+        throw error;
+      }
     }
 
     const event = payload.event;

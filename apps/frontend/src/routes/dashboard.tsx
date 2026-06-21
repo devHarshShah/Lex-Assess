@@ -2,15 +2,13 @@ import { createRoute, isRedirect, redirect } from '@tanstack/react-router'
 import { rootRoute } from './root'
 import { DashboardLayout } from '../pages/DashboardLayout'
 import { DashboardPage } from '../pages/DashboardPage'
-import { clearAuth, fetchCurrentUser, getStoredToken, getStoredUser, storeUser } from '@/lib/auth'
+import { clearAuth, fetchCurrentUser, isAuthenticated, getStoredUser, storeUser } from '@/lib/auth'
 
 export const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/dashboard',
   beforeLoad: async () => {
-    const token = getStoredToken()
-
-    if (!token) {
+    if (!isAuthenticated()) {
       throw redirect({ to: '/login' })
     }
 

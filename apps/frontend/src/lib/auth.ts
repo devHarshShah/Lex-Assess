@@ -1,10 +1,9 @@
 import { api } from './api-client'
 import {
-  TOKEN_KEY,
   USER_KEY,
   ACTIVE_ROLE_KEY,
   getApiBaseUrl,
-  getStoredToken,
+  isAuthenticated,
   clearAuth,
   UNAUTHORIZED_EVENT,
 } from './auth-storage'
@@ -25,7 +24,7 @@ export interface AuthUser {
 }
 
 export interface AuthResponse {
-  accessToken: string
+  // The access token is delivered as an httpOnly cookie, not in the body.
   user: AuthUser
 }
 
@@ -96,7 +95,7 @@ export interface ProfileOptions {
   internshipDurations: string[]
 }
 
-export { getApiBaseUrl, getStoredToken, clearAuth, UNAUTHORIZED_EVENT }
+export { getApiBaseUrl, isAuthenticated, clearAuth, UNAUTHORIZED_EVENT }
 
 export function getStoredUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)
@@ -137,9 +136,19 @@ function syncActiveRole(user: AuthUser) {
 }
 
 export function storeAuth(data: AuthResponse) {
-  localStorage.setItem(TOKEN_KEY, data.accessToken)
+  // The access token is set as an httpOnly cookie by the server; we only cache
+  // the (non-secret) user object for UI rendering.
   localStorage.setItem(USER_KEY, JSON.stringify(data.user))
   syncActiveRole(data.user)
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await api.post('/auth/logout', undefined, { skipToast: true })
+  } catch {
+    // Even if the server call fails, clear local state below.
+  }
+  clearAuth()
 }
 
 export function storeUser(user: AuthUser) {

@@ -39,7 +39,7 @@ services:
       /bin/sh -c "
       until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done;
       mc mb -p local/lexassess-uploads || true;
-      mc anonymous set public local/lexassess-uploads;
+      mc anonymous set none local/lexassess-uploads;
       exit 0;
       "
 

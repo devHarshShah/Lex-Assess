@@ -4,7 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
-import { clearAuth } from '@/lib/auth'
+import { logout } from '@/lib/auth'
 
 export function NavUser({
   user,
@@ -19,7 +19,7 @@ export function NavUser({
   const navigate = useNavigate()
 
   async function onLogout() {
-    clearAuth()
+    await logout()
     await navigate({ to: '/login' })
   }
 

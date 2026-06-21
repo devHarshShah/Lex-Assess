@@ -1,5 +1,7 @@
-import { Controller, Post, Get, Headers, Body, UseGuards, Request, HttpCode, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Headers, Body, UseGuards, Request, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import type { RawBodyRequest } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { Request as ExpressRequest } from 'express';
 import { PaymentsService } from './payments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -37,12 +39,13 @@ export class PaymentsController {
   @HttpCode(HttpStatus.OK)
   async handleWebhook(
     @Headers('x-razorpay-signature') signature: string,
-    @Body() payload: any,
+    @Headers('x-razorpay-event-id') eventId: string,
+    @Req() req: RawBodyRequest<ExpressRequest>,
   ) {
-    if (!signature) {
+    if (!signature || !req.rawBody) {
       return { status: 'ignored' };
     }
-    await this.paymentsService.verifyWebhook(signature, payload);
+    await this.paymentsService.verifyWebhook(signature, req.rawBody, eventId);
     return { status: 'ok' };
   }
 }

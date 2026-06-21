@@ -147,10 +147,16 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   const [countryCode, setCountryCode] = React.useState('+91')
   const [mobileNumber, setMobileNumber] = React.useState('')
   const [linkedinUrl, setLinkedinUrl] = React.useState('')
+  // `*Url` holds a presigned URL for preview/display; `*Key` holds the canonical
+  // object key set only on a fresh upload (what we persist). On submit we send
+  // the key when a new upload happened, else fall back to the loaded URL.
   const [resumeUrl, setResumeUrl] = React.useState('')
+  const [resumeKey, setResumeKey] = React.useState('')
   const [profilePhotoUrl, setProfilePhotoUrl] = React.useState(user.avatarUrl ?? '')
+  const [profilePhotoKey, setProfilePhotoKey] = React.useState('')
   const [verificationType, setVerificationType] = React.useState<VerificationType>('ONGOING')
   const [verificationDocUrl, setVerificationDocUrl] = React.useState('')
+  const [verificationDocKey, setVerificationDocKey] = React.useState('')
 
   React.useEffect(() => {
   if (initializedRef.current) return
@@ -277,8 +283,10 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         countryCode,
         mobileNumber,
         linkedinUrl: linkedinUrl || undefined,
-        resumeUrl: resumeUrl || undefined,
-        profilePhotoUrl: profilePhotoUrl || undefined,
+        // Persist the object key from a fresh upload; fall back to the loaded
+        // URL (server resolves both via toObjectKey) so we never wipe the field.
+        resumeUrl: resumeKey || resumeUrl || undefined,
+        profilePhotoUrl: profilePhotoKey || profilePhotoUrl || undefined,
         internshipGoal,
         internshipDuration,
         internshipPeriod,
@@ -318,16 +326,16 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
         countryCode,
         mobileNumber,
         linkedinUrl: linkedinUrl || undefined,
-        resumeUrl: resumeUrl || undefined,
-        profilePhotoUrl: profilePhotoUrl || undefined,
+        resumeUrl: resumeKey || resumeUrl || undefined,
+        profilePhotoUrl: profilePhotoKey || profilePhotoUrl || undefined,
         internshipGoal,
         internshipDuration,
         internshipPeriod,
       })
-      if (verificationDocUrl) {
+      if (verificationDocKey || verificationDocUrl) {
         await saveProfileVerification({
           verificationType,
-          verificationDocUrl,
+          verificationDocUrl: verificationDocKey || verificationDocUrl,
         })
       }
       storeUser({
@@ -348,7 +356,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   try {
     await saveProfileVerification({
       verificationType,
-      verificationDocUrl,
+      verificationDocUrl: verificationDocKey || verificationDocUrl,
     })
     const refreshed = await fetchCurrentUser()
     storeUser(refreshed)
@@ -427,6 +435,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                         try {
                           const upload = await uploadProfileAsset(file, 'profile_photo')
                           setProfilePhotoUrl(upload.url)
+                          setProfilePhotoKey(upload.objectKey)
                           toast.success('Profile photo uploaded')
                         } catch {
                           toast.error('Could not upload profile photo')
@@ -627,6 +636,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                             try {
                               const upload = await uploadProfileAsset(file, 'resume')
                               setResumeUrl(upload.url)
+                              setResumeKey(upload.objectKey)
                               toast.success('Resume uploaded')
                             } catch {
                               toast.error('Could not upload resume')
@@ -698,6 +708,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                             try {
                               const upload = await uploadProfileAsset(file, 'verification_doc')
                               setVerificationDocUrl(upload.url)
+                              setVerificationDocKey(upload.objectKey)
                               toast.success('Verification document uploaded')
                             } catch {
                               toast.error('Could not upload verification document')
