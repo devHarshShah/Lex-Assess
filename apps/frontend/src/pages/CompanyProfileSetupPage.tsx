@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Pencil } from 'lucide-react'
+import { Building2, IdCard, Pencil, User } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { fetchCurrentUser, storeUser, uploadProfileAsset, type AuthUser } from '@/lib/auth'
 import { fetchMyCompanyProfile, saveCompanyProfile, type CompanyProfile } from '@/lib/company-profile'
 
@@ -125,114 +126,159 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
+      <div className="flex min-h-[60vh] items-center justify-center text-sm text-muted-foreground">
         Loading company profile...
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Company Profile</CardTitle>
-              <CardDescription>
-                Tell us about your company and the person operating this account. An admin will review your
-                submission before you get full dashboard access.
-              </CardDescription>
-            </div>
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
+      <Card className="w-full max-w-3xl">
+        <CardHeader className="items-center text-center">
+          <div className="flex w-full items-center justify-center gap-3">
+            <CardTitle className="text-2xl">Company Profile</CardTitle>
             {profile ? (
               <Badge variant={isApproved ? 'secondary' : isRejected ? 'destructive' : 'outline'}>
                 {profile.verificationStatus}
               </Badge>
             ) : null}
           </div>
+          <CardDescription className="max-w-xl">
+            Tell us about your company and the person operating this account. An admin will review your submission
+            before you get full dashboard access.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-8">
           {isPending ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-center text-sm text-amber-800">
               Your company profile is under review by our team.
             </div>
           ) : null}
           {isRejected ? (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-center text-sm text-destructive">
               Your submission was rejected{profile?.rejectionReason ? `: ${profile.rejectionReason}` : '.'} Please
               update the details below and resubmit.
             </div>
           ) : null}
           {isApproved ? (
-            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-center text-sm text-emerald-800">
               Your company profile is verified.
             </div>
           ) : null}
 
-          <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Company Name</Label>
-              <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Company Details</h3>
             </div>
-            <div className="space-y-2">
-              <Label>Company Legal Name</Label>
-              <Input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} />
+            <Separator />
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Company Name</Label>
+                <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Company Legal Name</Label>
+                <Input value={companyLegalName} onChange={(e) => setCompanyLegalName(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Company PAN <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <Input value={companyPan} onChange={(e) => setCompanyPan(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>
+                  Company GSTIN <span className="text-muted-foreground font-normal">(Optional)</span>
+                </Label>
+                <Input value={companyGstin} onChange={(e) => setCompanyGstin(e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Company PAN <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-              <Input value={companyPan} onChange={(e) => setCompanyPan(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Company GSTIN <span className="text-muted-foreground font-normal">(Optional)</span></Label>
-              <Input value={companyGstin} onChange={(e) => setCompanyGstin(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Operator Name</Label>
-              <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Name of the person who will operate this account.</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Operator Designation</Label>
-              <Input value={operatorDesignation} onChange={(e) => setOperatorDesignation(e.target.value)} />
-            </div>
-          </div>
+          </section>
 
-          <div className="space-y-2">
-            <Label>Operator ID Card Photo</Label>
-            <div className="flex items-center gap-3">
-              {operatorIdCardUrl ? (
-                <img src={operatorIdCardUrl} alt="Operator ID card" className="h-16 w-24 rounded-md border object-cover" />
-              ) : null}
-              <Button type="button" variant="outline" size="sm" onClick={() => idCardInputRef.current?.click()} className="gap-2">
-                <Pencil className="h-3.5 w-3.5" />
-                {operatorIdCardUrl ? 'Replace photo' : 'Upload photo'}
-              </Button>
-              <input
-                ref={idCardInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  if (!validateFileSize(file, MAX_ID_CARD_BYTES, 'ID card photo')) {
-                    e.target.value = ''
-                    return
-                  }
-                  try {
-                    const upload = await uploadProfileAsset(file, 'operator_id_card')
-                    setOperatorIdCardUrl(upload.url)
-                    setOperatorIdCardKey(upload.objectKey)
-                    toast.success('ID card photo uploaded')
-                  } catch {
-                    toast.error('Could not upload ID card photo')
-                  }
-                }}
-              />
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Operator Details</h3>
             </div>
-          </div>
+            <Separator />
+            <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Operator Name</Label>
+                <Input value={operatorName} onChange={(e) => setOperatorName(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Name of the person who will operate this account.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Operator Designation</Label>
+                <Input value={operatorDesignation} onChange={(e) => setOperatorDesignation(e.target.value)} />
+              </div>
+            </div>
+          </section>
 
-          <div className="flex justify-end">
-            <Button onClick={handleSubmit} disabled={submitting}>
+          <section className="space-y-4">
+            <div className="flex items-center gap-2">
+              <IdCard className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Verification Document</h3>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <Label>Operator ID Card Photo</Label>
+              <div className="flex items-center gap-4 rounded-lg border border-dashed p-4">
+                {operatorIdCardUrl ? (
+                  <img
+                    src={operatorIdCardUrl}
+                    alt="Operator ID card"
+                    className="h-20 w-28 shrink-0 rounded-md border object-cover"
+                  />
+                ) : (
+                  <div className="flex h-20 w-28 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
+                    <IdCard className="h-6 w-6" />
+                  </div>
+                )}
+                <div className="flex flex-1 flex-col gap-1">
+                  <p className="text-sm text-muted-foreground">
+                    Upload a clear photo of the operator&apos;s ID card. JPG, PNG or WEBP, up to 2 MB.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => idCardInputRef.current?.click()}
+                    className="w-fit gap-2"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {operatorIdCardUrl ? 'Replace photo' : 'Upload photo'}
+                  </Button>
+                </div>
+                <input
+                  ref={idCardInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    if (!validateFileSize(file, MAX_ID_CARD_BYTES, 'ID card photo')) {
+                      e.target.value = ''
+                      return
+                    }
+                    try {
+                      const upload = await uploadProfileAsset(file, 'operator_id_card')
+                      setOperatorIdCardUrl(upload.url)
+                      setOperatorIdCardKey(upload.objectKey)
+                      toast.success('ID card photo uploaded')
+                    } catch {
+                      toast.error('Could not upload ID card photo')
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </section>
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSubmit} disabled={submitting} size="lg">
               {submitting ? 'Saving...' : isRejected ? 'Resubmit for Review' : mode === 'setup' ? 'Submit for Review' : 'Save Changes'}
             </Button>
           </div>
