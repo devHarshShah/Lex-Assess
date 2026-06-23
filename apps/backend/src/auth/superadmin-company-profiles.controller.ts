@@ -13,11 +13,13 @@ export class SuperadminCompanyProfilesController {
   constructor(private readonly authService: AuthService) {}
 
   @Get()
+  @Roles(Role.ADMIN)
   list() {
     return this.authService.listCompanyProfilesForSuperadmin();
   }
 
   @Patch(':userId/review')
+  @Roles(Role.ADMIN)
   review(
     @Req() req: { user: { sub: string } },
     @Param('userId') userId: string,

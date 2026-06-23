@@ -7,7 +7,8 @@ export const dashboardCompanyProfileVerificationsRoute = createRoute({
   getParentRoute: () => dashboardRoute,
   path: '/company-profile-verifications',
   beforeLoad: ({ context }) => {
-    if (getActiveRole(context.user) !== 'SUPERADMIN') throw redirect({ to: '/dashboard' })
+    const role = getActiveRole(context.user)
+    if (role !== 'SUPERADMIN' && role !== 'ADMIN') throw redirect({ to: '/dashboard' })
   },
   component: SuperadminCompanyProfileVerificationsPage,
 })

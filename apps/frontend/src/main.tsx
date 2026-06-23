@@ -14,8 +14,12 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       <Toaster position="top-right" richColors={false} closeButton />
-      <ReactQueryDevtools initialIsOpen={false} />
-      <TanStackRouterDevtools router={router} position="bottom-right" />
+      {import.meta.env.DEV ? (
+        <>
+          <ReactQueryDevtools initialIsOpen={false} />
+          <TanStackRouterDevtools router={router} position="bottom-right" />
+        </>
+      ) : null}
     </QueryClientProvider>
   </StrictMode>,
 )

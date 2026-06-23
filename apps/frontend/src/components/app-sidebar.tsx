@@ -151,6 +151,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [{ title: 'Verify Profiles', url: '/dashboard/profile-verifications' }],
       },
       {
+        title: 'Company Review',
+        url: '/dashboard/company-profile-verifications',
+        icon: UserCheck,
+        items: [{ title: 'Verify Companies', url: '/dashboard/company-profile-verifications' }],
+      },
+      {
         title: 'Marketing',
         url: '/dashboard/notifications',
         icon: Bell,
