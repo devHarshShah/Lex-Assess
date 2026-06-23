@@ -56,8 +56,8 @@ export function CertificatePage() {
             <Row label="Issued" value={new Date(certificate.issuedAt).toLocaleDateString()} />
 
             <div className="flex gap-2 pt-2">
-              <Button asChild>
-                <a href={certificate.pdfUrl} target="_blank" rel="noreferrer">
+              <Button asChild disabled={!certificate.pdfUrl}>
+                <a href={certificate.pdfUrl ?? undefined} target="_blank" rel="noreferrer">
                   Download PDF
                 </a>
               </Button>

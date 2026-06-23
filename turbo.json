@@ -16,7 +16,10 @@
     "MINIO_ACCESS_KEY",
     "MINIO_SECRET_KEY",
     "MINIO_BUCKET",
-    "MINIO_PUBLIC_BASE_URL"
+    "STORAGE_PROVIDER",
+    "GCS_PROJECT_ID",
+    "GCS_BUCKET",
+    "GOOGLE_APPLICATION_CREDENTIALS"
   ],
   "tasks": {
     "build": {

@@ -415,7 +415,7 @@ model Certificate {
   practiceArea     String
   rank             Int
   commonScore      Float
-  pdfUrl           String
+  pdfObjectKey     String
   issuedAt         DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

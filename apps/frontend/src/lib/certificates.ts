@@ -7,7 +7,7 @@ export interface CertificateRecord {
   practiceArea: string
   rank: number
   commonScore: number
-  pdfUrl: string
+  pdfUrl: string | null
   issuedAt: string
 }
 

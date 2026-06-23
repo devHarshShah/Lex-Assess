@@ -1,12 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import fontkit from '@pdf-lib/fontkit';
-import { Client } from 'minio';
 import { PDFDocument, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
+import { READ_URL_EXPIRY_SECONDS, StorageService } from '../common/storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RankingService } from '../ranking/ranking.service';
 
@@ -26,36 +26,18 @@ export interface CertificateDto {
   practiceArea: string;
   rank: number;
   commonScore: number;
-  pdfUrl: string;
+  pdfUrl: string | null;
   issuedAt: Date;
 }
 
 @Injectable()
-export class CertificatesService implements OnModuleInit {
-  private readonly client: Client;
-  private readonly bucket: string;
-
+export class CertificatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rankingService: RankingService,
     private readonly configService: ConfigService,
-  ) {
-    this.bucket = this.configService.get<string>('MINIO_BUCKET') || 'lexassess-uploads';
-    this.client = new Client({
-      endPoint: this.configService.get<string>('MINIO_ENDPOINT') || 'localhost',
-      port: Number(this.configService.get<string>('MINIO_PORT') || 9000),
-      useSSL: this.configService.get<string>('MINIO_USE_SSL') === 'true',
-      accessKey: this.configService.getOrThrow<string>('MINIO_ACCESS_KEY'),
-      secretKey: this.configService.getOrThrow<string>('MINIO_SECRET_KEY'),
-    });
-  }
-
-  async onModuleInit(): Promise<void> {
-    const exists = await this.client.bucketExists(this.bucket).catch(() => false);
-    if (!exists) {
-      await this.client.makeBucket(this.bucket, 'us-east-1');
-    }
-  }
+    private readonly storageService: StorageService,
+  ) {}
 
   async getMyCertificate(userId: string): Promise<CertificateDto | null> {
     const existing = await this.prisma.certificate.findUnique({ where: { userId } });
@@ -94,12 +76,8 @@ export class CertificatesService implements OnModuleInit {
       issuedAt: existing?.issuedAt ?? new Date(),
     });
 
-    const objectKey = `certificate/${userId}.pdf`;
-    await this.client.putObject(this.bucket, objectKey, Buffer.from(pdfBytes), pdfBytes.length, {
-      'Content-Type': 'application/pdf',
-    });
-    const publicBaseUrl = this.configService.get<string>('MINIO_PUBLIC_BASE_URL') || 'http://localhost:9000';
-    const pdfUrl = `${publicBaseUrl}/${this.bucket}/${objectKey}`;
+    const pdfObjectKey = `certificate/${userId}.pdf`;
+    await this.storageService.uploadFile(pdfObjectKey, Buffer.from(pdfBytes), 'application/pdf');
 
     const saved = await this.prisma.certificate.upsert({
       where: { userId },
@@ -111,7 +89,7 @@ export class CertificatesService implements OnModuleInit {
         practiceArea: rankEntry.practiceArea,
         rank: rankEntry.rank,
         commonScore: rankEntry.commonScore,
-        pdfUrl,
+        pdfObjectKey,
       },
       update: {
         rollNumber: profile?.rollNumber ?? null,
@@ -119,7 +97,7 @@ export class CertificatesService implements OnModuleInit {
         practiceArea: rankEntry.practiceArea,
         rank: rankEntry.rank,
         commonScore: rankEntry.commonScore,
-        pdfUrl,
+        pdfObjectKey,
       },
     });
 
@@ -134,16 +112,16 @@ export class CertificatesService implements OnModuleInit {
     return this.toDto(certificate);
   }
 
-  private toDto(certificate: {
+  private async toDto(certificate: {
     verificationCode: string;
     fullName: string;
     rollNumber: string | null;
     practiceArea: string;
     rank: number;
     commonScore: number;
-    pdfUrl: string;
+    pdfObjectKey: string;
     issuedAt: Date;
-  }): CertificateDto {
+  }): Promise<CertificateDto> {
     return {
       verificationCode: certificate.verificationCode,
       fullName: certificate.fullName,
@@ -151,7 +129,7 @@ export class CertificatesService implements OnModuleInit {
       practiceArea: certificate.practiceArea,
       rank: certificate.rank,
       commonScore: certificate.commonScore,
-      pdfUrl: certificate.pdfUrl,
+      pdfUrl: await this.storageService.getSignedUrl(certificate.pdfObjectKey, READ_URL_EXPIRY_SECONDS),
       issuedAt: certificate.issuedAt,
     };
   }
