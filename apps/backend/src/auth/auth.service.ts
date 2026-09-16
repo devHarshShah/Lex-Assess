@@ -14,6 +14,7 @@ import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateSpecializationDto } from './dto/update-specialization.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { isPublicEmailProvider } from '../common/utils/email.utils';
+import { MailService } from '../mail/mail.service';
 
 interface GoogleTokenInfo {
   sub: string;
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async registerWithEmailPassword(input: {
@@ -337,6 +339,22 @@ export class AuthService {
 
     await this.usersService.createPasswordSetupToken(userId, tokenHash, expiresAt);
     return token;
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      // Deliberately do nothing: the caller always returns the same generic
+      // response, so we never reveal whether an account exists for this email.
+      return;
+    }
+
+    try {
+      const token = await this.createPasswordSetupToken(user.id);
+      await this.mailService.sendForgotPassword(user.email, user.name, token);
+    } catch (error) {
+      this.logger.error('Failed to send password reset email', error as Error);
+    }
   }
 
   async setPasswordViaToken(token: string, password: string): Promise<void> {

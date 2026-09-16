@@ -7,6 +7,7 @@ import { setAuthCookie, clearAuthCookie } from './auth-cookie';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { AssignAdminDto } from './dto/assign-admin.dto';
 import { GoogleCodeExchangeDto } from './dto/google-code-exchange.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -54,6 +55,13 @@ export class AuthController {
   @Post('set-password')
   setPassword(@Body() dto: SetPasswordDto) {
     return this.authService.setPasswordViaToken(dto.token, dto.password);
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.authService.requestPasswordReset(dto.email);
+    return { message: 'If an account exists for this email, a reset link has been sent.' };
   }
 
   @Post('google/exchange')

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
@@ -7,6 +7,7 @@ import fontkit from '@pdf-lib/fontkit';
 import { PDFDocument, rgb } from 'pdf-lib';
 import * as QRCode from 'qrcode';
 import { READ_URL_EXPIRY_SECONDS, StorageService } from '../common/storage.service';
+import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RankingService } from '../ranking/ranking.service';
 
@@ -32,11 +33,14 @@ export interface CertificateDto {
 
 @Injectable()
 export class CertificatesService {
+  private readonly logger = new Logger(CertificatesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly rankingService: RankingService,
     private readonly configService: ConfigService,
     private readonly storageService: StorageService,
+    private readonly mailService: MailService,
   ) {}
 
   async getMyCertificate(userId: string): Promise<CertificateDto | null> {
@@ -56,7 +60,7 @@ export class CertificatesService {
       where: { userId },
       select: { fullName: true, rollNumber: true },
     });
-    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true, email: true } });
     const fullName = profile?.fullName || user.name;
 
     const existing = await this.prisma.certificate.findUnique({ where: { userId } });
@@ -100,6 +104,15 @@ export class CertificatesService {
         pdfObjectKey,
       },
     });
+
+    if (!existing) {
+      try {
+        await this.mailService.sendCertificateReady(user.email, fullName, profile?.rollNumber ?? '-', rankEntry.practiceArea);
+      } catch (error) {
+        // A mail failure should never break certificate generation itself.
+        this.logger.error('Failed to send certificate ready email', error as Error);
+      }
+    }
 
     return this.toDto(saved);
   }

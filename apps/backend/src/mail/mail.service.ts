@@ -1,6 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { render } from '@react-email/render';
 import * as nodemailer from 'nodemailer';
+import type { ReactElement } from 'react';
+import { CertificateReadyEmail } from './templates/CertificateReadyEmail';
+import { ForgotPasswordEmail } from './templates/ForgotPasswordEmail';
+import { InterviewScheduledEmail } from './templates/InterviewScheduledEmail';
+import { InterviewerWelcomeEmail } from './templates/InterviewerWelcomeEmail';
+
+const RETRY_DELAYS_MS = [1000, 3000, 9000];
 
 @Injectable()
 export class MailService {
@@ -35,54 +43,56 @@ export class MailService {
     }
   }
 
+  private async renderEmail(element: ReactElement): Promise<{ html: string; text: string }> {
+    const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
+    return { html, text };
+  }
+
   async sendMail(to: string, subject: string, html: string, text?: string) {
     const from = this.configService.get<string>('SMTP_FROM') || 'noreply@lexassess.com';
     const isStream = !this.configService.get<string>('SMTP_HOST');
-    
-    try {
-      const info = await this.transporter.sendMail({
-        from: `"LexAssess" <${from}>`,
-        to,
-        subject,
-        text: text || subject,
-        html,
-      });
 
-      if (isStream) {
-        this.logger.debug('SMTP not configured. Email logged to console (stream):');
-        this.logger.debug(info.message.toString());
-      } else {
-        this.logger.log(`Email sent successfully to ${to}. MessageID: ${info.messageId}`);
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        const info = await this.transporter.sendMail({
+          from: `"LexAssess" <${from}>`,
+          to,
+          subject,
+          text: text || subject,
+          html,
+        });
+
+        if (isStream) {
+          this.logger.debug('SMTP not configured. Email logged to console (stream):');
+          this.logger.debug(info.message.toString());
+        } else {
+          this.logger.log(`Email sent successfully to ${to}. MessageID: ${info.messageId}`);
+        }
+
+        return info;
+      } catch (error) {
+        lastError = error;
+        const isLastAttempt = attempt === RETRY_DELAYS_MS.length;
+        if (isLastAttempt) {
+          this.logger.error(`Failed to send email to ${to} after ${attempt + 1} attempt(s)`, error as Error);
+          break;
+        }
+        const delay = RETRY_DELAYS_MS[attempt];
+        this.logger.warn(`Attempt ${attempt + 1} to send email to ${to} failed, retrying in ${delay}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
-
-      return info;
-    } catch (error) {
-      this.logger.error(`Failed to send email to ${to}`, error);
-      throw error;
     }
+
+    throw lastError;
   }
 
   async sendInterviewerWelcome(email: string, name: string, setupToken: string) {
     const subject = 'Welcome to LexAssess - Set Up Your Interviewer Account';
     const setPasswordUrl = `${this.configService.get('FRONTEND_ORIGIN')}/set-password?token=${setupToken}`;
-    const html = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #d97706;">Welcome to LexAssess, ${name}!</h2>
-        <p>You have been registered as an interviewer on the LexAssess platform.</p>
-        <p>Your account email is <strong>${email}</strong>. To get started, set your password using the link below.</p>
+    const { html, text } = await this.renderEmail(InterviewerWelcomeEmail({ name, email, setPasswordUrl }));
 
-        <a href="${setPasswordUrl}"
-           style="display: inline-block; background-color: #d97706; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Set Your Password
-        </a>
-
-        <p style="margin-top: 30px; font-size: 12px; color: #666;">
-          This link expires in 24 hours. If you did not expect this email, please ignore it.
-        </p>
-      </div>
-    `;
-
-    return this.sendMail(email, subject, html);
+    return this.sendMail(email, subject, html, text);
   }
 
   async sendInterviewScheduled(to: string, userName: string, interviewerName: string, startTime: Date, meetLink: string) {
@@ -93,35 +103,28 @@ export class MailService {
       year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Asia/Kolkata'
+      timeZone: 'Asia/Kolkata',
     }).format(startTime);
 
     const subject = `Interview Scheduled: ${interviewerName} & ${userName}`;
-    const html = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #d97706;">Interview Confirmed</h2>
-        <p>Hello,</p>
-        <p>An interview has been successfully scheduled.</p>
-        
-        <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
-          <p style="margin: 5px 0;"><strong>Student:</strong> ${userName}</p>
-          <p style="margin: 5px 0;"><strong>Interviewer:</strong> ${interviewerName}</p>
-          <p style="margin: 5px 0;"><strong>Date & Time:</strong> ${formattedDate} (IST)</p>
-        </div>
+    const { html, text } = await this.renderEmail(InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink }));
 
-        <p>You can join the interview via Google Meet using the link below:</p>
-        
-        <a href="${meetLink}" 
-           style="display: inline-block; background-color: #d97706; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-          Join Google Meet
-        </a>
+    return this.sendMail(to, subject, html, text);
+  }
 
-        <p style="margin-top: 30px; font-size: 12px; color: #666;">
-          Please ensure you join at least 5 minutes early.
-        </p>
-      </div>
-    `;
+  async sendForgotPassword(email: string, name: string, resetToken: string) {
+    const subject = 'Reset Your LexAssess Password';
+    const resetUrl = `${this.configService.get('FRONTEND_ORIGIN')}/set-password?token=${resetToken}`;
+    const { html, text } = await this.renderEmail(ForgotPasswordEmail({ name, resetUrl }));
 
-    return this.sendMail(to, subject, html);
+    return this.sendMail(email, subject, html, text);
+  }
+
+  async sendCertificateReady(email: string, name: string, rollNumber: string, practiceArea: string) {
+    const subject = 'Your LexAssess Certificate Is Ready';
+    const certificateUrl = `${this.configService.get('FRONTEND_ORIGIN')}/certificate`;
+    const { html, text } = await this.renderEmail(CertificateReadyEmail({ name, rollNumber, practiceArea, certificateUrl }));
+
+    return this.sendMail(email, subject, html, text);
   }
 }

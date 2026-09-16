@@ -2,6 +2,7 @@
   "extends": "@repo/typescript-config/nestjs",
   "compilerOptions": {
     "baseUrl": "./",
+    "jsx": "react-jsx",
     "paths": {
       "@prisma/client": ["./src/generated/client/client.ts"]
     }
