@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  REGION: us-central1
+  REGION: asia-south1
   SERVICE: lex-assess-backend
   REPOSITORY: lex-assess
 
@@ -71,6 +71,8 @@ jobs:
             --region "${{ env.REGION }}" \
             --command "pnpm" \
             --args "--filter,backend,exec,prisma,migrate,deploy" \
+            --service-account "${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}" \
+            --add-cloudsql-instances "${{ secrets.GCP_SQL_CONNECTION_NAME }}" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
             --execute-now \
             --wait
@@ -81,3 +83,32 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+          flags: >-
+            --service-account=${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}
+            --add-cloudsql-instances=${{ secrets.GCP_SQL_CONNECTION_NAME }}
+          secrets: |
+            DATABASE_URL=DATABASE_URL:latest
+            JWT_SECRET=JWT_SECRET:latest
+            RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest
+            RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest
+            SMTP_PASS=SMTP_PASS:latest
+            GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest
+            GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:latest
+          env_vars: |
+            FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
+            COOKIE_SECURE=true
+            COOKIE_SAMESITE=none
+            COOKIE_DOMAIN=${{ vars.COOKIE_DOMAIN }}
+            GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
+            GOOGLE_REDIRECT_URI=${{ vars.GOOGLE_REDIRECT_URI }}
+            GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ vars.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+            STORAGE_PROVIDER=gcs
+            GCS_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            GCS_BUCKET=${{ vars.GCS_BUCKET }}
+            RAZORPAY_KEY_ID=${{ vars.RAZORPAY_KEY_ID }}
+            RAZORPAY_PLAN_ID=${{ vars.RAZORPAY_PLAN_ID }}
+            SMTP_HOST=${{ vars.SMTP_HOST }}
+            SMTP_PORT=${{ vars.SMTP_PORT }}
+            SMTP_USER=${{ vars.SMTP_USER }}
+            SMTP_SECURE=${{ vars.SMTP_SECURE }}
+            SMTP_FROM=${{ vars.SMTP_FROM }}

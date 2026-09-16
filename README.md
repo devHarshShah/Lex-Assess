@@ -34,6 +34,12 @@ pnpm format
 pnpm format:check
 ```
 
+## Deployment
+
+Backend deploys to Cloud Run (Mumbai) via GitHub Actions; frontend deploys to Vercel. Backing GCP
+infra (Cloud SQL, GCS, Secret Manager, IAM) is provisioned with Terraform in `infra/terraform/`.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full setup and rotation procedure.
+
 ## Shared config usage
 
 - Frontend uses `@repo/eslint-config/react-vite` and `@repo/typescript-config/react-vite`.
