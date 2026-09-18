@@ -11,6 +11,12 @@ env:
   SERVICE: lex-assess-backend
   REPOSITORY: lex-assess
 
+# The deploy half is split into three dependent jobs (build -> migrate -> deploy)
+# rather than one monolith so that GitHub's "Re-run failed jobs" resumes at the
+# first thing that actually broke instead of replaying the whole pipeline. The
+# build job is additionally a no-op when the image for this SHA is already in
+# Artifact Registry, so a retry costs seconds rather than minutes.
+
 jobs:
   ci:
     runs-on: ubuntu-latest
@@ -45,7 +51,7 @@ jobs:
 
       - run: pnpm build
 
-  deploy:
+  build:
     needs: ci
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -63,16 +69,56 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # Job-level `env:` can't read the `env` context, so the image ref is
+      # assembled here and exported for the remaining steps in this job.
+      - name: Resolve image ref
+        run: |
+          echo "IMAGE=${REGION}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE}:${{ github.sha }}" >> "$GITHUB_ENV"
+
+      # Images are immutable per commit SHA, so if this tag is already pushed
+      # there is nothing to rebuild - this is what makes `gh run rerun --failed`
+      # cheap after a migrate/deploy failure.
+      - name: Check whether the image already exists
+        id: check
+        run: |
+          if gcloud artifacts docker images describe "$IMAGE" >/dev/null 2>&1; then
+            echo "image already present, skipping build"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure Docker for Artifact Registry
+        if: steps.check.outputs.exists != 'true'
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
 
       - name: Build and push image
-        env:
-          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+        if: steps.check.outputs.exists != 'true'
         run: |
           docker build -f apps/backend/Dockerfile -t "$IMAGE" .
           docker push "$IMAGE"
 
+  migrate:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Prisma is invoked through its real JS entrypoint rather than the pnpm
+      # or .bin shim: the runtime image has no workspace manifest, so corepack
+      # would try to reinstall the whole dependency tree and OOM the job.
+      #
+      # Connectivity is Direct VPC egress to the instance's private IP, not the
+      # /cloudsql Unix socket - see the note in infra/terraform/network.tf.
       - name: Run database migrations
         run: |
           gcloud run jobs deploy lex-assess-migrate \
@@ -82,10 +128,28 @@ jobs:
             --args="node_modules/prisma/build/index.js,migrate,deploy" \
             --memory=512Mi \
             --service-account "${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}" \
-            --set-cloudsql-instances "${{ secrets.GCP_SQL_CONNECTION_NAME }}" \
+            --set-cloudsql-instances="" \
+            --network=default \
+            --subnet=default \
+            --vpc-egress=private-ranges-only \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
             --execute-now \
             --wait
+
+  deploy:
+    needs: migrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
@@ -93,9 +157,15 @@ jobs:
           service: ${{ env.SERVICE }}
           region: ${{ env.REGION }}
           image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}
+          # private-ranges-only (not all-traffic): the DB is reached over RFC1918
+          # via the VPC, while SMTP/Razorpay/Google APIs keep egressing straight
+          # to the internet, so no Cloud NAT is needed.
           flags: >-
             --service-account=${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}
-            --add-cloudsql-instances=${{ secrets.GCP_SQL_CONNECTION_NAME }}
+            --allow-unauthenticated
+            --network=default
+            --subnet=default
+            --vpc-egress=private-ranges-only
             --min-instances=0
             --max-instances=3
             --memory=512Mi

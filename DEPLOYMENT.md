@@ -48,7 +48,7 @@ terraform apply
 ```
 
 This provisions: Private Service Access peering, the Cloud SQL Postgres instance (private IP
-only, `db-g1-small`, single zone, daily backups + PITR), the app database + user, the GCS uploads
+only, `db-f1-micro`, single zone, daily backups + PITR), the app database + user, the GCS uploads
 bucket (versioned), the Cloud Run runtime service account with least-privilege IAM, and empty
 Secret Manager secret containers (no values yet).
 
@@ -67,14 +67,18 @@ terraform output -raw db_password   # sensitive
 Terraform only creates secret *containers* — it never writes secret values into state. Push each
 one manually:
 
+`DATABASE_URL` points at the instance's **private IP over TCP**, not the `/cloudsql/...` Unix
+socket — the socket connector requires a public-IP instance and this one is private-only. See the
+note at the top of `infra/terraform/network.tf` for the full reasoning.
+
 ```sh
-CONNECTION_NAME=$(terraform output -raw sql_connection_name)
 DB_USER=$(terraform output -raw db_user)
 DB_PASSWORD=$(terraform output -raw db_password)
 DB_NAME=$(terraform output -raw db_name)
+DB_HOST=$(terraform output -raw sql_private_ip)
 
-printf 'postgresql://%s:%s@localhost/%s?host=/cloudsql/%s' \
-  "$DB_USER" "$DB_PASSWORD" "$DB_NAME" "$CONNECTION_NAME" \
+printf 'postgresql://%s:%s@%s:5432/%s' \
+  "$DB_USER" "$DB_PASSWORD" "$DB_HOST" "$DB_NAME" \
   | gcloud secrets versions add DATABASE_URL --data-file=- --project "$PROJECT_ID"
 
 # Generate/pull the rest from wherever they actually live and push the same way:
@@ -83,8 +87,14 @@ echo -n "<value>" | gcloud secrets versions add RAZORPAY_KEY_SECRET --data-file=
 echo -n "<value>" | gcloud secrets versions add RAZORPAY_WEBHOOK_SECRET --data-file=- --project "$PROJECT_ID"
 echo -n "<value>" | gcloud secrets versions add SMTP_PASS --data-file=- --project "$PROJECT_ID"
 echo -n "<value>" | gcloud secrets versions add GOOGLE_CLIENT_SECRET --data-file=- --project "$PROJECT_ID"
-echo -n "<value>" | gcloud secrets versions add GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY --data-file=- --project "$PROJECT_ID"
 ```
+
+Every secret listed here must have **at least one version** before the first deploy. Cloud Run
+mounts them as `NAME:latest`, and a secret with zero versions fails the deploy outright; several
+are also read with `getOrThrow` at boot (`JWT_SECRET`, `RAZORPAY_KEY_SECRET`,
+`RAZORPAY_WEBHOOK_SECRET`), so an empty value crashes the container instead. If a real value isn't
+available yet — `RAZORPAY_WEBHOOK_SECRET` can't be generated until Razorpay has the deployed
+backend URL — push a placeholder to unblock the deploy and rotate it afterwards (see §6).
 
 `JWT_SECRET` should be a fresh random value (e.g. `openssl rand -base64 48`), not reused from
 local dev. The Razorpay/SMTP/Google values come from those providers' dashboards.
@@ -101,7 +111,6 @@ The workflow references these — set them under repo Settings → Secrets and v
 | `GCP_SERVICE_ACCOUNT` | (existing — CI/CD deployer service account) |
 | `GCP_PROJECT_ID` | your GCP project ID |
 | `GCP_RUN_SERVICE_ACCOUNT` | `terraform output runtime_service_account_email` |
-| `GCP_SQL_CONNECTION_NAME` | `terraform output sql_connection_name` |
 
 **Variables** (non-secret config, referenced as `vars.*` in the workflow):
 
@@ -124,6 +133,35 @@ gcloud iam service-accounts add-iam-policy-binding "$(terraform output -raw runt
   --member="serviceAccount:<GCP_SERVICE_ACCOUNT>" --role="roles/iam.serviceAccountUser" \
   --project "$PROJECT_ID"
 ```
+
+…and `compute.subnetworks.use` on the subnet, so it's allowed to deploy revisions with Direct VPC
+egress (scoped to the one subnet rather than granted project-wide):
+
+```sh
+gcloud compute networks subnets add-iam-policy-binding default \
+  --region=asia-south1 --project="$PROJECT_ID" \
+  --member="serviceAccount:<GCP_SERVICE_ACCOUNT>" --role="roles/compute.networkUser"
+```
+
+Neither binding is in Terraform: the deployer service account itself is provisioned out of band
+(it predates this config and is bound to the WIF pool), so Terraform doesn't own either side.
+
+## 4b. Retrying a failed deploy
+
+**Don't push an empty commit.** The pipeline is `ci → build → migrate → deploy` as four separate
+jobs precisely so a retry can resume:
+
+```sh
+gh run rerun <run-id> --failed
+```
+
+Jobs that already succeeded aren't re-run, and `build` short-circuits anyway when the image for
+that commit SHA is already in Artifact Registry (images are immutable per SHA), so a rerun after a
+migrate or deploy failure takes seconds instead of rebuilding.
+
+For iterating on the Cloud Run configuration itself, skip GitHub entirely and drive it locally
+against the already-pushed image — `gcloud run jobs deploy lex-assess-migrate --image <ref> …` /
+`gcloud run deploy lex-assess-backend --image <ref> …` — then commit once it works.
 
 ## 5. Cross-site cookies
 
@@ -151,6 +189,22 @@ then trigger a redeploy (push to `main`, or re-run the `deploy` job). **Rotating
 does nothing to already-running revisions** — Cloud Run resolves `:latest` at deploy time and
 pins that resolved version to the revision, so a running revision keeps using whatever version was
 current when it was deployed until the next deploy picks up the new one.
+
+### Razorpay: the placeholders that must be replaced
+
+`RAZORPAY_WEBHOOK_SECRET` and `RAZORPAY_PLAN_ID` are seeded with dummy values, because Razorpay
+can't issue a webhook secret until it has a reachable backend URL, and the URL doesn't exist until
+the first successful deploy. Once the service is up:
+
+1. Get the URL: `gcloud run services describe lex-assess-backend --region asia-south1 --format='value(status.url)'`
+2. Register `<URL>/payments/webhook` in the Razorpay dashboard and copy the generated secret.
+3. Push the real values and redeploy:
+   ```sh
+   echo -n "<real-secret>" | gcloud secrets versions add RAZORPAY_WEBHOOK_SECRET --data-file=- --project "$PROJECT_ID"
+   gh variable set RAZORPAY_PLAN_ID --body "<real-plan-id>"
+   ```
+
+Until step 3, payment webhooks will fail signature verification — everything else works.
 
 ## Out of scope here
 

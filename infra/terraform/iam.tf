@@ -26,6 +26,24 @@ resource "google_storage_bucket_iam_member" "run_runtime_bucket_object_admin" {
   member = "serviceAccount:${google_service_account.run_runtime.email}"
 }
 
+# StorageService.onModuleInit calls GcsBackend.ensureBucket() -> bucket.exists(),
+# which is a GET on the bucket itself and needs storage.buckets.get. objectAdmin
+# above only covers objects, so without this the app 403s and dies at startup.
+resource "google_storage_bucket_iam_member" "run_runtime_bucket_reader" {
+  bucket = google_storage_bucket.uploads.name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.run_runtime.email}"
+}
+
+# Signed upload/certificate URLs are produced by the IAM signBlob API rather than
+# a local private key (the org forbids service account keys), and signBlob on an
+# account requires token-creator *on that same account*.
+resource "google_service_account_iam_member" "run_runtime_self_token_creator" {
+  service_account_id = google_service_account.run_runtime.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.run_runtime.email}"
+}
+
 # Secret Manager: container-only resources. Values are pushed manually via
 # `gcloud secrets versions add` (see DEPLOYMENT.md) so secret material never
 # lives in Terraform state.

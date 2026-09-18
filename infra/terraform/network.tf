@@ -1,8 +1,19 @@
 # Private Service Access peering so Cloud SQL can get a private IP.
-# Cloud Run's native Cloud SQL integration (--add-cloudsql-instances) does not
-# need a Serverless VPC Access connector even for a private-IP instance -
-# Google manages that tunnel - but the private IP itself still requires this
-# one-time VPC peering to exist.
+#
+# Note on how Cloud Run actually reaches this instance: NOT via the native
+# Cloud SQL integration (--add-cloudsql-instances / --set-cloudsql-instances).
+# That flag mounts a /cloudsql/... Unix socket served by the Cloud SQL Auth
+# Proxy, which requires the instance to have a public IP (or PSC) - and this
+# instance is private-IP only (ipv4_enabled = false in cloudsql.tf). Using it
+# fails at runtime with "P1001: Can't reach database server at /cloudsql/...".
+#
+# Instead, the Cloud Run service and the migrate job both use Direct VPC egress
+# (--network/--subnet/--vpc-egress=private-ranges-only) and connect straight to
+# google_sql_database_instance.main.private_ip_address over TCP, across the
+# peering established below. Direct VPC egress costs nothing (unlike a
+# Serverless VPC Access connector, which runs billable instances), and
+# private-ranges-only keeps non-RFC1918 traffic (SMTP, Razorpay, Google APIs)
+# egressing straight to the internet so no Cloud NAT is required.
 
 data "google_compute_network" "default" {
   name    = "default"
