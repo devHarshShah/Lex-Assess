@@ -70,10 +70,38 @@ export class PaymentsService {
     });
 
     if (!user) throw new BadRequestException('User not found');
-    
+
     // If they already have an active subscription, just return
     if (user.hasActiveSubscription) {
       throw new BadRequestException('User already has an active subscription');
+    }
+
+    // Never silently create a second Razorpay subscription for the same user.
+    // hasActiveSubscription alone isn't enough to guard this: a subscription
+    // can be genuinely paid and still show false here if the webhook that
+    // would have flipped it hasn't landed yet (see verifyWebhook). Check the
+    // *live* status of whatever subscription is already linked before
+    // creating a new one, so a second click reuses it instead of orphaning
+    // the first (which was exactly how a live ₹1 test subscription ended up
+    // paid-but-never-linked: a second click clobbered the pointer to it).
+    if (user.razorpaySubscriptionId) {
+      try {
+        const existing = await this.razorpay.subscriptions.fetch(user.razorpaySubscriptionId);
+        const deadStatuses = ['cancelled', 'completed', 'expired'];
+        if (existing?.status && !deadStatuses.includes(existing.status)) {
+          this.logger.log(
+            `Reusing existing subscription ${user.razorpaySubscriptionId} for user ${userId} (status: ${existing.status})`,
+          );
+          return {
+            subscriptionId: user.razorpaySubscriptionId,
+            keyId: this.keyId,
+          };
+        }
+        // Dead subscription (cancelled/completed/expired) - fall through and create a new one.
+      } catch (error) {
+        // Stale/invalid id on our side - fall through and create a new one.
+        this.logger.warn(`Could not fetch existing subscription ${user.razorpaySubscriptionId} for user ${userId}; creating a new one`, error);
+      }
     }
 
     let customerId = user.razorpayCustomerId;
@@ -149,6 +177,24 @@ export class PaymentsService {
     }
   }
 
+  // Resolves the user for a subscription webhook event. Prefers notes.userId
+  // (set by us on every subscription.create call, and echoed back by Razorpay
+  // on every event for that subscription) over matching the user's current
+  // razorpaySubscriptionId pointer - that pointer can drift if the user
+  // re-subscribed since this specific subscription was created, in which case
+  // an equality match would silently find nobody and drop the event.
+  private async findUserForSubscriptionEvent(subscriptionEntity: any) {
+    const noteUserId = subscriptionEntity?.notes?.userId;
+    if (noteUserId) {
+      const user = await this.prisma.user.findUnique({ where: { id: noteUserId } });
+      if (user) return user;
+    }
+    // Fallback for subscriptions created before notes.userId existed.
+    return this.prisma.user.findUnique({
+      where: { razorpaySubscriptionId: subscriptionEntity.id },
+    });
+  }
+
   async verifyWebhook(signature: string, rawBody: Buffer, eventId?: string) {
     // Razorpay signs the exact bytes of the request body. We must HMAC the raw
     // buffer, not a re-stringified parse of it (JSON.stringify is not guaranteed
@@ -192,16 +238,17 @@ export class PaymentsService {
       const subscription = payload.payload.subscription.entity;
       const payment = payload.payload.payment?.entity;
       const subscriptionId = subscription.id;
-      
-      const user = await this.prisma.user.findUnique({
-        where: { razorpaySubscriptionId: subscriptionId }
-      });
+
+      const user = await this.findUserForSubscriptionEvent(subscription);
 
       if (user) {
-        // Update user subscription status
+        // Update user subscription status. Also (re)write razorpaySubscriptionId
+        // to this event's subscription id: if the user re-subscribed and this
+        // pointer had drifted to a different (unpaid) subscription, this is
+        // what makes the link self-healing instead of the update being lost.
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { hasActiveSubscription: true }
+          data: { hasActiveSubscription: true, razorpaySubscriptionId: subscriptionId }
         });
 
         // Record the transaction
@@ -223,15 +270,16 @@ export class PaymentsService {
             }
           });
         }
-        
+
         this.logger.log(`Activated/Updated subscription for user ${user.id}`);
+      } else {
+        this.logger.warn(`Webhook ${event} for subscription ${subscriptionId} matched no user (notes.userId="${subscription?.notes?.userId}")`);
       }
     } else if (event === 'subscription.cancelled' || event === 'subscription.halted') {
-      const subscriptionId = payload.payload.subscription.entity.id;
-      
-      const user = await this.prisma.user.findUnique({
-        where: { razorpaySubscriptionId: subscriptionId }
-      });
+      const subscription = payload.payload.subscription.entity;
+      const subscriptionId = subscription.id;
+
+      const user = await this.findUserForSubscriptionEvent(subscription);
 
       if (user) {
         await this.prisma.user.update({
@@ -239,6 +287,8 @@ export class PaymentsService {
           data: { hasActiveSubscription: false }
         });
         this.logger.log(`Deactivated subscription for user ${user.id}`);
+      } else {
+        this.logger.warn(`Webhook ${event} for subscription ${subscriptionId} matched no user (notes.userId="${subscription?.notes?.userId}")`);
       }
     }
   }
@@ -277,21 +327,37 @@ export class PaymentsService {
       throw new BadRequestException('Unable to verify subscription status');
     }
 
-    const activeStatuses = ['active', 'authenticated', 'charged'];
-    if (!activeStatuses.includes(subscription?.status)) {
-      throw new BadRequestException('Subscription is not active');
+    // 'charged' is a *payment* status, not a subscription status - Razorpay's
+    // subscription statuses are created/authenticated/active/pending/halted/
+    // cancelled/completed/expired. A subscription can briefly sit in
+    // 'created' or 'pending' even after its first payment has captured, so
+    // treat those as "still confirming" rather than a hard failure - the
+    // webhook (verifyWebhook) is the authoritative source and will flip
+    // hasActiveSubscription once Razorpay finalizes it.
+    const confirmedStatuses = ['active', 'authenticated'];
+    const pendingStatuses = ['created', 'pending'];
+
+    if (confirmedStatuses.includes(subscription?.status)) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          hasActiveSubscription: true,
+          razorpaySubscriptionId: razorpay_subscription_id,
+        },
+      });
+
+      this.logger.log(`Subscription activated for user ${userId} via payment verification`);
+      return { success: true, pending: false };
     }
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        hasActiveSubscription: true,
-        razorpaySubscriptionId: razorpay_subscription_id,
-      },
-    });
+    if (pendingStatuses.includes(subscription?.status)) {
+      this.logger.log(
+        `Subscription ${razorpay_subscription_id} still "${subscription.status}" for user ${userId} after payment; awaiting webhook confirmation`,
+      );
+      return { success: true, pending: true };
+    }
 
-    this.logger.log(`Subscription activated for user ${userId} via payment verification`);
-    return { success: true };
+    throw new BadRequestException('Subscription is not active');
   }
 
   async getBillingHistory(userId: string) {

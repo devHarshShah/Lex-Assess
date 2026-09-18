@@ -13,6 +13,6 @@ export async function verifyPayment(data: {
   razorpay_payment_id: string;
   razorpay_subscription_id: string;
   razorpay_signature: string;
-}): Promise<{ success: boolean }> {
-  return api.post<{ success: boolean }>('/payments/verify-payment', data);
+}): Promise<{ success: boolean; pending: boolean }> {
+  return api.post<{ success: boolean; pending: boolean }>('/payments/verify-payment', data);
 }

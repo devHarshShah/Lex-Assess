@@ -280,6 +280,27 @@ These two secrets are human credentials, not app config the runtime service read
 request, so they're created directly with `gcloud` rather than through Terraform, and the Cloud Run
 *service* never mounts them — only this one-off job does.
 
+### Repairing a drifted subscription link
+
+`createSubscription` is idempotent as of the fix in `payments.service.ts` (reuses an existing live
+subscription instead of creating a new one), and `verifyWebhook` resolves the user via
+`notes.userId` rather than an exact `razorpaySubscriptionId` match, so this class of bug shouldn't
+recur. If an account was affected before that fix — `hasActiveSubscription: false` despite a
+`captured` `Transaction` row, because a re-subscribe overwrote the pointer before the original
+webhook landed — repair it with:
+
+```sh
+gcloud run jobs deploy lex-assess-repair-subscription \
+  --image "$IMAGE" --region asia-south1 --project "$PROJECT_ID" \
+  --command=node --args="dist/src/scripts/repair-subscription.js" \
+  --memory=512Mi \
+  --service-account "lex-assess-run-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --network=default --subnet=default --vpc-egress=private-ranges-only \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+  --set-env-vars "REPAIR_USER_EMAIL=<email>,REPAIR_SUBSCRIPTION_ID=<the subscription id from the paid Transaction row>" \
+  --execute-now --wait
+```
+
 ## Out of scope here
 
 - Managing the Cloud Run *service* resource in Terraform — it's deployed/updated exclusively by

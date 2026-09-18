@@ -78,17 +78,23 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
           razorpay_subscription_id: string
           razorpay_signature: string
         }) {
+          let pending = false
           try {
-            // Verify payment on backend — activates subscription immediately in DB.
-            // This is the only thing that actually flips hasActiveSubscription, so
-            // the receipt/success page below must only be shown once this resolves —
-            // otherwise a genuinely failed verification would still show the
-            // customer a "Payment Success! ● Active" screen.
-            await verifyPayment({
+            // Verify payment on backend. A confirmed result activates the
+            // subscription immediately; a "pending" result means the payment
+            // captured but Razorpay's subscription record hasn't caught up
+            // yet (e.g. mandate still confirming) — the webhook is what
+            // actually flips access in that case, so don't claim it's
+            // unlocked yet. Only a thrown error means verification actually
+            // failed — the receipt/success page must only be shown once this
+            // resolves, otherwise a genuinely failed verification would
+            // still show the customer a "Payment Success! ● Active" screen.
+            const result = await verifyPayment({
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_subscription_id: response.razorpay_subscription_id,
               razorpay_signature: response.razorpay_signature,
             })
+            pending = result.pending
           } catch (err) {
             console.error('Payment verification failed:', err)
             toast.error(
@@ -98,7 +104,11 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
             return
           }
 
-          toast.success('Payment successful! Your tests are now unlocked.')
+          if (pending) {
+            toast.success('Payment received! Confirming your subscription — this can take a minute.')
+          } else {
+            toast.success('Payment successful! Your tests are now unlocked.')
+          }
           // Store payment details so the receipt page can display real data
           sessionStorage.setItem(
             'lex_payment_receipt',
