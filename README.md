@@ -8,8 +8,8 @@ Turborepo monorepo with:
 
 ## Prerequisites
 
-- Node.js `>=18`
-- pnpm `9.x`
+- Node.js `>=22.13`
+- pnpm `11.x` (pinned via `packageManager`)
 
 ## Install
 
