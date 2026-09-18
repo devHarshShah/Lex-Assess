@@ -107,7 +107,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
               subscriptionId: response.razorpay_subscription_id,
               amount: '₹499.00',
               plan: 'Lex-Assess Premium',
-              validity: '4 Months',
+              validity: '3 Months',
               date: new Date().toISOString(),
             })
           )
@@ -287,7 +287,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                     <p className="text-2xl font-black text-foreground mt-0.5 flex items-baseline gap-2">
                       <span className="text-base font-semibold text-muted-foreground line-through">₹1,999</span>
                       <span>₹499</span>
-                      <span className="text-sm font-normal text-muted-foreground"> / 4 months</span>
+                      <span className="text-sm font-normal text-muted-foreground"> / 3 months</span>
                     </p>
                     <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">New customer offer</p>
                   </div>

@@ -55,7 +55,7 @@ export function PaymentSuccessPage() {
     ...(receipt?.paymentId ? [{ label: 'Transaction ID', value: receipt.paymentId, mono: true }] : []),
     { label: 'Product', value: receipt?.plan ?? 'Lex-Assess Premium' },
     { label: 'Amount Paid', value: receipt?.amount ?? '₹499.00' },
-    { label: 'Validity', value: receipt?.validity ?? '4 Months', green: true },
+    { label: 'Validity', value: receipt?.validity ?? '3 Months', green: true },
     ...(receipt?.date ? [{ label: 'Date & Time', value: formatDate(receipt.date) }] : []),
     { label: 'Status', badge: true },
   ]

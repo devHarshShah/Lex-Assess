@@ -32,7 +32,7 @@ export class PaymentsService {
     this.planInitializationPromise = this.initializePlan();
   }
 
-  // Helper to ensure we have a plan for "499 every 4 months" (new-customer
+  // Helper to ensure we have a plan for "499 every 3 months" (new-customer
   // promotional price; only runs when RAZORPAY_PLAN_ID isn't already set to
   // a real plan, which is the case in production, so this is a dev/test path)
   private async initializePlan() {
@@ -43,9 +43,9 @@ export class PaymentsService {
       // Try to find if we already created a plan or we can just create one dynamically for test
       const plan = await this.razorpay.plans.create({
         period: 'monthly',
-        interval: 4,
+        interval: 3,
         item: {
-          name: 'Lex-Assess 4-Month Subscription',
+          name: 'Lex-Assess 3-Month Subscription',
           amount: 49900, // Amount in paise (499 * 100)
           currency: 'INR',
           description: 'Unlock all tests on Lex-Assess'
@@ -105,7 +105,7 @@ export class PaymentsService {
       
       const subscriptionParams: any = {
         plan_id: this.planId,
-        total_count: 60, // 60 cycles of 4 months = 20 years
+        total_count: 60, // 60 cycles of 3 months = 15 years
         quantity: 1,
         customer_notify: 1,
         notes: {
