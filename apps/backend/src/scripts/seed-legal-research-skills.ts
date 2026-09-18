@@ -9,14 +9,13 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Starting seeding legal research and professional skills practice area...');
 
-  const specialization = await prisma.specialization.upsert({
-    where: { name: 'Legal Research and Professional Skills' },
-    update: {},
-    create: {
-      name: 'Legal Research and Professional Skills',
-      isActive: true,
-      sortOrder: 8,
-    },
+  // This paper is the 1st-3rd year "common" paper, and ProfileSetupPage locks
+  // those students' specialization to 'General' - so it must attach there,
+  // not to a category of its own that nobody can select.
+  // Categories are owned by PrismaService.seedProfileDefaults() (the profile
+  // dropdown reads from there), never created here - see DEPLOYMENT.md.
+  const specialization = await prisma.specialization.findUniqueOrThrow({
+    where: { name: 'General' },
   });
 
   console.log(`Using specialization: ${specialization.name} (${specialization.id})`);

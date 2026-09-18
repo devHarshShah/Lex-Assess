@@ -9,14 +9,10 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Starting seeding energy and infrastructure law practice area...');
 
-  const specialization = await prisma.specialization.upsert({
-    where: { name: 'Energy and Infrastructure Law' },
-    update: {},
-    create: {
-      name: 'Energy and Infrastructure Law',
-      isActive: true,
-      sortOrder: 6,
-    },
+  // Categories are owned by PrismaService.seedProfileDefaults() (the profile
+  // dropdown reads from there), never created here - see DEPLOYMENT.md.
+  const specialization = await prisma.specialization.findUniqueOrThrow({
+    where: { name: 'Energy and Infrastructure' },
   });
 
   console.log(`Using specialization: ${specialization.name} (${specialization.id})`);

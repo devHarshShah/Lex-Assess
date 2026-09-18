@@ -212,11 +212,76 @@ the first successful deploy. Once the service is up:
 
 Until step 3, payment webhooks will fail signature verification — everything else works.
 
+## 7. Seeding question papers
+
+Each `apps/backend/src/scripts/seed-*.ts` seeds one practice-area's paper. They **look up** their
+category by name (`prisma.specialization.findUniqueOrThrow`) rather than creating one — the
+categories a student can pick are owned exclusively by `PrismaService.seedProfileDefaults()`, which
+runs at app boot. This is deliberate: `UserProfile.specialization` is a plain string matched by
+name against `Specialization.name` (not a foreign key), so if a seed script invented its own
+category name, students would see duplicate/mismatched categories and picking one might return no
+papers. If a seed script's `findUniqueOrThrow` throws, the category name and the
+`specializationDefaults` list in `prisma.service.ts` have drifted — fix the name, don't add a
+`create`.
+
+One category is load-bearing in a way that's easy to miss: `ProfileSetupPage.tsx` locks students in
+their 1st-3rd year to the `General` category with no other option, so
+`seed-legal-research-skills.ts` (the paper written for that audience) attaches to `General`, not to
+a category of its own.
+
+Run every seed script and reconcile category visibility in one pass:
+
+```sh
+IMAGE="asia-south1-docker.pkg.dev/${PROJECT_ID}/lex-assess/lex-assess-backend:<sha>"
+
+gcloud run jobs deploy lex-assess-seed \
+  --image "$IMAGE" --region asia-south1 --project "$PROJECT_ID" \
+  --command=node --args="dist/src/scripts/seed-all.js" \
+  --memory=512Mi --task-timeout=900s \
+  --service-account "lex-assess-run-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --network=default --subnet=default --vpc-egress=private-ranges-only \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+  --execute-now --wait
+```
+
+`seed-all.js` runs every script in `SEED_SCRIPTS`, then sets `isActive` on every category to
+whether it has at least one paper with a `PUBLISHED` version — so a category nobody has written a
+paper for never appears in the profile dropdown, and adding a new paper later and re-running this
+job re-activates its category automatically.
+
+**Re-running is not fully idempotent for live papers**: each script does
+`paperSection.deleteMany`/`question.deleteMany` on its own version before recreating them, which is
+harmless while no `TestAttempt` references those questions, but would orphan or corrupt scoring for
+any student who has already attempted that paper. Don't re-run a paper's seed script once real
+attempts exist against it — edit through the admin UI instead.
+
+### Admin credentials
+
+`PrismaService.seedDefaults()` creates `superadmin@lexassess.com` and `admin@lexassess.com` on
+first boot with `SEED_ADMIN_PASSWORD` (falling back to `Pass@123` only when that env var is unset —
+local dev only). To set/rotate real passwords and remove the `student@`/`company@` demo logins
+(which are only ever created when `NODE_ENV !== 'production'`):
+
+```sh
+openssl rand -base64 24 | tr -d '\n' | gcloud secrets create SEED_ADMIN_PASSWORD --data-file=- --project "$PROJECT_ID"
+openssl rand -base64 24 | tr -d '\n' | gcloud secrets create SEED_SUPERADMIN_PASSWORD --data-file=- --project "$PROJECT_ID"
+
+gcloud run jobs deploy lex-assess-reset-admin \
+  --image "$IMAGE" --region asia-south1 --project "$PROJECT_ID" \
+  --command=node --args="dist/src/scripts/reset-admin-credentials.js" \
+  --memory=512Mi \
+  --service-account "lex-assess-run-sa@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --network=default --subnet=default --vpc-egress=private-ranges-only \
+  --set-secrets "DATABASE_URL=DATABASE_URL:latest,SEED_ADMIN_PASSWORD=SEED_ADMIN_PASSWORD:latest,SEED_SUPERADMIN_PASSWORD=SEED_SUPERADMIN_PASSWORD:latest" \
+  --execute-now --wait
+```
+
+These two secrets are human credentials, not app config the runtime service reads on every
+request, so they're created directly with `gcloud` rather than through Terraform, and the Cloud Run
+*service* never mounts them — only this one-off job does.
+
 ## Out of scope here
 
-- Wiring `apps/backend/src/scripts/seed-maritime.ts` into CI or an npm script — it remains a
-  manual one-off (`pnpm --filter backend exec ts-node src/scripts/seed-maritime.ts`, or run the
-  compiled `dist` output).
 - Managing the Cloud Run *service* resource in Terraform — it's deployed/updated exclusively by
   `deploy-cloudrun` in CI so the two don't fight over the same resource's state.
 - Frontend/Vercel infrastructure.

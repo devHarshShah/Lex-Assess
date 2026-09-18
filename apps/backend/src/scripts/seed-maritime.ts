@@ -10,14 +10,10 @@ async function main() {
   console.log('Starting seeding maritime practice area...');
 
   // 1. Ensure "Maritime and Aviation" specialization exists
-  const specialization = await prisma.specialization.upsert({
+  // Categories are owned by PrismaService.seedProfileDefaults() (the profile
+  // dropdown reads from there), never created here - see DEPLOYMENT.md.
+  const specialization = await prisma.specialization.findUniqueOrThrow({
     where: { name: 'Maritime and Aviation' },
-    update: {},
-    create: {
-      name: 'Maritime and Aviation',
-      isActive: true,
-      sortOrder: 1,
-    },
   });
 
   console.log(`Using specialization: ${specialization.name} (${specialization.id})`);

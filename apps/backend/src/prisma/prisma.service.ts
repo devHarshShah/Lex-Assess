@@ -20,22 +20,29 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   private async seedDefaults(): Promise<void> {
     const totalUsers = await this.user.count();
     if (totalUsers === 0) {
-      const passwordHash = await hash('Pass@123', 10);
+      // SEED_ADMIN_PASSWORD lets a real password be set on first boot instead
+      // of the fallback below, which is for local dev only - see DEPLOYMENT.md.
+      const passwordHash = await hash(process.env.SEED_ADMIN_PASSWORD || 'Pass@123', 10);
 
-      await this.user.createMany({
-        data: [
-          {
-            email: 'superadmin@lexassess.com',
-            name: 'Super Admin',
-            role: Role.SUPERADMIN,
-            passwordHash,
-          },
-          {
-            email: 'admin@lexassess.com',
-            name: 'Admin User',
-            role: Role.ADMIN,
-            passwordHash,
-          },
+      const users: { email: string; name: string; role: Role; passwordHash: string }[] = [
+        {
+          email: 'superadmin@lexassess.com',
+          name: 'Super Admin',
+          role: Role.SUPERADMIN,
+          passwordHash,
+        },
+        {
+          email: 'admin@lexassess.com',
+          name: 'Admin User',
+          role: Role.ADMIN,
+          passwordHash,
+        },
+      ];
+
+      // The COMPANY/USER demo logins are for local dev only - never create
+      // them against a production database.
+      if (process.env.NODE_ENV !== 'production') {
+        users.push(
           {
             email: 'company@lexassess.com',
             name: 'Company User',
@@ -48,8 +55,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             role: Role.USER,
             passwordHash,
           },
-        ],
-      });
+        );
+      }
+
+      await this.user.createMany({ data: users });
     }
 
     await this.seedProfileDefaults();
@@ -70,13 +79,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       'Labour',
       'Data Protection',
       'Technology',
+      'Energy and Infrastructure',
     ];
 
     for (let index = 0; index < specializationDefaults.length; index += 1) {
       const name = specializationDefaults[index]!;
+      // `isActive` is intentionally left out of `update`: it's admin-controlled
+      // (see UsersService.updateSpecialization) and reconciled against paper
+      // availability by seed-all.ts. Forcing it true on every boot used to
+      // silently undo any deactivation on the next deploy.
       await this.specialization.upsert({
         where: { name },
-        update: { sortOrder: index + 1, isActive: true },
+        update: { sortOrder: index + 1 },
         create: { name, sortOrder: index + 1, isActive: true },
       });
     }
