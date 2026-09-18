@@ -21,6 +21,7 @@ COPY --from=build /repo/node_modules ./node_modules
 COPY --from=build /repo/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=build /repo/apps/backend/dist ./apps/backend/dist
 COPY --from=build /repo/apps/backend/prisma ./apps/backend/prisma
+COPY --from=build /repo/apps/backend/prisma.config.ts ./apps/backend/prisma.config.ts
 COPY --from=build /repo/apps/backend/package.json ./apps/backend/package.json
 
 WORKDIR /repo/apps/backend
