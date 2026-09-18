@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Manual trigger for redeploys that carry no code change - rotating a secret
+  # does nothing to a running revision, since Cloud Run resolves `:latest` at
+  # deploy time and pins it. Avoids having to push an empty commit.
+  workflow_dispatch:
 
 env:
   REGION: asia-south1
@@ -53,7 +57,7 @@ jobs:
 
   build:
     needs: ci
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     permissions:
       contents: read

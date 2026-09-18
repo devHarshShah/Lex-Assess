@@ -185,7 +185,13 @@ required either way, since `SameSite=None; Secure` already works cross-site.
 gcloud secrets versions add <NAME> --data-file=- --project "$PROJECT_ID"
 ```
 
-then trigger a redeploy (push to `main`, or re-run the `deploy` job). **Rotating a secret alone
+then trigger a redeploy without a code change:
+
+```sh
+gh workflow run "Backend CI/CD" --ref main
+```
+
+(`build` short-circuits on the already-pushed image, so this is quick.) **Rotating a secret alone
 does nothing to already-running revisions** — Cloud Run resolves `:latest` at deploy time and
 pins that resolved version to the revision, so a running revision keeps using whatever version was
 current when it was deployed until the next deploy picks up the new one.
