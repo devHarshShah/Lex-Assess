@@ -30,6 +30,13 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # check-types/lint/test all need the generated Prisma client's types;
+      # a placeholder DATABASE_URL is enough since generate doesn't connect.
+      - name: Generate Prisma client
+        env:
+          DATABASE_URL: 'postgresql://placeholder:placeholder@localhost:5432/placeholder'
+        run: pnpm --filter backend exec prisma generate
+
       - run: pnpm check-types
 
       - run: pnpm lint
