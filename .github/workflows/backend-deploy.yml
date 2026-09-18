@@ -79,7 +79,7 @@ jobs:
             --image "${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" \
             --region "${{ env.REGION }}" \
             --command "pnpm" \
-            --args "--filter,backend,exec,prisma,migrate,deploy" \
+            --args="--filter,backend,exec,prisma,migrate,deploy" \
             --service-account "${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}" \
             --set-cloudsql-instances "${{ secrets.GCP_SQL_CONNECTION_NAME }}" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
