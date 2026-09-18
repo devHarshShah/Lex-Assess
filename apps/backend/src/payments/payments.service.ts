@@ -32,10 +32,12 @@ export class PaymentsService {
     this.planInitializationPromise = this.initializePlan();
   }
 
-  // Helper to ensure we have a plan for "1999 every 4 months"
+  // Helper to ensure we have a plan for "499 every 4 months" (new-customer
+  // promotional price; only runs when RAZORPAY_PLAN_ID isn't already set to
+  // a real plan, which is the case in production, so this is a dev/test path)
   private async initializePlan() {
     if (this.planId && !this.planId.includes('your_razorpay_plan_id')) return;
-    
+
     this.logger.log('No valid Razorpay Plan ID found. Attempting to create one dynamically...');
     try {
       // Try to find if we already created a plan or we can just create one dynamically for test
@@ -44,7 +46,7 @@ export class PaymentsService {
         interval: 4,
         item: {
           name: 'Lex-Assess 4-Month Subscription',
-          amount: 199900, // Amount in paise (1999 * 100)
+          amount: 49900, // Amount in paise (499 * 100)
           currency: 'INR',
           description: 'Unlock all tests on Lex-Assess'
         },

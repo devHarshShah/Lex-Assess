@@ -54,7 +54,7 @@ export function PaymentSuccessPage() {
   const rows = [
     ...(receipt?.paymentId ? [{ label: 'Transaction ID', value: receipt.paymentId, mono: true }] : []),
     { label: 'Product', value: receipt?.plan ?? 'Lex-Assess Premium' },
-    { label: 'Amount Paid', value: receipt?.amount ?? '₹1,999.00' },
+    { label: 'Amount Paid', value: receipt?.amount ?? '₹499.00' },
     { label: 'Validity', value: receipt?.validity ?? '4 Months', green: true },
     ...(receipt?.date ? [{ label: 'Date & Time', value: formatDate(receipt.date) }] : []),
     { label: 'Status', badge: true },
@@ -102,7 +102,7 @@ export function PaymentSuccessPage() {
 
         <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #e5e7eb', display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '18px' }}>
           <span>Total Amount</span>
-          <span style={{ color: '#92400e' }}>{receipt?.amount ?? '₹1,999.00'}</span>
+          <span style={{ color: '#92400e' }}>{receipt?.amount ?? '₹499.00'}</span>
         </div>
 
         <div style={{ marginTop: '40px', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>
@@ -168,7 +168,7 @@ export function PaymentSuccessPage() {
             <div className="flex justify-between items-center px-4 py-4 border-t border-dashed border-amber-200 bg-amber-50/80">
               <span className="text-sm font-bold text-amber-900">Total Charged</span>
               <span className="text-xl font-black text-amber-900">
-                {receipt?.amount ?? '₹1,999.00'}
+                {receipt?.amount ?? '₹499.00'}
               </span>
             </div>
           </div>

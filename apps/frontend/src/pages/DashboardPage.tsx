@@ -79,24 +79,33 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
           razorpay_signature: string
         }) {
           try {
-            // Verify payment on backend — activates subscription immediately in DB
+            // Verify payment on backend — activates subscription immediately in DB.
+            // This is the only thing that actually flips hasActiveSubscription, so
+            // the receipt/success page below must only be shown once this resolves —
+            // otherwise a genuinely failed verification would still show the
+            // customer a "Payment Success! ● Active" screen.
             await verifyPayment({
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_subscription_id: response.razorpay_subscription_id,
               razorpay_signature: response.razorpay_signature,
             })
-            toast.success('Payment successful! Your tests are now unlocked.')
           } catch (err) {
             console.error('Payment verification failed:', err)
-            toast.error('Payment recorded but verification failed. Please contact support.')
+            toast.error(
+              'Payment received but verification failed. Your access has not been activated — please contact support with your payment ID: ' +
+                response.razorpay_payment_id,
+            )
+            return
           }
+
+          toast.success('Payment successful! Your tests are now unlocked.')
           // Store payment details so the receipt page can display real data
           sessionStorage.setItem(
             'lex_payment_receipt',
             JSON.stringify({
               paymentId: response.razorpay_payment_id,
               subscriptionId: response.razorpay_subscription_id,
-              amount: '₹1,999.00',
+              amount: '₹499.00',
               plan: 'Lex-Assess Premium',
               validity: '4 Months',
               date: new Date().toISOString(),
@@ -275,10 +284,12 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                     <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#d97706' }}>
                       Subscription Plan
                     </p>
-                    <p className="text-2xl font-black text-foreground mt-0.5">
-                      ₹1,999
+                    <p className="text-2xl font-black text-foreground mt-0.5 flex items-baseline gap-2">
+                      <span className="text-base font-semibold text-muted-foreground line-through">₹1,999</span>
+                      <span>₹499</span>
                       <span className="text-sm font-normal text-muted-foreground"> / 4 months</span>
                     </p>
+                    <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">New customer offer</p>
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-1 justify-end mb-0.5">
