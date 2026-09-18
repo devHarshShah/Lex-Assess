@@ -57,14 +57,26 @@ export class InterviewService {
     const durationMs = data.durationMinutes * 60 * 1000;
     const breakMs = (data.breakMinutes || 0) * 60 * 1000;
 
+    const pad = (n: number) => String(n).padStart(2, '0');
+
     let currentDay = new Date(start);
     while (currentDay <= end) {
       if (data.daysOfWeek.includes(currentDay.getDay())) {
-        const dayStartTime = new Date(currentDay);
-        dayStartTime.setHours(startHour, startMin, 0, 0);
-        
-        const dayEndTime = new Date(currentDay);
-        dayEndTime.setHours(endHour, endMin, 0, 0);
+        // Interviewers/admins enter times as India wall-clock (this product is
+        // India-only). setHours() would anchor to the *server process's* local
+        // timezone instead, which is UTC on Cloud Run - building an explicit
+        // +05:30 ISO string keeps this correct regardless of where it runs.
+        const dateStr = currentDay.toISOString().slice(0, 10);
+        const dayStartTime = new Date(`${dateStr}T${pad(startHour)}:${pad(startMin)}:00+05:30`);
+        const dayEndTime = new Date(`${dateStr}T${pad(endHour)}:${pad(endMin)}:00+05:30`);
+
+        // An end time at or before the start time (e.g. 23:45 -> 12:30) means
+        // the window crosses midnight into the next day, not an empty window
+        // on the same day - without this, the inner loop below never runs
+        // and bulkAddSlots silently returns { count: 0 } for every such day.
+        if (dayEndTime <= dayStartTime) {
+          dayEndTime.setDate(dayEndTime.getDate() + 1);
+        }
 
         let currentSlotStart = new Date(dayStartTime);
         while (new Date(currentSlotStart.getTime() + durationMs) <= dayEndTime) {
@@ -85,7 +97,15 @@ export class InterviewService {
       currentDay.setDate(currentDay.getDate() + 1);
     }
 
-    if (slots.length === 0) return { count: 0 };
+    // A silent { count: 0 } here previously came back as a 201 Created with
+    // no indication anything was wrong - surface why nothing was generated
+    // instead (window too short for one slot, dates already in the past, or
+    // daysOfWeek not matching any day in the range) rather than a false success.
+    if (slots.length === 0) {
+      throw new BadRequestException(
+        'No slots could be generated for this range. Check that the time window fits at least one slot of the given duration, and that the date range/selected days are not entirely in the past.',
+      );
+    }
 
     return this.prisma.interviewSlot.createMany({
       data: slots,

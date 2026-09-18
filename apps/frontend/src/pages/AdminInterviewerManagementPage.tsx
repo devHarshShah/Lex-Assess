@@ -104,11 +104,18 @@ export function AdminInterviewerManagementPage() {
   const handleAddSlot = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!selectedInterviewer) return;
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(e.currentTarget)
+    // <input type="datetime-local"> gives a naive "YYYY-MM-DDTHH:mm" string with
+    // no timezone info. Interviewers/admins enter this as India wall-clock time
+    // (this product is India-only), so anchor it explicitly to +05:30 before
+    // sending - otherwise the backend's Date parsing anchors it to whatever
+    // timezone the server process happens to run in (UTC on Cloud Run),
+    // silently shifting every slot by 5.5 hours.
+    const toIstIso = (localDateTime: string) => `${localDateTime}:00+05:30`
     const data = {
       interviewerId: selectedInterviewer.id,
-      startTime: formData.get('startTime') as string,
-      endTime: formData.get('endTime') as string,
+      startTime: toIstIso(formData.get('startTime') as string),
+      endTime: toIstIso(formData.get('endTime') as string),
     };
 
     try {
