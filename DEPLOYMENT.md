@@ -301,6 +301,34 @@ gcloud run jobs deploy lex-assess-repair-subscription \
   --execute-now --wait
 ```
 
+## 9. Interview video links (Google Meet)
+
+`GoogleCalendarService` (`apps/backend/src/mail/google-calendar.service.ts`) creates real Google
+Meet links via `GOOGLE_CALENDAR_REFRESH_TOKEN` — a one-time OAuth refresh token for a **real**
+Google account (`lexassess.interviews@gmail.com`), reusing the existing Sign-In-with-Google OAuth
+client (`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`). This matters because Google Meet is tied to a
+real Google user identity — a bare GCP service account (the fallback paths further down in that
+file) has no Meet provisioning, which is why interviews used to link to the public `meet.jit.si`
+server instead. Every interview here is exactly one interviewer + one student, and Google Meet
+allows unlimited-length 1:1 calls on a completely free personal account (the well-known 60-minute
+cap only applies to 3+ participant calls), so this costs nothing beyond the refresh token itself.
+
+If this token is ever lost or revoked, mint a new one:
+
+1. In Google Cloud Console (the project owning this OAuth client) → **APIs & Services →
+   Credentials** → the OAuth 2.0 Client → **Authorized redirect URIs**, add
+   `https://developers.google.com/oauthplayground` if not already present. Under **OAuth consent
+   screen → Test users**, add the Google account being used, if the app's publishing status is
+   "Testing".
+2. Go to **https://developers.google.com/oauthplayground/**, click the gear icon → **"Use your
+   own OAuth credentials"** → paste the client ID/secret.
+3. Authorize scope `https://www.googleapis.com/auth/calendar`, sign in as that Google account,
+   accept consent, then **"Exchange authorization code for tokens"** → copy the refresh token.
+4. `echo -n "<refresh-token>" | gcloud secrets versions add GOOGLE_CALENDAR_REFRESH_TOKEN --data-file=- --project "$PROJECT_ID"`, then redeploy.
+
+Refresh tokens don't expire under normal use, so this is a one-time setup, not something to rotate
+on a schedule.
+
 ## Out of scope here
 
 - Managing the Cloud Run *service* resource in Terraform — it's deployed/updated exclusively by

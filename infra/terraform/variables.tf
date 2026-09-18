@@ -66,5 +66,6 @@ variable "secret_names" {
     "RAZORPAY_WEBHOOK_SECRET",
     "SMTP_PASS",
     "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_CALENDAR_REFRESH_TOKEN",
   ]
 }

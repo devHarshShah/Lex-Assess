@@ -181,6 +181,7 @@ jobs:
             RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest
             SMTP_PASS=SMTP_PASS:latest
             GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest
+            GOOGLE_CALENDAR_REFRESH_TOKEN=GOOGLE_CALENDAR_REFRESH_TOKEN:latest
           env_vars: |
             FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
             COOKIE_SECURE=true

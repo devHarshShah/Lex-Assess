@@ -11,6 +11,11 @@ const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 export class GoogleCalendarService {
   private calendar: calendar_v3.Calendar | null = null;
   private serviceAccountEmail: string | null = null;
+  // A bare GCP service account (the fallback paths below) has no Google Meet
+  // provisioning, so conferenceData creation isn't possible under it - hence
+  // the calendarId also differs: a real Google user's own calendar is
+  // 'primary', not an email lookup. See createInterviewEvent.
+  private usingRealGoogleAccount = false;
   private readonly logger = new Logger(GoogleCalendarService.name);
 
   constructor(private readonly configService: ConfigService) {
@@ -19,6 +24,25 @@ export class GoogleCalendarService {
 
   private async initialize() {
     try {
+      const clientId = this.configService.get<string>('GOOGLE_CLIENT_ID');
+      const clientSecret = this.configService.get<string>('GOOGLE_CLIENT_SECRET');
+      const refreshToken = this.configService.get<string>('GOOGLE_CALENDAR_REFRESH_TOKEN');
+
+      if (clientId && clientSecret && refreshToken) {
+        // A real Google account (via one-time OAuth consent, reusing the
+        // existing Google Sign-In OAuth client) rather than a bare service
+        // account - this is what makes real Google Meet links possible, since
+        // Meet is tied to a real user identity. See DEPLOYMENT.md for how
+        // this refresh token was minted.
+        this.logger.log('Initializing Google Calendar via OAuth2 refresh token (real Google account).');
+        const oauth2Client = new google.auth.OAuth2(clientId, clientSecret);
+        oauth2Client.setCredentials({ refresh_token: refreshToken });
+        this.calendar = google.calendar({ version: 'v3', auth: oauth2Client });
+        this.usingRealGoogleAccount = true;
+        this.logger.log('Google Calendar service initialized.');
+        return;
+      }
+
       const targetEmail = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_EMAIL');
       const privateKey = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
 
@@ -87,17 +111,13 @@ export class GoogleCalendarService {
     summary?: string;
     description?: string;
   }) {
-    if (!this.calendar || !this.serviceAccountEmail) {
+    if (!this.calendar || (!this.serviceAccountEmail && !this.usingRealGoogleAccount)) {
       throw new Error('Google Calendar service is not initialized. Please check credentials.');
     }
 
-    // Generate a unique Jitsi Meet link
-    const roomName = `LexAssess-${details.studentName.replace(/\s+/g, '-')}-${Math.random().toString(36).substring(2, 10)}`;
-    const meetLink = `https://meet.jit.si/${encodeURIComponent(roomName)}`;
-
     const event: calendar_v3.Schema$Event = {
       summary: details.summary || `Interview: ${details.studentName} & ${details.interviewerName}`,
-      description: details.description || `LexAssess Professional Interview Session.\n\nJoin Meeting: ${meetLink}`,
+      description: details.description || 'LexAssess Professional Interview Session.',
       start: {
         dateTime: details.startTime.toISOString(),
         timeZone: 'Asia/Kolkata',
@@ -113,17 +133,36 @@ export class GoogleCalendarService {
           { method: 'popup', minutes: 30 },
         ],
       },
+      // Real Google Meet conferencing - only possible under a real Google
+      // account identity (usingRealGoogleAccount), never a bare service
+      // account, which has no Meet provisioning.
+      ...(this.usingRealGoogleAccount && {
+        conferenceData: {
+          createRequest: {
+            requestId: `lexassess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        },
+      }),
     };
 
     try {
       const res = await this.calendar.events.insert({
-        calendarId: this.serviceAccountEmail,
+        // A real Google account's own calendar is addressed as 'primary';
+        // the bare-service-account fallback paths address it by email.
+        calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail!,
         requestBody: event,
+        conferenceDataVersion: this.usingRealGoogleAccount ? 1 : undefined,
       });
+
+      const meetLink = res.data.hangoutLink;
+      if (this.usingRealGoogleAccount && !meetLink) {
+        this.logger.warn(`Event ${res.data.id} created without a Meet link - conferenceData may not have been granted.`);
+      }
 
       return {
         eventId: res.data.id!,
-        meetLink,
+        meetLink: meetLink ?? '',
         htmlLink: res.data.htmlLink!,
       };
     } catch (error: any) {
@@ -136,7 +175,7 @@ export class GoogleCalendarService {
     if (!this.calendar) return;
     try {
       await this.calendar.events.delete({
-        calendarId: 'primary',
+        calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail ?? 'primary',
         eventId,
       });
     } catch (error) {
