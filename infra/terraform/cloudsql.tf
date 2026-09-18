@@ -8,6 +8,7 @@ resource "google_sql_database_instance" "main" {
 
   settings {
     tier              = var.db_tier
+    edition           = "ENTERPRISE"
     availability_type = "ZONAL"
 
     ip_configuration {
@@ -23,6 +24,13 @@ resource "google_sql_database_instance" "main" {
   }
 
   depends_on = [google_service_networking_connection.private_vpc_connection]
+
+  # See network.tf: the network data source's resolved self-link format is
+  # inconsistent across plans, and private_network is immutable - without
+  # this, a spurious diff here would destroy and recreate the live database.
+  lifecycle {
+    ignore_changes = [settings[0].ip_configuration[0].private_network]
+  }
 }
 
 resource "google_sql_database" "app" {

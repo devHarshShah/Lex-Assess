@@ -12,8 +12,8 @@ resource "google_storage_bucket" "uploads" {
 
   lifecycle_rule {
     condition {
-      age                = 60
-      with_state         = "ARCHIVED"
+      age                   = 60
+      with_state            = "ARCHIVED"
       matches_storage_class = ["STANDARD"]
     }
     action {

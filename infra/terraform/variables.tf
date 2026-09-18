@@ -10,9 +10,20 @@ variable "region" {
 }
 
 variable "db_tier" {
-  description = "Cloud SQL machine tier"
+  description = "Cloud SQL machine tier (shared-core; 20-50 concurrent users doesn't need more)"
   type        = string
-  default     = "db-g1-small"
+  default     = "db-f1-micro"
+}
+
+variable "billing_account_id" {
+  description = "GCP billing account ID the project is linked to (for the budget resource)"
+  type        = string
+}
+
+variable "budget_amount_inr" {
+  description = "Monthly budget ceiling in INR, alerted on at 50/80/100%"
+  type        = number
+  default     = 5000
 }
 
 variable "sql_instance_name" {
@@ -55,6 +66,5 @@ variable "secret_names" {
     "RAZORPAY_WEBHOOK_SECRET",
     "SMTP_PASS",
     "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
   ]
 }

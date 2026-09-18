@@ -22,4 +22,9 @@ terraform {
 provider "google" {
   project = var.project_id
   region  = var.region
+
+  # Some APIs (e.g. billingbudgets.googleapis.com) require an explicit quota project when
+  # authenticating via user Application Default Credentials rather than a service account.
+  user_project_override = true
+  billing_project       = var.project_id
 }

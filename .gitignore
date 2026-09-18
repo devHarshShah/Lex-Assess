@@ -43,3 +43,9 @@ yarn-error.log*
 .DS_Store
 *.pem
 .omx/
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars

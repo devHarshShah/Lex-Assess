@@ -107,8 +107,7 @@ The workflow references these — set them under repo Settings → Secrets and v
 
 | Name | Value |
 |---|---|
-| `FRONTEND_ORIGIN` | the Vercel frontend's URL, e.g. `https://app.lexassess.in` |
-| `COOKIE_DOMAIN` | shared apex domain, e.g. `.lexassess.in` |
+| `FRONTEND_ORIGIN` | the Vercel frontend's URL (whatever domain it's actually served from) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_REDIRECT_URI` | OAuth callback URL |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Calendar integration service account email |
@@ -128,12 +127,19 @@ gcloud iam service-accounts add-iam-policy-binding "$(terraform output -raw runt
 
 ## 5. Cross-site cookies
 
-The frontend (Vercel) and backend (Cloud Run) are different origins, so the httpOnly auth cookie
-needs `SameSite=None; Secure` to be sent cross-site — that's why the workflow sets
-`COOKIE_SECURE=true` and `COOKIE_SAMESITE=none` in production. Since the frontend and backend
-share a parent domain, `COOKIE_DOMAIN` should be the shared apex (e.g. `.lexassess.in`) so the
-cookie is valid across both subdomains. `FRONTEND_ORIGIN` must exactly match the frontend's origin
-for CORS in the backend to accept the requests.
+The frontend (Vercel) and backend (Cloud Run, currently on the raw `*.run.app` domain — no custom
+domain is wired up yet) are different origins with no shared apex, so `COOKIE_DOMAIN` is
+deliberately left unset: setting it to a domain the backend isn't actually served from would make
+browsers reject the cookie outright. `buildAuthCookieOptions` (`apps/backend/src/auth/auth-cookie.ts`)
+already handles this — an unset `COOKIE_DOMAIN` falls back to `undefined`, which scopes the cookie
+to the exact host serving the response. `COOKIE_SECURE=true` and `COOKIE_SAMESITE=none` are still
+required for the httpOnly auth cookie to be sent cross-site at all. `FRONTEND_ORIGIN` must exactly
+match the frontend's actual origin for CORS in the backend to accept the requests.
+
+If `api.lexassess.in` is later put in front of Cloud Run via a load balancer (see the region
+limitation noted elsewhere), and the frontend also moves to a `lexassess.in` subdomain, revisit
+whether a shared `COOKIE_DOMAIN=.lexassess.in` is worth reintroducing at that point — it isn't
+required either way, since `SameSite=None; Secure` already works cross-site.
 
 ## 6. Secret rotation
 

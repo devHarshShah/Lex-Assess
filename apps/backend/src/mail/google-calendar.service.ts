@@ -1,8 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { GoogleAuth, Impersonated } from 'google-auth-library';
 import { google, calendar_v3 } from 'googleapis';
 import * as path from 'path';
 import * as fs from 'fs';
+
+const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
 @Injectable()
 export class GoogleCalendarService {
@@ -14,26 +17,40 @@ export class GoogleCalendarService {
     this.initialize();
   }
 
-  private initialize() {
+  private async initialize() {
     try {
-      const clientEmail = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_EMAIL');
+      const targetEmail = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_EMAIL');
       const privateKey = this.configService.get<string>('GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY');
 
       let auth;
 
-      if (clientEmail && privateKey) {
-        this.logger.log('Initializing Google Calendar with environment variables.');
-        this.serviceAccountEmail = clientEmail;
+      if (targetEmail && privateKey) {
+        this.logger.log('Initializing Google Calendar with a static service account key.');
+        this.serviceAccountEmail = targetEmail;
         auth = new google.auth.GoogleAuth({
           credentials: {
-            client_email: clientEmail,
+            client_email: targetEmail,
             private_key: privateKey.replace(/\\n/g, '\n'),
           },
-          scopes: ['https://www.googleapis.com/auth/calendar'],
+          scopes: CALENDAR_SCOPES,
+        });
+      } else if (targetEmail) {
+        // No static key: impersonate the target service account using this
+        // service's own identity (e.g. the Cloud Run runtime SA), which must
+        // hold "Service Account Token Creator" on the target. No private key
+        // material ever exists - this is the org-policy-friendly path.
+        this.logger.log(`Initializing Google Calendar via impersonation of ${targetEmail}.`);
+        this.serviceAccountEmail = targetEmail;
+        const sourceClient = await new GoogleAuth().getClient();
+        auth = new Impersonated({
+          sourceClient,
+          targetPrincipal: targetEmail,
+          targetScopes: CALENDAR_SCOPES,
+          lifetime: 3600,
         });
       } else {
         const credentialsPath = path.join(process.cwd(), 'google-credentials.json');
-        
+
         if (!fs.existsSync(credentialsPath)) {
           this.logger.warn('Google credentials not found (env or file). Google Calendar integration is disabled.');
           return;
@@ -49,7 +66,7 @@ export class GoogleCalendarService {
 
         auth = new google.auth.GoogleAuth({
           keyFile: credentialsPath,
-          scopes: ['https://www.googleapis.com/auth/calendar'],
+          scopes: CALENDAR_SCOPES,
         });
       }
 

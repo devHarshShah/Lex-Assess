@@ -86,6 +86,10 @@ jobs:
           flags: >-
             --service-account=${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}
             --add-cloudsql-instances=${{ secrets.GCP_SQL_CONNECTION_NAME }}
+            --min-instances=0
+            --max-instances=3
+            --memory=512Mi
+            --cpu=1
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
             JWT_SECRET=JWT_SECRET:latest
@@ -93,12 +97,10 @@ jobs:
             RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest
             SMTP_PASS=SMTP_PASS:latest
             GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest
-            GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY=GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY:latest
           env_vars: |
             FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
             COOKIE_SECURE=true
             COOKIE_SAMESITE=none
-            COOKIE_DOMAIN=${{ vars.COOKIE_DOMAIN }}
             GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
             GOOGLE_REDIRECT_URI=${{ vars.GOOGLE_REDIRECT_URI }}
             GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ vars.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
