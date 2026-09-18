@@ -587,12 +587,24 @@ export class QuestionPapersService {
 
     const papers = await this.getPublishedPapersBySpecializationName(profile.specialization);
     
-    // Add attempt status for each paper
+    // Add attempt status for each paper. The listing only needs enough to
+    // render a status badge (see DashboardPage.tsx, which reads only
+    // attempt.status) - select explicitly rather than returning the full
+    // TestAttempt row, which would otherwise ship the student's raw
+    // submitted answers and per-question scores to this listing endpoint
+    // for no reason.
     const papersWithStatus = await Promise.all(papers.map(async (paper) => {
       const versionsWithStatus = await Promise.all(paper.versions.map(async (v) => {
         const attempt = await this.prisma.testAttempt.findFirst({
           where: { userId, versionId: v.id },
           orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            status: true,
+            score: true,
+            startTime: true,
+            endTime: true,
+          },
         });
         return { ...v, userAttempt: attempt };
       }));
