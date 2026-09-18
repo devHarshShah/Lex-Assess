@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Badge } from '@/components/ui/badge';
 
 export function Footer() {
@@ -87,9 +88,9 @@ export function Footer() {
             <a href="#" className="hover:text-foreground transition-colors">
               Terms of Service
             </a>
-            <a href="#" className="hover:text-foreground transition-colors">
+            <Link to="/privacy-policy" className="hover:text-foreground transition-colors">
               Privacy Policy
-            </a>
+            </Link>
           </div>
         </div>
       </div>

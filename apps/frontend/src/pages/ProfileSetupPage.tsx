@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Pencil, FileCheck2, CheckCircle2, Scale } from 'lucide-react'
+import { Pencil, FileCheck2, CheckCircle2, User, GraduationCap, Briefcase, FileText } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -8,6 +8,9 @@ import { ProfileStepper } from '@/components/profile-stepper'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   fetchCurrentUser,
   fetchMyProfile,
@@ -73,6 +76,17 @@ function validateFileSize(file: File, maxBytes: number, label: string): boolean 
     return false
   }
   return true
+}
+
+function SectionHeading({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        {icon}
+      </div>
+      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+    </div>
+  )
 }
 
 function getStepOneMissingMessage(input: {
@@ -213,31 +227,64 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   }, [user.avatarUrl, user.name])
 
   if (loading || !options) {
-  return (
-    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-background px-4">
-      <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/15 blur-3xl" />
-      <div className="absolute -bottom-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/10 blur-3xl" />
+    // Mirrors the real layout's width/spacing (see the return below) and the
+    // actual form's shape - photo + two-column field grid - so the page
+    // doesn't jump or resize once the real content swaps in, and the wait
+    // reads as "your profile is arriving" rather than a generic spinner.
+    return (
+      <div className={isSetup ? 'w-full max-w-6xl mx-auto flex-1 flex flex-col justify-center py-6 px-4' : 'w-full max-w-4xl mx-auto flex-1 flex flex-col justify-center py-2'}>
+        <div className="w-full space-y-6">
+          <div className={isSetup ? 'grid gap-6 md:grid-cols-[1.2fr_0.8fr]' : 'block'}>
+            <Card className={`border-border/70 shadow-sm ${isManage ? 'bg-card' : ''}`}>
+              {isManage ? (
+                <div className="p-5 pb-3 space-y-2">
+                  <Skeleton className="h-6 w-28" />
+                  <Skeleton className="h-3.5 w-56" />
+                </div>
+              ) : (
+                <CardHeader className="space-y-3">
+                  <Skeleton className="h-7 w-64" />
+                  <Skeleton className="h-3.5 w-72" />
+                </CardHeader>
+              )}
 
-      <div className="relative z-10 w-full max-w-md rounded-3xl border bg-card/90 p-8 text-center shadow-xl backdrop-blur">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
-          <Scale className="size-6 text-primary" />
+              <CardContent className={`space-y-5 ${isManage ? 'p-5' : ''}`}>
+                <div className="flex items-center gap-4 pb-5 border-b">
+                  <Skeleton className="h-16 w-16 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+
+                {/* Mirrors the three grouped sections (personal / academic /
+                    internship) in the real form below. */}
+                {[4, 4, 3].map((fieldCount, section) => (
+                  <div key={section} className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                    <div className="flex items-center gap-2.5">
+                      <Skeleton className="h-7 w-7 shrink-0 rounded-lg" />
+                      <Skeleton className="h-3.5 w-32" />
+                    </div>
+                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                      {Array.from({ length: fieldCount }).map((_, i) => (
+                        <div key={i} className="space-y-2">
+                          <Skeleton className="h-3.5 w-24" />
+                          <Skeleton className="h-10 w-full rounded-md" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                <Skeleton className="h-10 w-full rounded-md sm:w-40" />
+              </CardContent>
+            </Card>
+
+            {isSetup ? <Skeleton className="hidden md:block rounded-xl min-h-[420px]" /> : null}
+          </div>
         </div>
-
-        <h1 className="text-2xl font-semibold tracking-tight">Setting Up Your Profile</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Fetching your preferences and academic options to personalize your experience.
-        </p>
-
-        <div className="mt-8 flex items-center justify-center gap-2">
-          <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
-          <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
-          <span className="h-2.5 w-2.5 animate-bounce rounded-full bg-primary" />
-        </div>
-
-        <p className="mt-6 text-xs uppercase tracking-[0.2em] text-muted-foreground">Preparing Workspace</p>
       </div>
-    </div>
-  )
+    )
   }
 
   const initials = fullName
@@ -401,25 +448,20 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
             {(isManage || currentStep === 1) && (
               <div className="space-y-4">
                 {/* Photo Section */}
-                <div className="flex items-center gap-4 pb-3 border-b">
-                  <div className="relative">
-                    <Avatar className="h-14 w-14 border border-border shadow-sm">
+                <div className="flex items-center gap-4 pb-5 border-b">
+                  <div className="group relative shrink-0">
+                    <Avatar className="h-16 w-16 border border-border shadow-sm">
                       {profilePhotoUrl ? <AvatarImage src={profilePhotoUrl} alt={fullName || user.name} /> : null}
-                      <AvatarFallback className="text-lg font-semibold">{initials || 'U'}</AvatarFallback>
+                      <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">{initials || 'U'}</AvatarFallback>
                     </Avatar>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Profile photo <span className="font-normal">(Optional)</span></p>
-                    <Button
+                    <button
                       type="button"
-                      variant="outline"
-                      size="sm"
                       onClick={() => profilePhotoInputRef.current?.click()}
-                      className="gap-2"
+                      className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110"
+                      aria-label="Upload profile photo"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                      Upload photo
-                    </Button>
+                      <Pencil className="h-3 w-3" />
+                    </button>
                     <input
                       ref={profilePhotoInputRef}
                       type="file"
@@ -443,167 +485,51 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                       }}
                     />
                   </div>
+                  <div>
+                    <p className="text-sm font-semibold">{fullName || user.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Tap the pencil to update your photo <span className="text-muted-foreground/70">(optional)</span></p>
+                  </div>
                 </div>
 
-                {/* Form Grid */}
-                <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Full name</label>
-                    <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">LinkedIn URL <span className="text-muted-foreground font-normal">(Optional)</span></label>
-                    <Input
-                      value={linkedinUrl}
-                      onChange={(e) => setLinkedinUrl(e.target.value)}
-                      placeholder="https://linkedin.com/in/..."
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">College</label>
-                    <select className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={college} onChange={(e) => setCollege(e.target.value)}>
-                      <option value="">Select college</option>
-                      {options.colleges.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  {college === 'Other' && (
+                {/* Personal details */}
+                <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                  <SectionHeading icon={<User className="h-3.5 w-3.5" />} title="Personal details" />
+                  <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Institute Name</label>
+                      <Label>Full name</Label>
+                      <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>LinkedIn URL <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                       <Input
-                        value={manualCollege}
-                        onChange={(e) => setManualCollege(e.target.value)}
-                        placeholder="Enter your institute name"
+                        value={linkedinUrl}
+                        onChange={(e) => setLinkedinUrl(e.target.value)}
+                        placeholder="https://linkedin.com/in/..."
                       />
                     </div>
-                  )}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Degree</label>
-                    <select className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" value={degree} onChange={(e) => setDegree(e.target.value)}>
-                      <option value="">Select degree</option>
-                      {options.degrees.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Current Year</label>
-                    <select
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={currentYear}
-                      onChange={(e) => setCurrentYear(e.target.value)}
-                    >
-                      <option value="">Select year</option>
-                      {options.years.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Practice Area</label>
-                    <select
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:bg-muted disabled:opacity-70 disabled:cursor-not-allowed"
-                      value={specialization}
-                      onChange={(e) => setSpecialization(e.target.value)}
-                      disabled={isPracticeAreaLocked}
-                    >
-                      <option value="">Select practice area</option>
-                      {options.specializations.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                    {isPracticeAreaLocked && (
-                        <div className="mt-1.5 p-2 rounded-md bg-amber-50 border border-amber-200">
-                          <p className="text-[11px] text-amber-700 leading-tight">
-                            <strong>Note:</strong> Till 3rd year and below you can give general law paper only. Your practice area is locked to <strong>General</strong>.
-                          </p>
-                        </div>
-                      )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Internship Preference</label>
-                    <select
-                      className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      value={internshipGoal}
-                      onChange={(e) => setInternshipGoal(e.target.value)}
-                    >
-                      <option value="">Where do you want to intern?</option>
-                      {options.internshipGoals.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Internship Duration</label>
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        value={internshipDuration}
-                        onChange={(e) => setInternshipDuration(e.target.value)}
-                      >
-                        <option value="">Select duration</option>
-                        {options.internshipDurations.map((item) => (
-                          <option key={item} value={item}>
-                            {item}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Internship Period</label>
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:bg-muted disabled:opacity-70 disabled:cursor-not-allowed"
-                        value={internshipPeriod}
-                        onChange={(e) => setInternshipPeriod(e.target.value)}
-                        disabled={!internshipDuration}
-                      >
-                        <option value="">Select period</option>
-                        {getInternshipPeriods(internshipDuration).map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Phone</label>
+                      <Label>Phone</Label>
                       <div className="flex gap-2">
-                        <select
-                          className="h-10 w-[90px] rounded-md border bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          value={countryCode}
-                          onChange={(e) => setCountryCode(e.target.value)}
-                        >
-                          <option value="+91">+91</option>
-                          <option value="+1">+1</option>
-                          <option value="+44">+44</option>
-                          <option value="+61">+61</option>
-                          <option value="+971">+971</option>
-                          <option value="+65">+65</option>
-                        </select>
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                          <SelectTrigger className="w-[90px] shrink-0">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="+91">+91</SelectItem>
+                            <SelectItem value="+1">+1</SelectItem>
+                            <SelectItem value="+44">+44</SelectItem>
+                            <SelectItem value="+61">+61</SelectItem>
+                            <SelectItem value="+971">+971</SelectItem>
+                            <SelectItem value="+65">+65</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <Input value={mobileNumber} onChange={(e) => setMobileNumber(e.target.value)} placeholder="9876543210" className="flex-1" />
                       </div>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Gender</label>
-                      <div className="grid grid-cols-3 h-10 items-center rounded-md border p-0.5 bg-muted/20">
+                      <Label>Gender</Label>
+                      <div className="grid grid-cols-3 h-10 items-center rounded-md border p-0.5 bg-background">
                         {(['MALE', 'FEMALE', 'OTHER'] as const).map((item) => (
                           <Button
                             key={item}
@@ -620,12 +546,12 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <label className="text-sm font-medium">Resume <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                      <Label>Resume <span className="text-muted-foreground font-normal">(Optional)</span></Label>
                       <div className="flex items-center gap-4">
                         <Input
                           type="file"
                           accept=".pdf,.doc,.docx"
-                          className="cursor-pointer file:cursor-pointer flex-1"
+                          className="cursor-pointer file:cursor-pointer flex-1 bg-background"
                           onChange={async (e) => {
                             const file = e.target.files?.[0]
                             if (!file) return
@@ -654,6 +580,147 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Academic details */}
+                <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                  <SectionHeading icon={<GraduationCap className="h-3.5 w-3.5" />} title="Academic details" />
+                  <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>College</Label>
+                      <Select value={college} onValueChange={setCollege}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select college" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.colleges.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {college === 'Other' && (
+                      <div className="space-y-2">
+                        <Label>Institute Name</Label>
+                        <Input
+                          value={manualCollege}
+                          onChange={(e) => setManualCollege(e.target.value)}
+                          placeholder="Enter your institute name"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-2">
+                      <Label>Degree</Label>
+                      <Select value={degree} onValueChange={setDegree}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select degree" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.degrees.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Current Year</Label>
+                      <Select value={currentYear} onValueChange={setCurrentYear}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.years.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Practice Area</Label>
+                      <Select value={specialization} onValueChange={setSpecialization} disabled={isPracticeAreaLocked}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select practice area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.specializations.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {isPracticeAreaLocked && (
+                        <div className="mt-1.5 p-2 rounded-md bg-amber-50 border border-amber-200">
+                          <p className="text-[11px] text-amber-700 leading-tight">
+                            <strong>Note:</strong> Till 3rd year and below you can give general law paper only. Your practice area is locked to <strong>General</strong>.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Internship preferences */}
+                <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                  <SectionHeading icon={<Briefcase className="h-3.5 w-3.5" />} title="Internship preferences" />
+                  <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Internship Preference</Label>
+                      <Select value={internshipGoal} onValueChange={setInternshipGoal}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Where do you want to intern?" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.internshipGoals.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Internship Duration</Label>
+                      <Select value={internshipDuration} onValueChange={setInternshipDuration}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select duration" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {options.internshipDurations.map((item) => (
+                            <SelectItem key={item} value={item}>
+                              {item}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Internship Period</Label>
+                      <Select value={internshipPeriod} onValueChange={setInternshipPeriod} disabled={!internshipDuration}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select period" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getInternshipPeriods(internshipDuration).map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
 
                   {isSetup && currentStep === 1 && (
                     <div className="pt-4 flex justify-end">
@@ -677,59 +744,63 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                       <p className="text-xs text-muted-foreground mt-0.5">Update your verification document to keep your status active.</p>
                     </div>
                   )}
-                  
-                  <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Verification Type</label>
-                      <select
-                        className="h-10 w-full rounded-md border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        value={verificationType}
-                        onChange={(e) => setVerificationType(e.target.value as VerificationType)}
-                      >
-                        <option value="ONGOING">Ongoing Degree (College ID Card)</option>
-                        <option value="GRADUATED">Graduated (Degree Certificate)</option>
-                      </select>
-                    </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Verification Document</label>
-                      <div className="flex items-center gap-4">
-                        <Input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="cursor-pointer file:cursor-pointer flex-1"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            if (!validateFileSize(file, MAX_RESUME_BYTES, 'Verification document')) {
-                              e.target.value = ''
-                              return
-                            }
-                            try {
-                              const upload = await uploadProfileAsset(file, 'verification_doc')
-                              setVerificationDocUrl(upload.url)
-                              setVerificationDocKey(upload.objectKey)
-                              toast.success('Verification document uploaded')
-                            } catch {
-                              toast.error('Could not upload verification document')
-                            }
-                          }}
-                        />
+                  <div className="space-y-4 rounded-xl border bg-muted/20 p-4">
+                    {!isManage && <SectionHeading icon={<FileText className="h-3.5 w-3.5" />} title="Verification document" />}
+                    <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Verification Type</Label>
+                        <Select value={verificationType} onValueChange={(v) => setVerificationType(v as VerificationType)}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ONGOING">Ongoing Degree (College ID Card)</SelectItem>
+                            <SelectItem value="GRADUATED">Graduated (Degree Certificate)</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    </div>
-                    {verificationDocUrl && (
-                      <div className="sm:col-span-2">
-                        <div className="inline-flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/20 rounded-md text-sm text-primary">
-                          <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                          <span>
-                            Document uploaded.{' '}
-                            <a href={verificationDocUrl} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2 hover:text-primary/80">
-                              View document
-                            </a>
-                          </span>
+
+                      <div className="space-y-2">
+                        <Label>Verification Document</Label>
+                        <div className="flex items-center gap-4">
+                          <Input
+                            type="file"
+                            accept="image/*,.pdf"
+                            className="cursor-pointer file:cursor-pointer flex-1 bg-background"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              if (!validateFileSize(file, MAX_RESUME_BYTES, 'Verification document')) {
+                                e.target.value = ''
+                                return
+                              }
+                              try {
+                                const upload = await uploadProfileAsset(file, 'verification_doc')
+                                setVerificationDocUrl(upload.url)
+                                setVerificationDocKey(upload.objectKey)
+                                toast.success('Verification document uploaded')
+                              } catch {
+                                toast.error('Could not upload verification document')
+                              }
+                            }}
+                          />
                         </div>
                       </div>
-                    )}
+                      {verificationDocUrl && (
+                        <div className="sm:col-span-2">
+                          <div className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary">
+                            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                            <span>
+                              Document uploaded.{' '}
+                              <a href={verificationDocUrl} target="_blank" rel="noreferrer" className="font-medium underline underline-offset-2 hover:text-primary/80">
+                                View document
+                              </a>
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {isSetup && currentStep === 2 && (
