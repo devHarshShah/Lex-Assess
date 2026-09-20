@@ -30,6 +30,12 @@ export class InterviewController {
     return this.interviewService.deleteInterviewer(id);
   }
 
+  @Post('interviewers/:id/resend-welcome')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  resendInterviewerWelcome(@Param('id') id: string) {
+    return this.interviewService.resendInterviewerWelcome(id);
+  }
+
   // ADMIN: Manage slots
   @Post('slots')
   @Roles(Role.ADMIN, Role.SUPERADMIN)

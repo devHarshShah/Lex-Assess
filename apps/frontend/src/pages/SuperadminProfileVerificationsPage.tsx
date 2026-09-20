@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 import {
   fetchSuperadminProfiles,
@@ -21,6 +22,8 @@ export function SuperadminProfileVerificationsPage() {
   const [rows, setRows] = React.useState<ManagedUserProfileRecord[]>([])
   const [cvScoreInputs, setCvScoreInputs] = React.useState<Record<string, string>>({})
   const [preview, setPreview] = React.useState<{ title: string; url: string } | null>(null)
+  const [savingCvScoreId, setSavingCvScoreId] = React.useState<string | null>(null)
+  const [verifyingId, setVerifyingId] = React.useState<string | null>(null)
   const storedUser = getStoredUser()
   const canVerify = storedUser ? getActiveRole(storedUser) === 'SUPERADMIN' : false
 
@@ -47,12 +50,15 @@ export function SuperadminProfileVerificationsPage() {
       toast.error('CV score must be a number between 0 and 100')
       return
     }
+    setSavingCvScoreId(userId)
     try {
       await setCvScoreForSuperadmin(userId, score)
       await load()
       toast.success('CV score saved')
     } catch {
       toast.error('Could not save CV score')
+    } finally {
+      setSavingCvScoreId(null)
     }
   }
 
@@ -141,7 +147,8 @@ export function SuperadminProfileVerificationsPage() {
                 value={cvScoreInputs[userId] ?? ''}
                 onChange={(e) => setCvScoreInputs((prev) => ({ ...prev, [userId]: e.target.value }))}
               />
-              <Button size="sm" variant="outline" onClick={() => handleSaveCvScore(userId)}>
+              <Button size="sm" variant="outline" disabled={savingCvScoreId === userId} onClick={() => handleSaveCvScore(userId)}>
+                {savingCvScoreId === userId && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
                 Save
               </Button>
             </div>
@@ -169,16 +176,21 @@ export function SuperadminProfileVerificationsPage() {
             <Button
               size="sm"
               variant="outline"
+              disabled={verifyingId === row.original.id}
               onClick={async () => {
+                setVerifyingId(row.original.id)
                 try {
                   await verifySuperadminProfile(row.original.id, !(profile?.isComplete ?? false))
                   await load()
                   toast.success('Verification updated')
                 } catch {
                   toast.error('Could not update verification')
+                } finally {
+                  setVerifyingId(null)
                 }
               }}
             >
+              {verifyingId === row.original.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
               {profile?.isComplete ? 'Mark Pending' : 'Mark Verified'}
             </Button>
           )
@@ -187,7 +199,7 @@ export function SuperadminProfileVerificationsPage() {
     }
 
     return base
-  }, [cvScoreInputs, canVerify])
+  }, [cvScoreInputs, canVerify, savingCvScoreId, verifyingId])
 
   return (
     <Card>

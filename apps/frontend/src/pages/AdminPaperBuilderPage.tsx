@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
-import { GripVertical, Trash2, Plus, Settings2, ChevronDown, ChevronUp, FileText, ShieldAlert } from 'lucide-react'
+import { GripVertical, Trash2, Plus, Settings2, ChevronDown, ChevronUp, FileText, ShieldAlert, Loader2 } from 'lucide-react'
 
 type QuestionType = 'MCQ' | 'SUBJECTIVE' | 'SUBJECTIVE_WITH_ANSWER'
 
@@ -50,6 +50,7 @@ export function AdminPaperBuilderPage() {
   const { versionId } = useParams({ strict: false }) as { versionId: string }
   const [version, setVersion] = React.useState<(QuestionPaperVersion & { paper?: QuestionPaper }) | null>(null)
   const [activeTab, setActiveTab] = React.useState<'builder' | 'instructions'>('builder')
+  const [isSaving, setIsSaving] = React.useState(false)
 
   const { control, handleSubmit, reset, getValues } = useForm<FormValues>({
     defaultValues: { timeLimitMinutes: 60, instructions: '', sections: [] }
@@ -134,6 +135,7 @@ export function AdminPaperBuilderPage() {
   }
 
   const onSubmit = async (data: FormValues) => {
+    setIsSaving(true)
     try {
       const payload = data.sections.map((s, sIdx) => {
         // Sanitize questions: Remove versionId, createdAt, updatedAt which are forbidden by backend DTO
@@ -188,6 +190,8 @@ export function AdminPaperBuilderPage() {
       console.error('Save error:', err);
       const msg = err.response?.data?.message || 'Failed to save';
       toast.error(Array.isArray(msg) ? msg[0] : msg);
+    } finally {
+      setIsSaving(false)
     }
   };
 
@@ -355,7 +359,10 @@ This paper tests your knowledge of...
               </select>
             </div>
             <div className="flex flex-col gap-2 pt-2">
-              <Button type="button" className="w-full" onClick={handleSubmit(onSubmit)}>Save Paper</Button>
+              <Button type="button" className="w-full" onClick={handleSubmit(onSubmit)} disabled={isSaving}>
+                {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save Paper
+              </Button>
               <Button type="button" className="w-full" variant="outline" onClick={() => load()}>Discard Changes</Button>
             </div>
           </CardContent>

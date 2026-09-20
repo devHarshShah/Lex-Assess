@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useAntiCheat } from '@/hooks/use-anti-cheat'
 import { AntiCheatMonitor } from '@/components/anti-cheat-monitor'
+import { Loader2 } from 'lucide-react'
 
 // ─── Markdown renderer (minimal, no extra deps) ────────────────────────────
 function renderMarkdown(text: string): string {
@@ -1076,9 +1077,11 @@ export function TestAttemptPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="px-12 py-3 rounded-md bg-green-600 text-white font-bold hover:bg-green-700 transition-colors shadow-md"
+                disabled={isSubmitted}
+                className="px-12 py-3 rounded-md bg-green-600 text-white font-bold hover:bg-green-700 transition-colors shadow-md disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                FINISH & SUBMIT
+                {isSubmitted && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isSubmitted ? 'SUBMITTING...' : 'FINISH & SUBMIT'}
               </button>
             )}
           </div>

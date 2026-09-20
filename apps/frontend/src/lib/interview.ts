@@ -49,6 +49,10 @@ export const deleteInterviewer = async (id: string) => {
   return api.delete(`/interviews/interviewers/${id}`);
 };
 
+export const resendInterviewerWelcome = async (id: string) => {
+  return api.post<{ success: boolean }>(`/interviews/interviewers/${id}/resend-welcome`);
+};
+
 export const createSlot = async (data: { interviewerId: string; startTime: string; endTime: string }) => {
   return api.post<InterviewSlot>('/interviews/slots', data);
 };

@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { Link, useParams } from '@tanstack/react-router'
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -217,6 +217,7 @@ export function AdminSpecializationPapersPage() {
   const [editingPaperId, setEditingPaperId] = React.useState<string | null>(null)
   const [draftTitle, setDraftTitle] = React.useState('')
   const [savingPaperId, setSavingPaperId] = React.useState<string | null>(null)
+  const [isCreatingPaper, setIsCreatingPaper] = React.useState(false)
 
   const load = React.useCallback(async () => {
     setLoading(true)
@@ -240,6 +241,7 @@ export function AdminSpecializationPapersPage() {
 
   const handleCreatePaper = async () => {
     if (!newTitle.trim()) return
+    setIsCreatingPaper(true)
     try {
       await createPaper(specializationId, newTitle.trim())
       setNewTitle('')
@@ -247,6 +249,8 @@ export function AdminSpecializationPapersPage() {
       toast.success('Paper created')
     } catch {
       toast.error('Failed to create paper')
+    } finally {
+      setIsCreatingPaper(false)
     }
   }
 
@@ -308,7 +312,8 @@ export function AdminSpecializationPapersPage() {
               className="max-w-sm"
               onKeyDown={(e) => { if (e.key === 'Enter') void handleCreatePaper() }}
             />
-            <Button onClick={handleCreatePaper} disabled={!newTitle.trim()}>
+            <Button onClick={handleCreatePaper} disabled={!newTitle.trim() || isCreatingPaper}>
+              {isCreatingPaper && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Add Paper
             </Button>
           </div>

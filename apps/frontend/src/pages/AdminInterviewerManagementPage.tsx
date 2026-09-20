@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { fetchInterviewers, createInterviewer, deleteInterviewer, createSlot, deleteSlot, adminBulkAddSlots, type Interviewer } from '@/lib/interview';
+import { fetchInterviewers, createInterviewer, deleteInterviewer, resendInterviewerWelcome, createSlot, deleteSlot, adminBulkAddSlots, type Interviewer } from '@/lib/interview';
 import { fetchProfileOptions } from '@/lib/auth';
-import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat } from 'lucide-react';
+import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
@@ -29,6 +29,12 @@ export function AdminInterviewerManagementPage() {
   const [isBulkSlotOpen, setIsBulkSlotOpen] = React.useState(false);
   const [selectedInterviewer, setSelectedInterviewer] = React.useState<Interviewer | null>(null);
   const [selectedDays, setSelectedDays] = React.useState<number[]>([]);
+  const [isAddingInterviewer, setIsAddingInterviewer] = React.useState(false);
+  const [isAddingSlot, setIsAddingSlot] = React.useState(false);
+  const [isBulkAddingSlot, setIsBulkAddingSlot] = React.useState(false);
+  const [deletingInterviewerId, setDeletingInterviewerId] = React.useState<string | null>(null);
+  const [deletingSlotId, setDeletingSlotId] = React.useState<string | null>(null);
+  const [resendingInterviewerId, setResendingInterviewerId] = React.useState<string | null>(null);
 
   const days = [
     { label: 'Sun', value: 0 },
@@ -79,6 +85,7 @@ export function AdminInterviewerManagementPage() {
       bio: formData.get('bio') as string,
     };
 
+    setIsAddingInterviewer(true);
     try {
       await createInterviewer(data);
       toast.success('Interviewer added successfully');
@@ -87,17 +94,34 @@ export function AdminInterviewerManagementPage() {
       loadInterviewers();
     } catch (error) {
       toast.error('Failed to add interviewer');
+    } finally {
+      setIsAddingInterviewer(false);
     }
   };
 
   const handleDeleteInterviewer = async (id: string) => {
     if (!confirm('Are you sure you want to delete this interviewer? This will also delete all their slots.')) return;
+    setDeletingInterviewerId(id);
     try {
       await deleteInterviewer(id);
       toast.success('Interviewer deleted successfully');
       loadInterviewers();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete interviewer');
+    } finally {
+      setDeletingInterviewerId(null);
+    }
+  };
+
+  const handleResendWelcome = async (id: string) => {
+    setResendingInterviewerId(id);
+    try {
+      await resendInterviewerWelcome(id);
+      toast.success('Welcome email resent');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to resend welcome email');
+    } finally {
+      setResendingInterviewerId(null);
     }
   };
 
@@ -118,6 +142,7 @@ export function AdminInterviewerManagementPage() {
       endTime: toIstIso(formData.get('endTime') as string),
     };
 
+    setIsAddingSlot(true);
     try {
       await createSlot(data);
       toast.success('Slot added successfully');
@@ -125,6 +150,8 @@ export function AdminInterviewerManagementPage() {
       loadInterviewers();
     } catch (error) {
       toast.error('Failed to add slot');
+    } finally {
+      setIsAddingSlot(false);
     }
   };
 
@@ -147,6 +174,7 @@ export function AdminInterviewerManagementPage() {
       endDate: formData.get('endDate') as string,
     };
 
+    setIsBulkAddingSlot(true);
     try {
       const res = await adminBulkAddSlots(selectedInterviewer.id, data);
       toast.success(`${res.count} slots added successfully`);
@@ -155,16 +183,21 @@ export function AdminInterviewerManagementPage() {
       loadInterviewers();
     } catch (error) {
       toast.error('Failed to generate slots');
+    } finally {
+      setIsBulkAddingSlot(false);
     }
   };
 
   const handleDeleteSlot = async (slotId: string) => {
+    setDeletingSlotId(slotId);
     try {
       await deleteSlot(slotId);
       toast.success('Slot deleted');
       loadInterviewers();
     } catch (error) {
       toast.error('Failed to delete slot');
+    } finally {
+      setDeletingSlotId(null);
     }
   };
 
@@ -250,7 +283,10 @@ export function AdminInterviewerManagementPage() {
                 <Textarea id="bio" name="bio" />
               </div>
               <DialogFooter>
-                <Button type="submit">Create Interviewer</Button>
+                <Button type="submit" disabled={isAddingInterviewer}>
+                  {isAddingInterviewer && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Create Interviewer
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -265,14 +301,26 @@ export function AdminInterviewerManagementPage() {
                 <CardTitle className="text-lg">{interviewer.name}</CardTitle>
                 <CardDescription>{interviewer.email}</CardDescription>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                title="Resend welcome email"
+                onClick={() => handleResendWelcome(interviewer.id)}
+                disabled={resendingInterviewerId === interviewer.id}
+              >
+                {resendingInterviewerId === interviewer.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={() => handleDeleteInterviewer(interviewer.id)}
+                disabled={deletingInterviewerId === interviewer.id}
               >
-                <Trash2 className="h-4 w-4" />
+                {deletingInterviewerId === interviewer.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2 min-h-[40px]">
@@ -291,11 +339,12 @@ export function AdminInterviewerManagementPage() {
                       <div key={slot.id} className="text-[10px] p-1.5 bg-muted rounded flex items-center justify-between group">
                         <span>{format(new Date(slot.startTime), 'MMM d, h:mm a')}</span>
                         {!slot.isBooked ? (
-                          <button 
+                          <button
                             onClick={() => handleDeleteSlot(slot.id)}
-                            className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                            disabled={deletingSlotId === slot.id}
+                            className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-100"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            {deletingSlotId === slot.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                           </button>
                         ) : (
                           <span className="text-amber-600 font-bold uppercase text-[8px]">Booked</span>
@@ -397,7 +446,10 @@ export function AdminInterviewerManagementPage() {
               </div>
             </div>
             <DialogFooter className="pt-2">
-              <Button type="submit" size="sm">Generate Slots</Button>
+              <Button type="submit" size="sm" disabled={isBulkAddingSlot}>
+                {isBulkAddingSlot && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Generate Slots
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -418,7 +470,10 @@ export function AdminInterviewerManagementPage() {
               <Input id="endTime" name="endTime" type="datetime-local" required />
             </div>
             <DialogFooter>
-              <Button type="submit">Add Slot</Button>
+              <Button type="submit" disabled={isAddingSlot}>
+                {isAddingSlot && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Add Slot
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

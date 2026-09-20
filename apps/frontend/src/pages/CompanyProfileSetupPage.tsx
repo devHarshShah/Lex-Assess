@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Building2, IdCard, Pencil, User } from 'lucide-react'
+import { Building2, IdCard, Pencil, User, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Badge } from '@/components/ui/badge'
@@ -55,6 +55,7 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
   // loaded URL so an unchanged field is never wiped.
   const [operatorIdCardUrl, setOperatorIdCardUrl] = React.useState('')
   const [operatorIdCardKey, setOperatorIdCardKey] = React.useState('')
+  const [isUploadingPhoto, setIsUploadingPhoto] = React.useState(false)
 
   React.useEffect(() => {
     let isMounted = true
@@ -245,10 +246,11 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
                     variant="outline"
                     size="sm"
                     onClick={() => idCardInputRef.current?.click()}
+                    disabled={isUploadingPhoto}
                     className="w-fit gap-2"
                   >
-                    <Pencil className="h-3.5 w-3.5" />
-                    {operatorIdCardUrl ? 'Replace photo' : 'Upload photo'}
+                    {isUploadingPhoto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Pencil className="h-3.5 w-3.5" />}
+                    {isUploadingPhoto ? 'Uploading...' : operatorIdCardUrl ? 'Replace photo' : 'Upload photo'}
                   </Button>
                 </div>
                 <input
@@ -256,6 +258,7 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   className="hidden"
+                  disabled={isUploadingPhoto}
                   onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file) return
@@ -263,6 +266,7 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
                       e.target.value = ''
                       return
                     }
+                    setIsUploadingPhoto(true)
                     try {
                       const upload = await uploadProfileAsset(file, 'operator_id_card')
                       setOperatorIdCardUrl(upload.url)
@@ -270,6 +274,8 @@ export function CompanyProfileSetupPage({ mode = 'setup' }: { user: AuthUser; mo
                       toast.success('ID card photo uploaded')
                     } catch {
                       toast.error('Could not upload ID card photo')
+                    } finally {
+                      setIsUploadingPhoto(false)
                     }
                   }}
                 />

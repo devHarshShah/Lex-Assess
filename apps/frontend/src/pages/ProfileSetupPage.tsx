@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { Pencil, FileCheck2, CheckCircle2, User, GraduationCap, Briefcase, FileText } from 'lucide-react'
+import { Pencil, FileCheck2, CheckCircle2, User, GraduationCap, Briefcase, FileText, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -171,6 +171,9 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
   const [verificationType, setVerificationType] = React.useState<VerificationType>('ONGOING')
   const [verificationDocUrl, setVerificationDocUrl] = React.useState('')
   const [verificationDocKey, setVerificationDocKey] = React.useState('')
+  const [uploadingPhoto, setUploadingPhoto] = React.useState(false)
+  const [uploadingResume, setUploadingResume] = React.useState(false)
+  const [uploadingVerificationDoc, setUploadingVerificationDoc] = React.useState(false)
 
   React.useEffect(() => {
   if (initializedRef.current) return
@@ -457,16 +460,18 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     <button
                       type="button"
                       onClick={() => profilePhotoInputRef.current?.click()}
-                      className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110"
+                      disabled={uploadingPhoto}
+                      className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm transition-transform hover:scale-110 disabled:opacity-70 disabled:hover:scale-100"
                       aria-label="Upload profile photo"
                     >
-                      <Pencil className="h-3 w-3" />
+                      {uploadingPhoto ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pencil className="h-3 w-3" />}
                     </button>
                     <input
                       ref={profilePhotoInputRef}
                       type="file"
                       accept="image/*"
                       className="hidden"
+                      disabled={uploadingPhoto}
                       onChange={async (e) => {
                         const file = e.target.files?.[0]
                         if (!file) return
@@ -474,6 +479,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                           e.target.value = ''
                           return
                         }
+                        setUploadingPhoto(true)
                         try {
                           const upload = await uploadProfileAsset(file, 'profile_photo')
                           setProfilePhotoUrl(upload.url)
@@ -481,6 +487,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                           toast.success('Profile photo uploaded')
                         } catch {
                           toast.error('Could not upload profile photo')
+                        } finally {
+                          setUploadingPhoto(false)
                         }
                       }}
                     />
@@ -551,7 +559,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                         <Input
                           type="file"
                           accept=".pdf,.doc,.docx"
-                          className="cursor-pointer file:cursor-pointer flex-1 bg-background"
+                          disabled={uploadingResume}
+                          className="cursor-pointer file:cursor-pointer flex-1 bg-background disabled:cursor-not-allowed disabled:opacity-70"
                           onChange={async (e) => {
                             const file = e.target.files?.[0]
                             if (!file) return
@@ -559,6 +568,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                               e.target.value = ''
                               return
                             }
+                            setUploadingResume(true)
                             try {
                               const upload = await uploadProfileAsset(file, 'resume')
                               setResumeUrl(upload.url)
@@ -566,10 +576,18 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                               toast.success('Resume uploaded')
                             } catch {
                               toast.error('Could not upload resume')
+                            } finally {
+                              setUploadingResume(false)
                             }
                           }}
                         />
-                        {resumeUrl && (
+                        {uploadingResume && (
+                          <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-muted text-muted-foreground rounded-md text-sm font-medium">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Uploading...
+                          </div>
+                        )}
+                        {!uploadingResume && resumeUrl && (
                           <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-primary/10 text-primary rounded-md text-sm font-medium">
                             <CheckCircle2 className="w-4 h-4" />
                             <a href={resumeUrl} target="_blank" rel="noreferrer" className="hover:underline">
@@ -767,7 +785,8 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                           <Input
                             type="file"
                             accept="image/*,.pdf"
-                            className="cursor-pointer file:cursor-pointer flex-1 bg-background"
+                            disabled={uploadingVerificationDoc}
+                            className="cursor-pointer file:cursor-pointer flex-1 bg-background disabled:cursor-not-allowed disabled:opacity-70"
                             onChange={async (e) => {
                               const file = e.target.files?.[0]
                               if (!file) return
@@ -775,6 +794,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                                 e.target.value = ''
                                 return
                               }
+                              setUploadingVerificationDoc(true)
                               try {
                                 const upload = await uploadProfileAsset(file, 'verification_doc')
                                 setVerificationDocUrl(upload.url)
@@ -782,12 +802,20 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                                 toast.success('Verification document uploaded')
                               } catch {
                                 toast.error('Could not upload verification document')
+                              } finally {
+                                setUploadingVerificationDoc(false)
                               }
                             }}
                           />
+                          {uploadingVerificationDoc && (
+                            <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-muted text-muted-foreground rounded-md text-sm font-medium">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Uploading...
+                            </div>
+                          )}
                         </div>
                       </div>
-                      {verificationDocUrl && (
+                      {!uploadingVerificationDoc && verificationDocUrl && (
                         <div className="sm:col-span-2">
                           <div className="inline-flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-md text-sm text-primary">
                             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />

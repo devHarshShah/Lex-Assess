@@ -16,6 +16,7 @@ export function InterviewerDashboardPage() {
   const [sessions, setSessions] = React.useState<Interview[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [selectedInterview, setSelectedInterview] = React.useState<Interview | null>(null);
+  const [isSubmittingFeedback, setIsSubmittingFeedback] = React.useState(false);
 
   React.useEffect(() => {
     loadSessions();
@@ -41,6 +42,7 @@ export function InterviewerDashboardPage() {
       notes: formData.get('notes') as string,
     };
 
+    setIsSubmittingFeedback(true);
     try {
       await addFeedback(selectedInterview.id, data);
       toast.success('Feedback submitted successfully');
@@ -48,6 +50,8 @@ export function InterviewerDashboardPage() {
       loadSessions();
     } catch (error) {
       toast.error('Failed to submit feedback');
+    } finally {
+      setIsSubmittingFeedback(false);
     }
   };
 
@@ -151,7 +155,10 @@ export function InterviewerDashboardPage() {
               <Textarea id="notes" name="notes" placeholder="Candidate's strengths, weaknesses, and general observations..." required className="h-32" />
             </div>
             <DialogFooter>
-              <Button type="submit">Submit Feedback & Mark Completed</Button>
+              <Button type="submit" disabled={isSubmittingFeedback}>
+                {isSubmittingFeedback && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Submit Feedback & Mark Completed
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

@@ -15,6 +15,8 @@ export function InterviewerSlotManagement() {
   const [loading, setLoading] = React.useState(true);
   const [isBulkOpen, setIsBulkOpen] = React.useState(false);
   const [selectedDays, setSelectedDays] = React.useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [deletingSlotId, setDeletingSlotId] = React.useState<string | null>(null);
 
   const days = [
     { label: 'Sun', value: 0 },
@@ -42,12 +44,15 @@ export function InterviewerSlotManagement() {
   };
 
   const handleDelete = async (id: string) => {
+    setDeletingSlotId(id);
     try {
       await deleteSlot(id);
       toast.success('Slot deleted');
       loadSlots();
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Failed to delete slot');
+    } finally {
+      setDeletingSlotId(null);
     }
   };
 
@@ -69,6 +74,7 @@ export function InterviewerSlotManagement() {
       endDate: formData.get('endDate') as string,
     };
 
+    setIsSubmitting(true);
     try {
       const res = await bulkAddMySlots(data);
       toast.success(`${res.count} slots added successfully`);
@@ -77,6 +83,8 @@ export function InterviewerSlotManagement() {
       loadSlots();
     } catch (error) {
       toast.error('Failed to add slots');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -156,7 +164,10 @@ export function InterviewerSlotManagement() {
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">Generate Slots</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Generate Slots
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -176,8 +187,14 @@ export function InterviewerSlotManagement() {
                 </CardDescription>
               </div>
               {!slot.isBooked && (
-                <Button variant="ghost" size="icon" onClick={() => handleDelete(slot.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-                  <Trash2 className="h-4 w-4" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDelete(slot.id)}
+                  disabled={deletingSlotId === slot.id}
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  {deletingSlotId === slot.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                 </Button>
               )}
             </CardHeader>

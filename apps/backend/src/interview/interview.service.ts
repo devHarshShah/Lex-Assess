@@ -137,21 +137,42 @@ export class InterviewService {
     });
 
     try {
-      const token = randomBytes(32).toString('hex');
-      const tokenHash = createHash('sha256').update(token).digest('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      await this.prisma.passwordSetupToken.create({
-        data: { userId: user.id, tokenHash, expiresAt },
-      });
-
-      await this.mailService.sendInterviewerWelcome(data.email, data.name, token);
+      await this.sendInterviewerWelcomeEmail(user.id, data.email, data.name);
     } catch (error) {
       // Don't fail the whole request if email fails, but log it
       this.logger.error('Failed to send welcome email to interviewer', error);
     }
 
     return user;
+  }
+
+  // Shared by createInterviewer and resendInterviewerWelcome - always issues a
+  // fresh token (the old one, if any, is simply superseded; PasswordSetupToken
+  // lookups already filter on usedAt/expiresAt, so a stale row is harmless).
+  private async sendInterviewerWelcomeEmail(userId: string, email: string, name: string) {
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.prisma.passwordSetupToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+
+    await this.mailService.sendInterviewerWelcome(email, name, token);
+  }
+
+  // Recovers an interviewer who never got (or lost) their original welcome
+  // email - e.g. it was sent while the SMTP credential was misconfigured and
+  // silently failed. Issues a fresh 24h token rather than trying to resend
+  // whatever the original token was, which may already be expired.
+  async resendInterviewerWelcome(interviewerId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: interviewerId } });
+    if (!user || user.role !== Role.INTERVIEWER) {
+      throw new NotFoundException('Interviewer not found');
+    }
+
+    await this.sendInterviewerWelcomeEmail(user.id, user.email, user.name);
+    return { success: true };
   }
 
   async getAllInterviewers() {

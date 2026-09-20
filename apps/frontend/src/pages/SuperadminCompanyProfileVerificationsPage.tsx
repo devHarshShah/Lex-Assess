@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 import {
   fetchSuperadminCompanyProfiles,
@@ -15,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea'
 export function SuperadminCompanyProfileVerificationsPage() {
   const [rows, setRows] = React.useState<ManagedCompanyProfileRecord[]>([])
   const [reasonDrafts, setReasonDrafts] = React.useState<Record<string, string>>({})
+  const [reviewingId, setReviewingId] = React.useState<string | null>(null)
 
   async function load() {
     try {
@@ -29,6 +31,7 @@ export function SuperadminCompanyProfileVerificationsPage() {
   }, [])
 
   async function handleReview(userId: string, status: 'APPROVED' | 'REJECTED') {
+    setReviewingId(userId)
     try {
       await reviewCompanyProfile(userId, {
         status,
@@ -38,6 +41,8 @@ export function SuperadminCompanyProfileVerificationsPage() {
       toast.success(status === 'APPROVED' ? 'Company approved' : 'Company rejected')
     } catch {
       toast.error('Could not update company verification')
+    } finally {
+      setReviewingId(null)
     }
   }
 
@@ -105,10 +110,12 @@ export function SuperadminCompanyProfileVerificationsPage() {
                     onChange={(e) => setReasonDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
                   />
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={() => handleReview(row.id, 'APPROVED')}>
+                    <Button size="sm" disabled={reviewingId === row.id} onClick={() => handleReview(row.id, 'APPROVED')}>
+                      {reviewingId === row.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Approve
                     </Button>
-                    <Button size="sm" variant="destructive" onClick={() => handleReview(row.id, 'REJECTED')}>
+                    <Button size="sm" variant="destructive" disabled={reviewingId === row.id} onClick={() => handleReview(row.id, 'REJECTED')}>
+                      {reviewingId === row.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Reject
                     </Button>
                   </div>

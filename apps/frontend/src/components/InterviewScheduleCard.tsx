@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/ca
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { checkCanSchedule, fetchAvailableSlots, scheduleInterview, fetchMyInterviews, type InterviewSlot, type Interview } from '@/lib/interview';
-import { Calendar, Video, CheckCircle2, ExternalLink, Sparkles, Lock } from 'lucide-react';
+import { Calendar, Video, CheckCircle2, ExternalLink, Sparkles, Lock, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from './ui/dialog';
 import { format } from 'date-fns';
 
@@ -13,6 +13,7 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
   const [availableSlots, setAvailableSlots] = React.useState<InterviewSlot[]>([]);
   const [myInterviews, setMyInterviews] = React.useState<Interview[]>([]);
   const [isBookingOpen, setIsBookingOpen] = React.useState(false);
+  const [bookingSlotId, setBookingSlotId] = React.useState<string | null>(null);
 
   const init = React.useCallback(async () => {
     try {
@@ -36,6 +37,7 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
   }, [specialization, init]);
 
   const handleBookSlot = async (slotId: string) => {
+    setBookingSlotId(slotId);
     try {
       await scheduleInterview(slotId);
       toast.success('Interview scheduled successfully!');
@@ -43,6 +45,8 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
       init();
     } catch {
       toast.error('Failed to schedule interview');
+    } finally {
+      setBookingSlotId(null);
     }
   };
 
@@ -167,34 +171,46 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                   <div className="p-8 max-h-[60vh] overflow-y-auto">
                     {availableSlots.length > 0 ? (
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {availableSlots.map((slot) => (
+                        {availableSlots.map((slot) => {
+                          const isBookingThisSlot = bookingSlotId === slot.id;
+                          return (
                           <button
                             key={slot.id}
                             onClick={() => handleBookSlot(slot.id)}
-                            className="group flex flex-col items-start p-5 border border-slate-100 rounded-2xl hover:bg-amber-50/30 transition-all text-left relative overflow-hidden"
+                            disabled={bookingSlotId !== null}
+                            className="group flex flex-col items-start p-5 border border-slate-100 rounded-2xl hover:bg-amber-50/30 transition-all text-left relative overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                           >
                             <style>{`
                               .group:hover { border-color: #d97706 !important; }
                             `}</style>
-                            <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="h-6 w-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#d97706' }}>
-                                <CheckCircle2 className="h-3 w-3 text-white" />
+                            {isBookingThisSlot ? (
+                              <div className="flex items-center justify-center w-full py-6">
+                                <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#d97706' }} />
                               </div>
-                            </div>
+                            ) : (
+                              <>
+                                <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <div className="h-6 w-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#d97706' }}>
+                                    <CheckCircle2 className="h-3 w-3 text-white" />
+                                  </div>
+                                </div>
 
-                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-amber-600">
-                              {format(new Date(slot.startTime), 'EEEE, MMM do')}
-                            </div>
-                            <div className="text-xl font-black text-slate-900 group-hover:text-amber-900 leading-none mb-4">{format(new Date(slot.startTime), 'p')}</div>
+                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 group-hover:text-amber-600">
+                                  {format(new Date(slot.startTime), 'EEEE, MMM do')}
+                                </div>
+                                <div className="text-xl font-black text-slate-900 group-hover:text-amber-900 leading-none mb-4">{format(new Date(slot.startTime), 'p')}</div>
 
-                            <div className="flex items-center gap-2 mt-auto">
-                              <div className="h-6 w-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600">
-                                {slot.interviewer.name.charAt(0)}
-                              </div>
-                              <span className="text-xs font-bold text-slate-600 group-hover:text-amber-900">{slot.interviewer.name}</span>
-                            </div>
+                                <div className="flex items-center gap-2 mt-auto">
+                                  <div className="h-6 w-6 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-600">
+                                    {slot.interviewer.name.charAt(0)}
+                                  </div>
+                                  <span className="text-xs font-bold text-slate-600 group-hover:text-amber-900">{slot.interviewer.name}</span>
+                                </div>
+                              </>
+                            )}
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="text-center py-16 flex flex-col items-center gap-4">

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { toast } from 'sonner'
+import { Loader2 } from 'lucide-react'
 
 import {
   createSuperadminCollege,
@@ -14,6 +15,8 @@ import { Input } from '@/components/ui/input'
 export function SuperadminCollegesPage() {
   const [items, setItems] = React.useState<{ id: string; name: string }[]>([])
   const [newName, setNewName] = React.useState('')
+  const [isAdding, setIsAdding] = React.useState(false)
+  const [busyId, setBusyId] = React.useState<string | null>(null)
 
   async function load() {
     try {
@@ -36,8 +39,10 @@ export function SuperadminCollegesPage() {
         <div className="flex gap-2">
           <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Add college" />
           <Button
+            disabled={isAdding}
             onClick={async () => {
               if (!newName.trim()) return
+              setIsAdding(true)
               try {
                 await createSuperadminCollege(newName.trim())
                 setNewName('')
@@ -45,9 +50,12 @@ export function SuperadminCollegesPage() {
                 toast.success('Added')
               } catch {
                 toast.error('Could not add')
+              } finally {
+                setIsAdding(false)
               }
             }}
           >
+            {isAdding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Add
           </Button>
         </div>
@@ -58,31 +66,41 @@ export function SuperadminCollegesPage() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={busyId === item.id}
                 onClick={async () => {
                   const name = window.prompt('Update college name', item.name)
                   if (!name?.trim()) return
+                  setBusyId(item.id)
                   try {
                     await updateSuperadminCollege(item.id, name.trim())
                     await load()
                   } catch {
                     toast.error('Could not update')
+                  } finally {
+                    setBusyId(null)
                   }
                 }}
               >
+                {busyId === item.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Edit
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
+                disabled={busyId === item.id}
                 onClick={async () => {
+                  setBusyId(item.id)
                   try {
                     await deleteSuperadminCollege(item.id)
                     await load()
                   } catch {
                     toast.error('Could not delete')
+                  } finally {
+                    setBusyId(null)
                   }
                 }}
               >
+                {busyId === item.id && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Delete
               </Button>
             </div>

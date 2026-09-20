@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Megaphone, LayoutList, Trash2, Power, PowerOff } from 'lucide-react'
+import { Megaphone, LayoutList, Trash2, Power, PowerOff, Loader2 } from 'lucide-react'
 
 export function SuperadminNotificationsPage() {
   const [items, setItems] = React.useState<NotificationRecord[]>([])
@@ -29,6 +29,8 @@ export function SuperadminNotificationsPage() {
     title: '',
     description: ''
   })
+  const [isAdding, setIsAdding] = React.useState(false)
+  const [busyId, setBusyId] = React.useState<string | null>(null)
 
   async function load() {
     try {
@@ -47,6 +49,7 @@ export function SuperadminNotificationsPage() {
       toast.error('Title is required')
       return
     }
+    setIsAdding(true)
     try {
       await createAdminNotification({
         ...form,
@@ -63,27 +66,35 @@ export function SuperadminNotificationsPage() {
       toast.success('Notification created')
     } catch {
       toast.error('Could not create notification')
+    } finally {
+      setIsAdding(false)
     }
   }
 
   async function handleToggleStatus(item: NotificationRecord) {
+    setBusyId(item.id)
     try {
       await updateAdminNotification(item.id, { isActive: !item.isActive })
       await load()
       toast.success(`Notification ${!item.isActive ? 'activated' : 'deactivated'}`)
     } catch {
       toast.error('Could not update status')
+    } finally {
+      setBusyId(null)
     }
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this notification?')) return
+    setBusyId(id)
     try {
       await deleteAdminNotification(id)
       await load()
       toast.success('Notification deleted')
     } catch {
       toast.error('Could not delete notification')
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -136,7 +147,8 @@ export function SuperadminNotificationsPage() {
               rows={3}
             />
           </div>
-          <Button onClick={handleAdd} className="w-full md:w-auto">
+          <Button onClick={handleAdd} disabled={isAdding} className="w-full md:w-auto">
+            {isAdding && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Create Notification
           </Button>
         </CardContent>
@@ -177,18 +189,20 @@ export function SuperadminNotificationsPage() {
                       variant="outline"
                       className="h-8 w-8 p-0"
                       onClick={() => handleToggleStatus(item)}
+                      disabled={busyId === item.id}
                       title={item.isActive ? 'Deactivate' : 'Activate'}
                     >
-                      {item.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
+                      {busyId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : item.isActive ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDelete(item.id)}
+                      disabled={busyId === item.id}
                       title="Delete"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {busyId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     </Button>
                   </div>
                 </div>
