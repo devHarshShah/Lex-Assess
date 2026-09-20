@@ -845,6 +845,11 @@ export class QuestionPapersService {
         },
         version: {
           include: {
+            // Needed so the scoring UI can group questions by section
+            // (Section A / Section B etc.) instead of one flat list.
+            sections: {
+              orderBy: { order: 'asc' }
+            },
             questions: {
               where: { parentId: null },
               orderBy: {

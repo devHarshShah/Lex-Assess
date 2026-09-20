@@ -197,23 +197,33 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
     }
 
     const preventDefault = (e: Event) => e.preventDefault()
+    // Sections with allowExternalResources (e.g. the research/subjective
+    // section, where lookups and pasting cited material are expected) permit
+    // copy/paste/cut; closed-book sections keep blocking them. Right-click is
+    // still blocked everywhere - Ctrl+V/Ctrl+C still work for pasting/copying,
+    // this only removes the context-menu route.
+    const allowClipboard = Boolean(sectionRules?.allowExternalResources)
 
     window.addEventListener('blur', handleBlur)
     document.addEventListener('visibilitychange', handleVisibilityChange)
-    document.addEventListener('copy', preventDefault)
-    document.addEventListener('paste', preventDefault)
-    document.addEventListener('cut', preventDefault)
+    if (!allowClipboard) {
+      document.addEventListener('copy', preventDefault)
+      document.addEventListener('paste', preventDefault)
+      document.addEventListener('cut', preventDefault)
+    }
     document.addEventListener('contextmenu', preventDefault)
 
     return () => {
       window.removeEventListener('blur', handleBlur)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
-      document.removeEventListener('copy', preventDefault)
-      document.removeEventListener('paste', preventDefault)
-      document.removeEventListener('cut', preventDefault)
+      if (!allowClipboard) {
+        document.removeEventListener('copy', preventDefault)
+        document.removeEventListener('paste', preventDefault)
+        document.removeEventListener('cut', preventDefault)
+      }
       document.removeEventListener('contextmenu', preventDefault)
     }
-  }, [state.isScreenShared, state.isCamMicAllowed, sectionRules?.allowTabSwitching, sectionRules?.maxViolations])
+  }, [state.isScreenShared, state.isCamMicAllowed, sectionRules?.allowTabSwitching, sectionRules?.maxViolations, sectionRules?.allowExternalResources])
 
   // Cleanup on unmount
   React.useEffect(() => {

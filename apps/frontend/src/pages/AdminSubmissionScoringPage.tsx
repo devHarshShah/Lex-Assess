@@ -93,85 +93,127 @@ export function AdminSubmissionScoringPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-4">
-          {submission.version.questions?.map((question, index) => {
-            const studentAnswer = submission.answers?.[question.id]
-            const isMCQ = question.type === 'MCQ'
-            const currentScore = localScores[question.id] || 0
-            const isCorrect = isMCQ && studentAnswer === question.answer
+        <div className="lg:col-span-2 space-y-8">
+          {(() => {
+            const questions = submission.version.questions ?? []
+            const sections = [...(submission.version.sections ?? [])].sort((a, b) => a.order - b.order)
+            // Group flat questions by sectionId, preserving each section's
+            // own order; questions with no sectionId (older papers seeded
+            // before sections existed) fall into a single unlabeled group.
+            const bySectionId = new Map<string, typeof questions>()
+            const unsectioned: typeof questions = []
+            for (const q of questions) {
+              if (q.sectionId) {
+                if (!bySectionId.has(q.sectionId)) bySectionId.set(q.sectionId, [])
+                bySectionId.get(q.sectionId)!.push(q)
+              } else {
+                unsectioned.push(q)
+              }
+            }
 
-            return (
-              <Card key={question.id} className={isMCQ ? (isCorrect ? 'border-green-200 bg-green-50/10' : 'border-red-200 bg-red-50/10') : ''}>
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 py-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">Q{index + 1}.</span>
-                      <Badge variant="outline">{question.type.replace('_', ' ')}</Badge>
-                      {isMCQ && (
-                        isCorrect ? (
-                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
-                            <CheckCircle2 className="mr-1 h-3 w-3" /> Correct
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
-                            <XCircle className="mr-1 h-3 w-3" /> Incorrect
-                          </Badge>
-                        )
-                      )}
-                    </div>
-                    <div className="text-lg font-medium pt-1">{question.text}</div>
+            const groups: { id: string; title?: string; description?: string; questions: typeof questions }[] = sections.map((s) => ({
+              id: s.id,
+              title: s.title,
+              description: s.description,
+              questions: bySectionId.get(s.id) ?? [],
+            }))
+            if (unsectioned.length > 0) {
+              groups.push({ id: 'unsectioned', questions: unsectioned })
+            }
+
+            let runningIndex = 0
+
+            return groups.map((group) => (
+              <div key={group.id} className="space-y-4">
+                {group.title && (
+                  <div className="border-b pb-2">
+                    <h2 className="text-lg font-bold tracking-tight">{group.title}</h2>
+                    {group.description && <p className="text-sm text-muted-foreground mt-0.5">{group.description}</p>}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Marks:</span>
-                      <Input
-                        type="number"
-                        className="w-20 h-8"
-                        value={currentScore}
-                        onChange={(e) => handleScoreChange(question.id, parseInt(e.target.value) || 0, question.marks)}
-                        readOnly={isMCQ} // MCQs are auto-scored, though admin can still override if we remove this
-                      />
-                      <span className="text-sm text-muted-foreground">/ {question.marks}</span>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    <div className="rounded-md bg-muted p-3">
-                      <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Student's Answer</div>
-                      <div className="whitespace-pre-wrap">
-                        {isMCQ ? (
-                          <div className="flex flex-col gap-1">
-                            {question.options?.map((opt: any) => (
-                              <div key={opt.id} className={`flex items-center gap-2 text-sm ${studentAnswer === opt.id ? 'font-bold' : ''}`}>
-                                <div className={`h-2 w-2 rounded-full ${studentAnswer === opt.id ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
-                                {opt.text}
-                              </div>
-                            ))}
+                )}
+                {group.questions.map((question) => {
+                  runningIndex += 1
+                  const index = runningIndex - 1
+                  const studentAnswer = submission.answers?.[question.id]
+                  const isMCQ = question.type === 'MCQ'
+                  const currentScore = localScores[question.id] || 0
+                  const isCorrect = isMCQ && studentAnswer === question.answer
+
+                  return (
+                    <Card key={question.id} className={isMCQ ? (isCorrect ? 'border-green-200 bg-green-50/10' : 'border-red-200 bg-red-50/10') : ''}>
+                      <CardHeader className="flex flex-row items-start justify-between space-y-0 py-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold">Q{index + 1}.</span>
+                            <Badge variant="outline">{question.type.replace('_', ' ')}</Badge>
+                            {isMCQ && (
+                              isCorrect ? (
+                                <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
+                                  <CheckCircle2 className="mr-1 h-3 w-3" /> Correct
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">
+                                  <XCircle className="mr-1 h-3 w-3" /> Incorrect
+                                </Badge>
+                              )
+                            )}
                           </div>
-                        ) : (
-                          studentAnswer || <span className="italic text-muted-foreground">No answer provided</span>
-                        )}
-                      </div>
-                    </div>
+                          <div className="text-lg font-medium pt-1">{question.text}</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">Marks:</span>
+                            <Input
+                              type="number"
+                              className="w-20 h-8"
+                              value={currentScore}
+                              onChange={(e) => handleScoreChange(question.id, parseInt(e.target.value) || 0, question.marks)}
+                              readOnly={isMCQ} // MCQs are auto-scored, though admin can still override if we remove this
+                            />
+                            <span className="text-sm text-muted-foreground">/ {question.marks}</span>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          <div className="rounded-md bg-muted p-3">
+                            <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Student's Answer</div>
+                            <div className="whitespace-pre-wrap">
+                              {isMCQ ? (
+                                <div className="flex flex-col gap-1">
+                                  {question.options?.map((opt: any) => (
+                                    <div key={opt.id} className={`flex items-center gap-2 text-sm ${studentAnswer === opt.id ? 'font-bold' : ''}`}>
+                                      <div className={`h-2 w-2 rounded-full ${studentAnswer === opt.id ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                                      {opt.text}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                studentAnswer || <span className="italic text-muted-foreground">No answer provided</span>
+                              )}
+                            </div>
+                          </div>
 
-                    {question.answer && (
-                      <div className="rounded-md border border-green-100 bg-green-50/30 p-3">
-                        <div className="text-xs font-semibold uppercase text-green-700 mb-1">Correct Answer / Reference</div>
-                        <div className="text-sm whitespace-pre-wrap">
-                          {isMCQ ? (
-                            question.options?.find((opt: any) => opt.id === question.answer)?.text
-                          ) : (
-                            question.answer
+                          {question.answer && (
+                            <div className="rounded-md border border-green-100 bg-green-50/30 p-3">
+                              <div className="text-xs font-semibold uppercase text-green-700 mb-1">Correct Answer / Reference</div>
+                              <div className="text-sm whitespace-pre-wrap">
+                                {isMCQ ? (
+                                  question.options?.find((opt: any) => opt.id === question.answer)?.text
+                                ) : (
+                                  question.answer
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            ))
+          })()}
         </div>
 
         {/* Proctoring Timeline Sidebar */}
