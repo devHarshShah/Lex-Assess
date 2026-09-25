@@ -85,9 +85,9 @@ export function Footer() {
             &copy; {new Date().getFullYear()} LexAssess. All rights reserved.
           </div>
           <div className="flex gap-6 text-xs text-muted-foreground">
-            <a href="#" className="hover:text-foreground transition-colors">
-              Terms of Service
-            </a>
+            <Link to="/terms" className="hover:text-foreground transition-colors">
+              Terms of Use
+            </Link>
             <Link to="/privacy-policy" className="hover:text-foreground transition-colors">
               Privacy Policy
             </Link>

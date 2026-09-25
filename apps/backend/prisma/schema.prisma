@@ -90,6 +90,9 @@ model User {
   authProvider  AuthProvider @default(EMAIL)
   profile       UserProfile?
   certificate   Certificate?
+  rankReleases  RankRelease[]
+  rankEntries   RankEntry[]
+  termsAcceptances TermsAcceptance[]
   companyProfile        CompanyProfile?  @relation("CompanyProfileUser")
   companyProfileReviews CompanyProfile[] @relation("CompanyProfileReviewer")
   interviewerProfile InterviewerProfile?
@@ -413,11 +416,59 @@ model Certificate {
   rollNumber       String?
   fullName         String
   practiceArea     String
-  rank             Int
   commonScore      Float
   pdfObjectKey     String
   issuedAt         DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
   @@index([verificationCode])
+}
+
+// A frozen, admin-released snapshot of the common-rank leaderboard. Everything public
+// (leaderboard, /ranking/me, certificate QR page) reads the newest release, so ranks only
+// change when an admin releases a new one.
+model RankRelease {
+  id             String      @id @default(cuid())
+  label          String
+  releasedAt     DateTime    @default(now())
+  releasedById   String
+  releasedBy     User        @relation(fields: [releasedById], references: [id])
+  candidateCount Int
+  entries        RankEntry[]
+
+  @@index([releasedAt])
+}
+
+model RankEntry {
+  id             String      @id @default(cuid())
+  releaseId      String
+  release        RankRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rank           Int
+  anonymizedId   String
+  practiceArea   String
+  testScore      Float
+  testMaxScore   Float
+  normalizedTest Float
+  interviewMarks Float
+  cvScore        Float
+  commonScore    Float
+
+  @@unique([releaseId, userId])
+  @@index([releaseId, rank])
+  @@index([userId])
+}
+
+// Append-only log of a user accepting the Terms of Use, so we can show which version they
+// agreed to and when (currently recorded when a payment is started).
+model TermsAcceptance {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  version    String
+  context    String
+  acceptedAt DateTime @default(now())
+
+  @@index([userId])
 }

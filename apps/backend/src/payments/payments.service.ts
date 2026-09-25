@@ -62,7 +62,7 @@ export class PaymentsService {
     }
   }
 
-  async createSubscription(userId: string) {
+  async createSubscription(userId: string, termsVersion: string) {
     await this.planInitializationPromise;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -70,6 +70,9 @@ export class PaymentsService {
     });
 
     if (!user) throw new BadRequestException('User not found');
+
+    // Record consent before anything is created at Razorpay, so a payment can't start without it.
+    await this.prisma.termsAcceptance.create({ data: { userId, version: termsVersion, context: 'PAYMENT' } });
 
     // If they already have an active subscription, just return
     if (user.hasActiveSubscription) {

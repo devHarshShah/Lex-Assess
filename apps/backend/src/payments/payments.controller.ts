@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Headers, Body, UseGuards, Request, Req, HttpCode, HttpStatus } from '@nestjs/common';
+import { BadRequestException, Controller, Post, Get, Headers, Body, UseGuards, Request, Req, HttpCode, HttpStatus } from '@nestjs/common';
 import type { RawBodyRequest } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request as ExpressRequest } from 'express';
@@ -11,8 +11,12 @@ export class PaymentsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('subscription')
-  async createSubscription(@Request() req: any) {
-    return this.paymentsService.createSubscription(req.user.id);
+  async createSubscription(@Request() req: any, @Body() body: { termsVersion?: string }) {
+    const termsVersion = typeof body?.termsVersion === 'string' ? body.termsVersion.trim() : '';
+    if (!termsVersion || termsVersion.length > 32) {
+      throw new BadRequestException('You must accept the Terms of Use to continue');
+    }
+    return this.paymentsService.createSubscription(req.user.id, termsVersion);
   }
 
   @UseGuards(JwtAuthGuard)

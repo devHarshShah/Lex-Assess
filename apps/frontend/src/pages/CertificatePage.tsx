@@ -2,6 +2,7 @@ import * as React from 'react'
 import { toast } from 'sonner'
 
 import { fetchMyCertificate, generateCertificate, type CertificateRecord } from '@/lib/certificates'
+import { fetchMyStanding, type RankStanding } from '@/lib/ranking'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -9,6 +10,7 @@ export function CertificatePage() {
   const [certificate, setCertificate] = React.useState<CertificateRecord | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [generating, setGenerating] = React.useState(false)
+  const [standing, setStanding] = React.useState<RankStanding | null>(null)
 
   async function load() {
     try {
@@ -23,6 +25,9 @@ export function CertificatePage() {
 
   React.useEffect(() => {
     void load()
+    fetchMyStanding()
+      .then(setStanding)
+      .catch(() => setStanding(null))
   }, [])
 
   async function handleGenerate() {
@@ -51,9 +56,9 @@ export function CertificatePage() {
             <Row label="Name" value={certificate.fullName} />
             {certificate.rollNumber && <Row label="Roll No." value={certificate.rollNumber} />}
             <Row label="Practice Area" value={certificate.practiceArea} />
-            <Row label="Rank" value={`#${certificate.rank}`} />
             <Row label="Common Score" value={certificate.commonScore.toFixed(1)} />
             <Row label="Issued" value={new Date(certificate.issuedAt).toLocaleDateString()} />
+            {standing && <RankRow standing={standing} />}
 
             <div className="flex gap-2 pt-2">
               <Button asChild disabled={!certificate.pdfUrl}>
@@ -89,6 +94,27 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between border-b border-border/60 pb-2">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium">{value}</span>
+    </div>
+  )
+}
+
+function RankRow({ standing }: { standing: RankStanding }) {
+  if (standing.status === 'RELEASED') {
+    return <Row label="Rank" value={`#${standing.rank} (${standing.releaseLabel} release)`} />
+  }
+  return (
+    <div className="space-y-1 border-b border-border/60 pb-2">
+      <div className="flex items-center justify-between">
+        <span className="text-muted-foreground">Rank</span>
+        <span className="font-medium">
+          {standing.provisionalRank ? `Provisional ~#${standing.provisionalRank}` : 'Yet to be generated'}
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {standing.provisionalRank
+          ? `Estimated against the ${standing.basedOnReleaseLabel} leaderboard. Your official rank appears in the next release.`
+          : 'Ranks are released periodically. Your official rank appears in the next release.'}
+      </p>
     </div>
   )
 }

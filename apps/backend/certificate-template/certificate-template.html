@@ -1,0 +1,237 @@
+<!doctype html>
+<!--
+  Static background for the LexAssess certificate PDF (border, watermark, seal, fixed copy).
+  Dynamic fields (name, roll no., practice area, score, QR, certificate ID, date, laurels)
+  are drawn on top by CertificatesService.buildPdf() with pdf-lib, at the same coordinates.
+
+  Design space is 1400 x 990 px (A4 landscape). Regenerate the asset with:
+    node certificate-template/build.mjs
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: 'CG'; font-weight: 400; font-style: normal; src: url('../src/certificates/assets/cormorant-garamond-latin-400-normal.woff'); }
+  @font-face { font-family: 'CG'; font-weight: 500; font-style: normal; src: url('../src/certificates/assets/cormorant-garamond-latin-500-normal.woff'); }
+  @font-face { font-family: 'CG'; font-weight: 600; font-style: normal; src: url('../src/certificates/assets/cormorant-garamond-latin-600-normal.woff'); }
+  @font-face { font-family: 'CG'; font-weight: 700; font-style: normal; src: url('../src/certificates/assets/cormorant-garamond-latin-700-normal.woff'); }
+  @font-face { font-family: 'CG'; font-weight: 400; font-style: italic; src: url('../src/certificates/assets/cormorant-garamond-latin-400-italic.woff'); }
+  @font-face { font-family: 'Jost'; font-weight: 400; src: url('../src/certificates/assets/jost-latin-400-normal.woff'); }
+  @font-face { font-family: 'Jost'; font-weight: 500; src: url('../src/certificates/assets/jost-latin-500-normal.woff'); }
+  @font-face { font-family: 'Jost'; font-weight: 600; src: url('../src/certificates/assets/jost-latin-600-normal.woff'); }
+  html, body { margin: 0; padding: 0; background: #faf8f3; }
+  svg { display: block; }
+  .cg { font-family: 'CG', serif; }
+  .jost { font-family: 'Jost', sans-serif; }
+</style>
+</head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="990" viewBox="0 0 1400 990">
+  <defs>
+    <radialGradient id="paper" cx="50%" cy="46%" r="75%">
+      <stop offset="0" stop-color="#fcfbf8" />
+      <stop offset="0.6" stop-color="#f9f6ef" />
+      <stop offset="1" stop-color="#f1ece1" />
+    </radialGradient>
+    <linearGradient id="frame" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1400" y2="990">
+      <stop offset="0" stop-color="#c9a45a" />
+      <stop offset="0.33" stop-color="#ead5a0" />
+      <stop offset="0.68" stop-color="#b58a3c" />
+      <stop offset="1" stop-color="#8b5e1a" />
+    </linearGradient>
+    <linearGradient id="fadeR" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#c9a55c" stop-opacity="0" />
+      <stop offset="0.55" stop-color="#a87a2c" />
+      <stop offset="1" stop-color="#8b5e1a" />
+    </linearGradient>
+    <linearGradient id="fadeL" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#8b5e1a" />
+      <stop offset="0.45" stop-color="#a87a2c" />
+      <stop offset="1" stop-color="#c9a55c" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="footRule" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0" stop-color="#8b5e1a" />
+      <stop offset="1" stop-color="#d8c9a4" stop-opacity="0.6" />
+    </linearGradient>
+    <radialGradient id="sealFace" cx="42%" cy="34%" r="70%">
+      <stop offset="0" stop-color="#e2c383" />
+      <stop offset="0.5" stop-color="#b98f42" />
+      <stop offset="1" stop-color="#8f621e" />
+    </radialGradient>
+    <radialGradient id="sealGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0.55" stop-color="#6b5a3a" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#6b5a3a" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Small scales-of-justice icon, origin at the top-centre of the beam -->
+    <g id="scales">
+      <line x1="-27.5" y1="0" x2="27.5" y2="0" stroke="currentColor" stroke-width="1.1" />
+      <line x1="0" y1="-1" x2="0" y2="45" stroke="currentColor" stroke-width="1.1" />
+      <circle cx="0" cy="-3" r="1.3" fill="currentColor" />
+      <circle cx="-27.5" cy="0" r="1.4" fill="currentColor" />
+      <circle cx="27.5" cy="0" r="1.4" fill="currentColor" />
+      <path d="M-27.5 0 L-32 11 M-27.5 0 L-23 11 " fill="none" stroke="currentColor" stroke-width="0.8" stroke-linejoin="round" />
+      <path d="M27.5 0 L23 11 M27.5 0 L32 11 " fill="none" stroke="currentColor" stroke-width="0.8" stroke-linejoin="round" />
+      <path d="M-32 14 a4.5 4.5 0 0 0 9 0 M23 14 a4.5 4.5 0 0 0 9 0" fill="none" stroke="currentColor" stroke-width="1" />
+      <path d="M-13 48 L13 48 L10 44 L-10 44 Z" fill="currentColor" />
+    </g>
+  </defs>
+
+  <!-- Paper -->
+  <rect width="1400" height="990" fill="url(#paper)" />
+
+  <!-- Watermark: large scales -->
+  <g fill="none" stroke="#f1ede3" stroke-linecap="round">
+    <line x1="418.6" y1="345" x2="981.4" y2="345" stroke-width="6" />
+    <line x1="700" y1="318" x2="700" y2="812" stroke-width="6" />
+    <circle cx="418.6" cy="345" r="13" fill="#f1ede3" stroke="none" />
+    <circle cx="981.4" cy="345" r="13" fill="#f1ede3" stroke="none" />
+    <circle cx="700" cy="345" r="9" fill="#f1ede3" stroke="none" />
+    <line x1="418.6" y1="345" x2="370" y2="435" stroke-width="1.6" />
+    <line x1="418.6" y1="345" x2="465" y2="435" stroke-width="1.6" />
+    <line x1="981.4" y1="345" x2="1030" y2="435" stroke-width="1.6" />
+    <line x1="981.4" y1="345" x2="935" y2="435" stroke-width="1.6" />
+    <path d="M370 469 a47.5 47.5 0 0 0 95 0" stroke-width="3.6" />
+    <path d="M935 469 a47.5 47.5 0 0 0 95 0" stroke-width="3.6" />
+    <path d="M594 809 L807 809 L840 849 L560 849 Z" fill="#f1ede3" stroke="none" />
+  </g>
+
+  <!-- Frame: thick gradient outer line, thin tan line, braid, brown inner line -->
+  <rect x="23" y="23" width="1354" height="944" fill="none" stroke="url(#frame)" stroke-width="6" />
+  <rect x="32.5" y="32.5" width="1335" height="925" fill="none" stroke="#c9a96a" stroke-width="1.2" />
+  <rect x="47" y="47" width="1306" height="896" fill="none" stroke="#8b5e1a" stroke-width="2" />
+  <g id="braid" fill="none" stroke-width="1.1"></g>
+
+  <!-- Corner arcs -->
+  <g id="arcs" fill="none" stroke="#d8bb7c" stroke-width="1"></g>
+
+  <!-- Corner rosettes -->
+  <g fill="#faf7ef" stroke="#8b5e1a" stroke-width="1">
+    <circle cx="39.5" cy="39.5" r="6.8" /><circle cx="1360.5" cy="39.5" r="6.8" />
+    <circle cx="39.5" cy="950.5" r="6.8" /><circle cx="1360.5" cy="950.5" r="6.8" />
+  </g>
+  <g fill="#8b5e1a">
+    <circle cx="39.5" cy="39.5" r="3.2" /><circle cx="1360.5" cy="39.5" r="3.2" />
+    <circle cx="39.5" cy="950.5" r="3.2" /><circle cx="1360.5" cy="950.5" r="3.2" />
+  </g>
+
+  <!-- Top scales icon -->
+  <g transform="translate(700 73.6)" style="color:#a67c2e"><use href="#scales" /></g>
+
+  <!-- Wordmark + tagline -->
+  <text class="cg" x="700" y="166" text-anchor="middle" font-size="39" font-weight="700" fill="#1c1712" textLength="158" lengthAdjust="spacing">LexAssess</text>
+  <text class="jost" x="700" y="187.2" text-anchor="middle" font-size="11.6" font-weight="500" fill="#8a5f1a" textLength="335" lengthAdjust="spacing">LEGAL TALENT ASSESSMENT PLATFORM</text>
+
+  <!-- Divider 1 -->
+  <rect x="450" y="212.4" width="236" height="1.2" fill="url(#fadeR)" />
+  <rect x="714" y="212.4" width="236" height="1.2" fill="url(#fadeL)" />
+  <path d="M700 207.4 L705.6 213 L700 218.6 L694.4 213 Z" fill="#8b5e1a" />
+  <circle cx="689" cy="213" r="1.5" fill="#8b5e1a" /><circle cx="711" cy="213" r="1.5" fill="#8b5e1a" />
+
+  <!-- Title -->
+  <text class="cg" x="700" y="283" text-anchor="middle" font-size="75" font-weight="600" fill="#1c1712" textLength="586" lengthAdjust="spacing">CERTIFICATE</text>
+  <text class="jost" x="700" y="321" text-anchor="middle" font-size="15.5" font-weight="600" fill="#8a5f1a" textLength="258" lengthAdjust="spacing">OF ACHIEVEMENT</text>
+
+  <text class="cg" x="700" y="370" text-anchor="middle" font-size="26" font-style="italic" fill="#5c5248" textLength="174" lengthAdjust="spacing">This certifies that</text>
+
+  <!-- Divider 2 (under the name) -->
+  <rect x="418" y="493.4" width="268" height="1.2" fill="url(#fadeR)" />
+  <rect x="714" y="493.4" width="268" height="1.2" fill="url(#fadeL)" />
+  <path d="M700 488.4 L705.6 494 L700 499.6 L694.4 494 Z" fill="#8b5e1a" />
+  <circle cx="689" cy="494" r="1.5" fill="#8b5e1a" /><circle cx="711" cy="494" r="1.5" fill="#8b5e1a" />
+
+  <!-- Practice area label with flanking rules -->
+  <rect x="440" y="554.45" width="86" height="1.1" fill="url(#fadeR)" />
+  <rect x="874" y="554.45" width="86" height="1.1" fill="url(#fadeL)" />
+  <text class="jost" x="700" y="560" text-anchor="middle" font-size="12.6" font-weight="600" fill="#8a5f1a" textLength="300" lengthAdjust="spacing">HAS SUCCESSFULLY COMPLETED</text>
+
+  <text class="cg" x="700" y="670.5" text-anchor="middle" font-size="26" font-style="italic" fill="#5c5248" textLength="372" lengthAdjust="spacing">assessment on the LexAssess platform</text>
+
+  <!-- Score pill -->
+  <rect x="492.5" y="695.5" width="415" height="59" rx="29.5" fill="#fdfcf9" stroke="#8b5e1a" stroke-width="2" />
+  <rect x="498" y="701" width="404" height="48" rx="24" fill="none" stroke="#c9a96a" stroke-width="1" />
+  <text class="jost" x="532" y="729.5" font-size="12.6" font-weight="600" fill="#8b5e1a" textLength="145" lengthAdjust="spacing">COMMON SCORE</text>
+  <line x1="695.5" y1="711" x2="695.5" y2="739" stroke="#c9a96a" stroke-width="1.2" />
+
+  <!-- Seal -->
+  <g transform="translate(700 849.5)">
+    <circle r="76" fill="url(#sealGlow)" />
+    <path id="teeth" fill="#8f611c" />
+    <circle r="55" fill="url(#sealFace)" />
+    <circle r="52.5" fill="none" stroke="#fff" stroke-width="1.4" stroke-opacity="0.95" />
+    <circle r="33" fill="none" stroke="#fff" stroke-width="1" stroke-opacity="0.9" />
+    <path id="arcTop" d="M -41.5 0 A 41.5 41.5 0 0 1 41.5 0" fill="none" />
+    <path id="arcBottom" d="M -46.5 0 A 46.5 46.5 0 0 0 46.5 0" fill="none" />
+    <text class="jost" font-size="8.6" font-weight="600" fill="#fff" text-anchor="middle"><textPath href="#arcTop" startOffset="50%" textLength="80" lengthAdjust="spacing">LEXASSESS</textPath></text>
+    <text class="jost" font-size="8.6" font-weight="600" fill="#fff" text-anchor="middle"><textPath href="#arcBottom" startOffset="50%" textLength="98" lengthAdjust="spacing">ACHIEVEMENT</textPath></text>
+    <path d="M-46.5 0 l2.6 2.6 l-2.6 2.6 l-2.6 -2.6 z M46.5 0 l2.6 2.6 l-2.6 2.6 l-2.6 -2.6 z" transform="translate(0 -2.6)" fill="#fff" />
+    <g transform="translate(0 -21) scale(0.72)" style="color:#f6e7c1"><use href="#scales" /></g>
+  </g>
+
+  <!-- QR frame -->
+  <rect x="1141.3" y="747.3" width="158.4" height="170.4" rx="14" fill="#fdfcf9" stroke="#8b5e1a" stroke-width="2.2" />
+  <rect x="1146.3" y="752.3" width="148.4" height="160.4" rx="10" fill="none" stroke="#c9a96a" stroke-width="1" />
+  <text class="jost" x="1220.5" y="906.7" text-anchor="middle" font-size="9.4" font-weight="500" fill="#8b5e1a" textLength="109" lengthAdjust="spacing">SCAN TO VERIFY</text>
+
+  <!-- Footer (left) -->
+  <rect x="103" y="822" width="383" height="1.2" fill="url(#footRule)" />
+  <text class="jost" x="103" y="849" font-size="11.4" font-weight="600" fill="#8a5f1a" textLength="166" lengthAdjust="spacing">ISSUING AUTHORITY</text>
+  <text class="cg" x="103" y="878" font-size="27.5" font-weight="700" fill="#1c1712" textLength="315" lengthAdjust="spacing">LexAssess Verification Board</text>
+  <text class="jost" x="103" y="904.8" font-size="10.4" font-weight="500" fill="#8b5e1a" textLength="101" lengthAdjust="spacing">CERTIFICATE ID</text>
+  <text class="jost" x="103" y="922.4" font-size="10.4" font-weight="500" fill="#8b5e1a" textLength="45" lengthAdjust="spacing">ISSUED</text>
+</svg>
+
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs) => {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  };
+
+  // Braid: two phase-shifted sine strands along each edge of the frame band.
+  const braid = document.getElementById('braid');
+  const period = 28, amp = 5.2, step = 1;
+  const strand = (fromX, toX, mid, phase, horizontal) => {
+    let d = '';
+    for (let u = fromX; u <= toX; u += step) {
+      const v = mid + amp * Math.sin((2 * Math.PI * (u - fromX)) / period + phase);
+      d += (d ? 'L' : 'M') + (horizontal ? `${u} ${v}` : `${v} ${u}`);
+    }
+    return d;
+  };
+  const edges = [
+    [52, 1348, 39.75, true], [52, 1348, 950.25, true],   // top, bottom
+    [52, 938, 39.75, false], [52, 938, 1360.25, false],  // left, right
+  ];
+  for (const [a, b, mid, horizontal] of edges) {
+    braid.appendChild(el('path', { d: strand(a, b, mid, 0, horizontal), stroke: '#c9a55c' }));
+    braid.appendChild(el('path', { d: strand(a, b, mid, Math.PI, horizontal), stroke: '#8b5e1a' }));
+  }
+
+  // Corner arcs, centred on the inner frame corners.
+  const arcs = document.getElementById('arcs');
+  const radii = [12, 20, 28, 37, 46];
+  const corners = [[47, 47, 1, 1], [1353, 47, -1, 1], [47, 943, 1, -1], [1353, 943, -1, -1]];
+  for (const [cx, cy, sx, sy] of corners) {
+    radii.forEach((r, i) => {
+      arcs.appendChild(el('path', {
+        d: `M ${cx + sx * r} ${cy} A ${r} ${r} 0 0 ${sx * sy > 0 ? 1 : 0} ${cx} ${cy + sy * r}`,
+        'stroke-opacity': (0.95 - i * 0.16).toFixed(2),
+      }));
+    });
+  }
+
+  // Seal teeth
+  const teeth = document.getElementById('teeth');
+  let td = '';
+  const n = 44;
+  for (let i = 0; i < n * 2; i++) {
+    const r = i % 2 === 0 ? 61 : 55.5;
+    const a = (Math.PI * i) / n;
+    td += (i ? 'L' : 'M') + (r * Math.cos(a)).toFixed(2) + ' ' + (r * Math.sin(a)).toFixed(2);
+  }
+  teeth.setAttribute('d', td + 'Z');
+</script>
+</body>
+</html>

@@ -3,6 +3,7 @@ import { homeRoute } from './routes/home'
 import { rootRoute } from './routes/root'
 import { directoryRoute } from './routes/directory'
 import { privacyPolicyRoute } from './routes/privacy-policy'
+import { termsRoute } from './routes/terms'
 import { dashboardRoute, dashboardIndexRoute } from './routes/dashboard'
 import { dashboardUsersRoute } from './routes/dashboard-users'
 import { dashboardSpecializationsRoute } from './routes/dashboard-specializations'
@@ -35,6 +36,7 @@ const routeTree = rootRoute.addChildren([
   homeRoute,
   directoryRoute,
   privacyPolicyRoute,
+  termsRoute,
   verifyRoute,
   loginRoute,
   signupRoute,

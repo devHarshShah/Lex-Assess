@@ -5,10 +5,15 @@ export interface CertificateRecord {
   fullName: string
   rollNumber: string | null
   practiceArea: string
-  rank: number
   commonScore: number
   pdfUrl: string | null
   issuedAt: string
+}
+
+export interface CertificateVerifyRecord extends CertificateRecord {
+  rank:
+    | { status: 'RELEASED'; rank: number; releaseLabel: string; releasedAt: string }
+    | { status: 'PENDING' }
 }
 
 export async function fetchMyCertificate(): Promise<CertificateRecord | null> {
@@ -19,6 +24,6 @@ export async function generateCertificate(): Promise<CertificateRecord> {
   return api.post<CertificateRecord>('/certificates/generate')
 }
 
-export async function verifyCertificate(code: string): Promise<CertificateRecord> {
-  return api.get<CertificateRecord>(`/certificates/verify/${code}`)
+export async function verifyCertificate(code: string): Promise<CertificateVerifyRecord> {
+  return api.get<CertificateVerifyRecord>(`/certificates/verify/${code}`)
 }

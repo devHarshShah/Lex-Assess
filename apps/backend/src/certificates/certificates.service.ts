@@ -13,22 +13,44 @@ import { RankingService } from '../ranking/ranking.service';
 
 const ASSETS_DIR = join(__dirname, 'assets');
 
-// Brand palette, matches apps/frontend/src/index.css
-const INK = rgb(0x17 / 255, 0x17 / 255, 0x17 / 255);
-const MUTED = rgb(0x52 / 255, 0x52 / 255, 0x52 / 255);
-const AMBER = rgb(0xd9 / 255, 0x77 / 255, 0x06 / 255);
-const PAPER = rgb(0xf9 / 255, 0xf9 / 255, 0xf6 / 255);
-const BORDER = rgb(0xe5 / 255, 0xe5 / 255, 0xe5 / 255);
+// Palette sampled from the certificate design (see certificate-template/).
+const INK = rgb(0x19 / 255, 0x14 / 255, 0x0e / 255);
+const MUTED = rgb(0x59 / 255, 0x53 / 255, 0x45 / 255);
+const SLASH = rgb(0x7a / 255, 0x70 / 255, 0x68 / 255);
+const GOLD_STOPS: Array<[number, [number, number, number]]> = [
+  [0, [0x6d, 0x47, 0x0f]],
+  [0.45, [0xb5, 0x8c, 0x3c]],
+  [1, [0x69, 0x44, 0x0e]],
+];
+
+// The static artwork is authored on a 1400 x 990 canvas (A4 landscape); every coordinate
+// below is in those "design px" and is scaled to PDF points by S.
+const PAGE_W = 841.89;
+const PAGE_H = 595.28;
+const S = PAGE_W / 1400;
+const px = (v: number) => v * S;
+const py = (v: number) => PAGE_H - v * S;
+
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 export interface CertificateDto {
   verificationCode: string;
   fullName: string;
   rollNumber: string | null;
   practiceArea: string;
-  rank: number;
   commonScore: number;
   pdfUrl: string | null;
   issuedAt: Date;
+}
+
+export interface CertificateVerifyDto extends CertificateDto {
+  // Rank as of the latest admin release; PENDING until the candidate is included in one.
+  rank:
+    | { status: 'RELEASED'; rank: number; releaseLabel: string; releasedAt: Date }
+    | { status: 'PENDING' };
 }
 
 @Injectable()
@@ -49,7 +71,7 @@ export class CertificatesService {
   }
 
   async generateForUser(userId: string): Promise<CertificateDto> {
-    const rankEntry = await this.rankingService.getStudentRank(userId);
+    const rankEntry = await this.rankingService.getLiveEntry(userId);
     if (!rankEntry) {
       throw new BadRequestException(
         'You are not yet eligible for a certificate. A submitted, scored test attempt and a completed, marked interview are required.',
@@ -73,7 +95,6 @@ export class CertificatesService {
       fullName,
       rollNumber: profile?.rollNumber ?? null,
       practiceArea: rankEntry.practiceArea,
-      rank: rankEntry.rank,
       commonScore: rankEntry.commonScore,
       verifyUrl,
       verificationCode,
@@ -91,7 +112,6 @@ export class CertificatesService {
         rollNumber: profile?.rollNumber ?? null,
         fullName,
         practiceArea: rankEntry.practiceArea,
-        rank: rankEntry.rank,
         commonScore: rankEntry.commonScore,
         pdfObjectKey,
       },
@@ -99,7 +119,6 @@ export class CertificatesService {
         rollNumber: profile?.rollNumber ?? null,
         fullName,
         practiceArea: rankEntry.practiceArea,
-        rank: rankEntry.rank,
         commonScore: rankEntry.commonScore,
         pdfObjectKey,
       },
@@ -117,12 +136,12 @@ export class CertificatesService {
     return this.toDto(saved);
   }
 
-  async verifyByCode(code: string): Promise<CertificateDto> {
+  async verifyByCode(code: string): Promise<CertificateVerifyDto> {
     const certificate = await this.prisma.certificate.findUnique({ where: { verificationCode: code } });
     if (!certificate) {
       throw new NotFoundException('Certificate not found');
     }
-    return this.toDto(certificate);
+    return this.toVerifyDto(certificate);
   }
 
   private async toDto(certificate: {
@@ -130,7 +149,6 @@ export class CertificatesService {
     fullName: string;
     rollNumber: string | null;
     practiceArea: string;
-    rank: number;
     commonScore: number;
     pdfObjectKey: string;
     issuedAt: Date;
@@ -140,18 +158,41 @@ export class CertificatesService {
       fullName: certificate.fullName,
       rollNumber: certificate.rollNumber,
       practiceArea: certificate.practiceArea,
-      rank: certificate.rank,
       commonScore: certificate.commonScore,
       pdfUrl: await this.storageService.getSignedUrl(certificate.pdfObjectKey, READ_URL_EXPIRY_SECONDS),
       issuedAt: certificate.issuedAt,
     };
   }
 
+  private async toVerifyDto(certificate: {
+    userId: string;
+    verificationCode: string;
+    fullName: string;
+    rollNumber: string | null;
+    practiceArea: string;
+    commonScore: number;
+    pdfObjectKey: string;
+    issuedAt: Date;
+  }): Promise<CertificateVerifyDto> {
+    const base = await this.toDto(certificate);
+
+    let rank: CertificateVerifyDto['rank'] = { status: 'PENDING' };
+    try {
+      const released = await this.rankingService.getReleasedRank(certificate.userId);
+      if (released) {
+        rank = { status: 'RELEASED', rank: released.rank, releaseLabel: released.releaseLabel, releasedAt: released.releasedAt };
+      }
+    } catch (error) {
+      this.logger.error('Failed to load released rank for certificate verification', error as Error);
+    }
+
+    return { ...base, rank };
+  }
+
   private async buildPdf(input: {
     fullName: string;
     rollNumber: string | null;
     practiceArea: string;
-    rank: number;
     commonScore: number;
     verifyUrl: string;
     verificationCode: string;
@@ -160,178 +201,167 @@ export class CertificatesService {
     const doc = await PDFDocument.create();
     doc.registerFontkit(fontkit);
 
-    const inter = await doc.embedFont(readFileSync(join(ASSETS_DIR, 'Inter-Regular.ttf')), { subset: true });
-    const interSemiBold = await doc.embedFont(readFileSync(join(ASSETS_DIR, 'Inter-SemiBold.ttf')), {
-      subset: true,
-    });
-    const interBold = await doc.embedFont(readFileSync(join(ASSETS_DIR, 'Inter-Bold.ttf')), { subset: true });
+    const loadFont = (file: string, features?: Record<string, boolean>) =>
+      doc.embedFont(readFileSync(join(ASSETS_DIR, file)), { subset: true, features });
+    const [nameFont, areaFont, scoreFont, slashFont, rollFont, metaFont] = await Promise.all([
+      loadFont('cormorant-garamond-latin-700-italic.woff'),
+      loadFont('cormorant-garamond-latin-700-normal.woff'),
+      loadFont('cormorant-garamond-latin-700-normal.woff', { lnum: true }),
+      loadFont('cormorant-garamond-latin-400-normal.woff', { lnum: true }),
+      loadFont('jost-latin-500-normal.woff'),
+      loadFont('jost-latin-400-normal.woff'),
+    ]);
 
-    const page = doc.addPage([842, 595]); // A4 landscape
-    const { width, height } = page.getSize();
-    const margin = 40;
+    const page = doc.addPage([PAGE_W, PAGE_H]);
 
-    // Paper background + inner amber-on-ink double border
-    page.drawRectangle({ x: 0, y: 0, width, height, color: PAPER });
-    page.drawRectangle({
-      x: margin,
-      y: margin,
-      width: width - margin * 2,
-      height: height - margin * 2,
-      borderColor: INK,
-      borderWidth: 1.5,
-    });
-    page.drawRectangle({
-      x: margin + 10,
-      y: margin + 10,
-      width: width - (margin + 10) * 2,
-      height: height - (margin + 10) * 2,
-      borderColor: AMBER,
-      borderWidth: 1,
-    });
+    // Static artwork: frame, watermark, seal and fixed copy.
+    const background = await doc.embedJpg(readFileSync(join(ASSETS_DIR, 'certificate-bg.jpg')));
+    page.drawImage(background, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
 
-    // Logo, top-left
-    try {
-      const logoBytes = readFileSync(join(ASSETS_DIR, 'logo.png'));
-      const logo = await doc.embedPng(logoBytes);
-      const logoHeight = 34;
-      const logoWidth = (logo.width / logo.height) * logoHeight;
-      page.drawImage(logo, { x: margin + 36, y: height - margin - 64, width: logoWidth, height: logoHeight });
-    } catch {
-      // Logo asset missing in this environment; certificate is still valid without it.
-    }
+    // Recipient name, shrunk to fit if it is long.
+    const fullName = printable(nameFont, input.fullName);
+    const nameSize = fitSize(nameFont, fullName, 88, 800, 38);
+    drawCentered(page, nameFont, fullName, 700, 451, nameSize, INK);
 
-    page.drawText('LexAssess', {
-      x: margin + 80,
-      y: height - margin - 54,
-      size: 18,
-      font: interBold,
-      color: INK,
-    });
-    page.drawText('LEGAL TALENT ASSESSMENT PLATFORM', {
-      x: margin + 80,
-      y: height - margin - 70,
-      size: 8,
-      font: interSemiBold,
-      color: MUTED,
-    });
-
-    // Eyebrow + title
-    centerText(page, interSemiBold, 'CERTIFICATE OF ACHIEVEMENT', height - 150, 11, width, MUTED, 3);
-    page.drawLine({
-      start: { x: width / 2 - 28, y: height - 165 },
-      end: { x: width / 2 + 28, y: height - 165 },
-      thickness: 1.5,
-      color: AMBER,
-    });
-
-    centerText(page, inter, 'This certifies that', height - 200, 14, width, MUTED);
-    centerText(page, interBold, input.fullName, height - 240, 30, width, INK);
-
+    // Roll number: "ROLL NO.   LX26-0002", letter-spaced.
     if (input.rollNumber) {
-      centerText(page, inter, `Roll No. ${input.rollNumber}`, height - 262, 11, width, MUTED);
+      const rollSize = 14.5;
+      const tracking = rollSize * 0.27 * S;
+      const label = 'ROLL NO.';
+      const value = printable(rollFont, input.rollNumber);
+      const labelW = spacedWidth(rollFont, label, px(rollSize), tracking);
+      const valueW = spacedWidth(rollFont, value, px(rollSize), tracking);
+      const gap = px(18);
+      let x = px(700) - (labelW + gap + valueW) / 2;
+      x = drawSpaced(page, rollFont, label, x, py(523.5), px(rollSize), tracking, MUTED);
+      drawSpaced(page, rollFont, value, x + gap, py(523.5), px(rollSize), tracking, MUTED);
     }
 
-    centerText(
-      page,
-      inter,
-      `has achieved Rank #${input.rank} in ${input.practiceArea} on the LexAssess common leaderboard`,
-      height - 300,
-      14,
-      width,
-      INK,
-    );
-    centerText(
-      page,
-      interSemiBold,
-      `Common Score  ${input.commonScore.toFixed(2)} / 100`,
-      height - 324,
-      12,
-      width,
-      MUTED,
-    );
+    // Practice area: gold gradient headline flanked by laurel branches.
+    const area = printable(areaFont, input.practiceArea);
+    const areaSize = fitSize(areaFont, area, 68.5, 640, 30);
+    const areaWidth = px(areaFont.widthOfTextAtSize(area, areaSize));
+    const areaX = px(700) - areaWidth / 2;
+    drawGradientText(page, areaFont, area, areaX, py(620), px(areaSize), GOLD_STOPS);
 
-    // Footer: issuing authority + signature line (left), QR (right)
-    const footerY = margin + 40;
-    page.drawLine({
-      start: { x: margin + 36, y: footerY + 38 },
-      end: { x: margin + 220, y: footerY + 38 },
-      thickness: 1,
-      color: BORDER,
-    });
-    page.drawText('Issuing Authority', { x: margin + 36, y: footerY + 22, size: 11, font: interSemiBold, color: INK });
-    page.drawText('LexAssess Verification Board', {
-      x: margin + 36,
-      y: footerY + 8,
-      size: 9,
-      font: inter,
-      color: MUTED,
-    });
+    const laurelW = px(160);
+    const laurelH = px(72);
+    const laurelY = py(632);
+    const [laurelLeft, laurelRight] = await Promise.all([
+      doc.embedPng(readFileSync(join(ASSETS_DIR, 'laurel-left.png'))),
+      doc.embedPng(readFileSync(join(ASSETS_DIR, 'laurel-right.png'))),
+    ]);
+    page.drawImage(laurelLeft, { x: areaX - px(21) - laurelW, y: laurelY, width: laurelW, height: laurelH });
+    page.drawImage(laurelRight, { x: areaX + areaWidth + px(21), y: laurelY, width: laurelW, height: laurelH });
 
-    page.drawText(`Certificate ID: ${input.verificationCode}`, {
-      x: margin + 36,
-      y: footerY - 14,
-      size: 8,
-      font: inter,
-      color: MUTED,
-    });
-    page.drawText(`Issued ${input.issuedAt.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })}`, {
-      x: margin + 36,
-      y: footerY - 26,
-      size: 8,
-      font: inter,
-      color: MUTED,
-    });
+    // Common score, inside the pill.
+    const score = input.commonScore.toFixed(2);
+    const scoreSize = px(40);
+    const slashSize = px(24);
+    const scoreW = scoreFont.widthOfTextAtSize(score, scoreSize);
+    const slashText = '/ 100';
+    const slashW = slashFont.widthOfTextAtSize(slashText, slashSize);
+    const scoreGap = px(7);
+    const scoreX = px(802) - (scoreW + scoreGap + slashW) / 2;
+    page.drawText(score, { x: scoreX, y: py(735.6), size: scoreSize, font: scoreFont, color: INK });
+    page.drawText(slashText, { x: scoreX + scoreW + scoreGap, y: py(735.6), size: slashSize, font: slashFont, color: SLASH });
 
+    // Footer: certificate ID and issue date.
+    page.drawText(input.verificationCode, { x: px(218), y: py(904.8), size: px(12.6), font: metaFont, color: MUTED });
+    page.drawText(formatIssueDate(input.issuedAt), { x: px(161.5), y: py(922.4), size: px(12.6), font: metaFont, color: MUTED });
+
+    // Verification QR, inside its frame.
     const qrDataUrl = await QRCode.toDataURL(input.verifyUrl, {
       margin: 0,
-      width: 200,
-      color: { dark: '#171717', light: '#f9f9f6' },
+      width: 480,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#19140e', light: '#fdfcf9' },
     });
     const qrImage = await doc.embedPng(qrDataUrl);
-    const qrSize = 84;
-    const qrX = width - margin - 36 - qrSize;
-    page.drawImage(qrImage, { x: qrX, y: footerY - 6, width: qrSize, height: qrSize });
-    centerTextInBox(page, inter, 'Scan to verify', qrX, footerY - 18, qrSize, 8, MUTED);
+    page.drawImage(qrImage, { x: px(1161.5), y: py(767 + 118), width: px(118), height: px(118) });
 
     return doc.save();
   }
 }
 
-function centerText(
-  page: import('pdf-lib').PDFPage,
-  font: import('pdf-lib').PDFFont,
+type PdfFont = import('pdf-lib').PDFFont;
+type PdfPage = import('pdf-lib').PDFPage;
+type PdfColor = ReturnType<typeof rgb>;
+
+/** Drops characters the embedded (Latin subset) font cannot encode, so odd input never breaks PDF generation. */
+function printable(font: PdfFont, text: string): string {
+  const supported = new Set(font.getCharacterSet());
+  return Array.from(text.normalize('NFC'))
+    .filter((ch) => supported.has(ch.codePointAt(0) as number))
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Largest font size (design px, capped at `max`) at which `text` fits `maxWidth` design px. */
+function fitSize(font: PdfFont, text: string, max: number, maxWidth: number, min: number): number {
+  const width = font.widthOfTextAtSize(text, max);
+  if (width <= maxWidth) return max;
+  return Math.max(min, (max * maxWidth) / width);
+}
+
+function drawCentered(page: PdfPage, font: PdfFont, text: string, cx: number, baseline: number, size: number, color: PdfColor) {
+  const width = px(font.widthOfTextAtSize(text, size));
+  page.drawText(text, { x: px(cx) - width / 2, y: py(baseline), size: px(size), font, color });
+}
+
+function spacedWidth(font: PdfFont, text: string, size: number, tracking: number): number {
+  return font.widthOfTextAtSize(text, size) + tracking * Math.max(0, text.length - 1);
+}
+
+/** Draws letter-spaced text starting at x; returns the x where it ended. */
+function drawSpaced(page: PdfPage, font: PdfFont, text: string, x: number, y: number, size: number, tracking: number, color: PdfColor) {
+  let cursor = x;
+  for (const ch of text) {
+    page.drawText(ch, { x: cursor, y, size, font, color });
+    cursor += font.widthOfTextAtSize(ch, size) + tracking;
+  }
+  return cursor;
+}
+
+/** pdf-lib has no text gradients, so colour each glyph from a horizontal gradient. Positions come from prefix widths to keep kerning. */
+function drawGradientText(
+  page: PdfPage,
+  font: PdfFont,
   text: string,
+  x: number,
   y: number,
   size: number,
-  pageWidth: number,
-  color: ReturnType<typeof rgb>,
-  letterSpacing = 0,
+  stops: Array<[number, [number, number, number]]>,
 ) {
-  const baseWidth = font.widthOfTextAtSize(text, size);
-  const totalWidth = letterSpacing ? baseWidth + letterSpacing * (text.length - 1) : baseWidth;
-  let x = (pageWidth - totalWidth) / 2;
-
-  if (!letterSpacing) {
-    page.drawText(text, { x, y, size, font, color });
-    return;
-  }
-
-  for (const char of text) {
-    page.drawText(char, { x, y, size, font, color });
-    x += font.widthOfTextAtSize(char, size) + letterSpacing;
+  const glyphs = Array.from(text);
+  const total = font.widthOfTextAtSize(text, size / S);
+  let prefix = '';
+  for (const ch of glyphs) {
+    const startW = font.widthOfTextAtSize(prefix, size / S);
+    const endW = font.widthOfTextAtSize(prefix + ch, size / S);
+    const t = total ? (startW + endW) / 2 / total : 0;
+    if (ch.trim()) {
+      page.drawText(ch, { x: x + startW * S, y, size, font, color: gradientColor(stops, t) });
+    }
+    prefix += ch;
   }
 }
 
-function centerTextInBox(
-  page: import('pdf-lib').PDFPage,
-  font: import('pdf-lib').PDFFont,
-  text: string,
-  boxX: number,
-  y: number,
-  boxWidth: number,
-  size: number,
-  color: ReturnType<typeof rgb>,
-) {
-  const textWidth = font.widthOfTextAtSize(text, size);
-  page.drawText(text, { x: boxX + (boxWidth - textWidth) / 2, y, size, font, color });
+function gradientColor(stops: Array<[number, [number, number, number]]>, t: number): PdfColor {
+  let [, [r, g, b]] = stops[0]!;
+  for (let i = 1; i < stops.length; i++) {
+    const [t0, c0] = stops[i - 1]!;
+    const [t1, c1] = stops[i]!;
+    const k = Math.min(1, Math.max(0, (t - t0) / (t1 - t0)));
+    [r, g, b] = [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
+    if (t <= t1) break;
+  }
+  return rgb(r / 255, g / 255, b / 255);
+}
+
+/** "20 September 2026", in IST regardless of the server timezone or ICU build. */
+function formatIssueDate(date: Date): string {
+  const ist = new Date(date.getTime() + 5.5 * 60 * 60 * 1000);
+  return `${ist.getUTCDate()} ${MONTHS[ist.getUTCMonth()]} ${ist.getUTCFullYear()}`;
 }

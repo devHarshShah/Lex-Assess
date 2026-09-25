@@ -5,8 +5,8 @@ export interface SubscriptionResponse {
   keyId: string;
 }
 
-export async function createSubscription(): Promise<SubscriptionResponse> {
-  return api.post<SubscriptionResponse>('/payments/subscription');
+export async function createSubscription(termsVersion: string): Promise<SubscriptionResponse> {
+  return api.post<SubscriptionResponse>('/payments/subscription', { termsVersion });
 }
 
 export async function verifyPayment(data: {

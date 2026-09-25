@@ -14,10 +14,12 @@ import {
 import { fetchPublicLeaderboard } from '@/lib/ranking'
 
 export function DirectorySection() {
-  const { data: entries = [] } = useQuery({
+  const { data } = useQuery({
     queryKey: ['public-leaderboard'],
     queryFn: () => fetchPublicLeaderboard(10),
   })
+  const entries = data?.entries ?? []
+  const release = data?.release ?? null
 
   return (
     <section className="w-full bg-card py-16 border-y border-border/40">
@@ -45,6 +47,12 @@ export function DirectorySection() {
             talent by demonstrated performance.
           </p>
         </motion.div>
+
+        <p className="mb-4 text-sm text-muted-foreground">
+          {release
+            ? `Rankings as of the ${release.label} release. Updated when new ranks are released.`
+            : 'The first rankings will appear here once they are released.'}
+        </p>
 
         <Card className="hidden overflow-hidden border-border/60 bg-background shadow-sm md:block">
           <Table>

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { AttemptStatus, InterviewStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RANK_WEIGHT_CV, RANK_WEIGHT_INTERVIEW, RANK_WEIGHT_TEST } from './ranking.constants';
@@ -30,14 +30,51 @@ interface CandidateAccumulator {
 }
 
 const RANKING_CACHE_TTL_MS = 60_000;
+const RELEASE_COOLDOWN_MS = 60_000;
+
+export interface RankReleaseInfo {
+  id: string;
+  label: string;
+  releasedAt: Date;
+  candidateCount: number;
+}
+
+export interface ReleasedLeaderboard {
+  release: Pick<RankReleaseInfo, 'label' | 'releasedAt'> | null;
+  entries: { rank: number; anonymizedId: string; practiceArea: string }[];
+}
+
+export type RankStanding =
+  | { status: 'RELEASED'; rank: number; releaseLabel: string; releasedAt: Date; commonScore: number }
+  | {
+      status: 'PENDING';
+      // Where the candidate would sit in the last released leaderboard. The reference set is
+      // frozen, so this never moves until the next release.
+      provisionalRank: number | null;
+      basedOnReleaseLabel: string | null;
+      commonScore: number | null;
+    };
+
+export interface RankReleasePreview {
+  eligibleCandidates: number;
+  releasedCandidates: number;
+  newCandidates: number;
+  latestRelease: RankReleaseInfo | null;
+}
+
+// "September 2026", in IST so a release at 00:30 IST on the 1st is labelled for the new month.
+function releaseLabel(date: Date): string {
+  return new Intl.DateTimeFormat('en-IN', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(date);
+}
 
 @Injectable()
 export class RankingService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Computing the global ranking is expensive (several queries + full in-memory
-  // scoring over every submitted attempt). The result is identical for every
-  // caller, so memoize it briefly to absorb leaderboard/rank request bursts.
+  // Live ranking over every eligible candidate. Nothing public reads this directly: ranks are only
+  // published when an admin calls releaseRanks(), which snapshots this into RankRelease/RankEntry.
+  // Computing it is expensive (several queries + full in-memory scoring over every submitted
+  // attempt), so memoize it briefly for the release/preview/provisional callers.
   private rankingCache: { value: RankedCandidate[]; expiresAt: number } | null = null;
   private inFlight: Promise<RankedCandidate[]> | null = null;
 
@@ -142,7 +179,12 @@ export class RankingService {
     }
 
     return [...bestByStudentId.values()]
-      .sort((a, b) => b.commonScore - a.commonScore)
+      .sort(
+        (a, b) =>
+          b.commonScore - a.commonScore ||
+          b.normalizedTest - a.normalizedTest ||
+          a.studentId.localeCompare(b.studentId),
+      )
       .map(({ rollNumber, ...entry }, index) => ({
         ...entry,
         rank: index + 1,
@@ -150,8 +192,138 @@ export class RankingService {
       }));
   }
 
-  async getStudentRank(studentId: string): Promise<RankedCandidate | null> {
+  async getLiveEntry(studentId: string): Promise<RankedCandidate | null> {
     const all = await this.computeGlobalRanking();
     return all.find((entry) => entry.studentId === studentId) ?? null;
+  }
+
+  async getLatestRelease(): Promise<RankReleaseInfo | null> {
+    return this.prisma.rankRelease.findFirst({
+      orderBy: { releasedAt: 'desc' },
+      select: { id: true, label: true, releasedAt: true, candidateCount: true },
+    });
+  }
+
+  async listReleases(): Promise<(RankReleaseInfo & { releasedByName: string })[]> {
+    const releases = await this.prisma.rankRelease.findMany({
+      orderBy: { releasedAt: 'desc' },
+      include: { releasedBy: { select: { name: true } } },
+    });
+    return releases.map(({ releasedBy, ...release }) => ({ ...release, releasedByName: releasedBy.name }));
+  }
+
+  async releaseRanks(adminId: string): Promise<RankReleaseInfo> {
+    const latest = await this.getLatestRelease();
+    if (latest && Date.now() - latest.releasedAt.getTime() < RELEASE_COOLDOWN_MS) {
+      throw new BadRequestException('Ranks were just released. Wait a minute before releasing again.');
+    }
+
+    // Bypass the memo: a release must reflect the state at the moment the admin pressed the button.
+    this.rankingCache = null;
+    const ranking = await this.computeGlobalRanking();
+    if (ranking.length === 0) {
+      throw new BadRequestException('No eligible candidates yet. A scored test and a completed, marked interview are required.');
+    }
+
+    const now = new Date();
+    const release = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.rankRelease.create({
+        data: { label: releaseLabel(now), releasedAt: now, releasedById: adminId, candidateCount: ranking.length },
+        select: { id: true, label: true, releasedAt: true, candidateCount: true },
+      });
+      await tx.rankEntry.createMany({
+        data: ranking.map((entry) => ({
+          releaseId: created.id,
+          userId: entry.studentId,
+          rank: entry.rank,
+          anonymizedId: entry.anonymizedId,
+          practiceArea: entry.practiceArea,
+          testScore: entry.testScore,
+          testMaxScore: entry.testMaxScore,
+          normalizedTest: entry.normalizedTest,
+          interviewMarks: entry.interviewMarks,
+          cvScore: entry.cvScore,
+          commonScore: entry.commonScore,
+        })),
+      });
+      return created;
+    });
+    return release;
+  }
+
+  async getPreview(): Promise<RankReleasePreview> {
+    const [ranking, latestRelease] = await Promise.all([this.computeGlobalRanking(), this.getLatestRelease()]);
+    const released = latestRelease
+      ? await this.prisma.rankEntry.findMany({ where: { releaseId: latestRelease.id }, select: { userId: true } })
+      : [];
+    const releasedIds = new Set(released.map((entry) => entry.userId));
+    return {
+      eligibleCandidates: ranking.length,
+      releasedCandidates: releasedIds.size,
+      newCandidates: ranking.filter((entry) => !releasedIds.has(entry.studentId)).length,
+      latestRelease,
+    };
+  }
+
+  async getReleasedLeaderboard(limit?: number): Promise<ReleasedLeaderboard> {
+    const release = await this.getLatestRelease();
+    if (!release) return { release: null, entries: [] };
+
+    const entries = await this.prisma.rankEntry.findMany({
+      where: { releaseId: release.id },
+      orderBy: { rank: 'asc' },
+      ...(limit && limit > 0 ? { take: limit } : {}),
+      select: { rank: true, anonymizedId: true, practiceArea: true },
+    });
+    return { release: { label: release.label, releasedAt: release.releasedAt }, entries };
+  }
+
+  async getReleasedFullLeaderboard() {
+    const release = await this.getLatestRelease();
+    if (!release) return { release: null, entries: [] };
+
+    const entries = await this.prisma.rankEntry.findMany({
+      where: { releaseId: release.id },
+      orderBy: { rank: 'asc' },
+      select: {
+        rank: true,
+        userId: true,
+        anonymizedId: true,
+        practiceArea: true,
+        testScore: true,
+        testMaxScore: true,
+        normalizedTest: true,
+        interviewMarks: true,
+        cvScore: true,
+        commonScore: true,
+      },
+    });
+    return { release, entries: entries.map(({ userId, ...entry }) => ({ ...entry, studentId: userId })) };
+  }
+
+  // Rank as of the newest release, or null when the student isn't in it.
+  async getReleasedRank(studentId: string) {
+    const release = await this.getLatestRelease();
+    if (!release) return null;
+    const entry = await this.prisma.rankEntry.findUnique({
+      where: { releaseId_userId: { releaseId: release.id, userId: studentId } },
+      select: { rank: true, commonScore: true },
+    });
+    return entry ? { ...entry, releaseLabel: release.label, releasedAt: release.releasedAt } : null;
+  }
+
+  async getMyStanding(studentId: string): Promise<RankStanding> {
+    const released = await this.getReleasedRank(studentId);
+    if (released) return { status: 'RELEASED', ...released };
+
+    const live = await this.getLiveEntry(studentId);
+    const latest = await this.getLatestRelease();
+    if (!live) return { status: 'PENDING', provisionalRank: null, basedOnReleaseLabel: latest?.label ?? null, commonScore: null };
+    if (!latest) return { status: 'PENDING', provisionalRank: null, basedOnReleaseLabel: null, commonScore: live.commonScore };
+
+    const ahead = await this.prisma.rankEntry.count({
+      where: { releaseId: latest.id, commonScore: { gt: live.commonScore } },
+    });
+    return { status: 'PENDING', provisionalRank: ahead + 1, basedOnReleaseLabel: latest.label, commonScore: live.commonScore };
   }
 }

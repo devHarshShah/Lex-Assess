@@ -2,6 +2,8 @@ import React from 'react'
 import { useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import { TERMS_VERSION } from '@/lib/legal'
 import { getActiveRole, hasRole, type AuthUser } from '@/lib/auth'
 import { fetchStudentPapers, type QuestionPaper } from '@/lib/question-papers'
 import {
@@ -17,6 +19,7 @@ import {
   ArrowRight,
   PlayCircle,
   RotateCcw,
+  Briefcase,
 } from 'lucide-react'
 import { useRazorpay } from 'react-razorpay'
 import { createSubscription, verifyPayment } from '@/lib/payments'
@@ -49,6 +52,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [papers, setPapers] = React.useState<QuestionPaper[]>([])
   const [loading, setLoading] = React.useState(false)
   const [subscribing, setSubscribing] = React.useState(false)
+  const [acceptedTerms, setAcceptedTerms] = React.useState(false)
   const { Razorpay } = useRazorpay()
 
   const role = getActiveRole(user)
@@ -66,7 +70,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const handleSubscribe = async () => {
     try {
       setSubscribing(true)
-      const res = await createSubscription()
+      const res = await createSubscription(TERMS_VERSION)
 
       const options = {
         key: res.keyId,
@@ -171,15 +175,15 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
       color: 'text-amber-600 bg-amber-50',
     },
     {
-      title: 'Dynamic Rank Generation',
-      desc: 'Get your real-time percentile and rank among thousands.',
+      title: 'Monthly Rank Release',
+      desc: 'Get your official rank among thousands, released periodically so it stays fair and stable.',
       icon: <Trophy className="h-4 w-4" />,
       color: 'text-blue-600 bg-blue-50',
     },
     {
-      title: 'Professional Resume Boost',
-      desc: 'Certified results to show to top law firms and companies.',
-      icon: <CheckCircle2 className="h-4 w-4" />,
+      title: 'Internship & Career Opportunities',
+      desc: 'Get merit-based profile matches with top law firms based on your rank, and we\'ll try to help you land internships.',
+      icon: <Briefcase className="h-4 w-4" />,
       color: 'text-emerald-600 bg-emerald-50',
     },
   ]
@@ -312,6 +316,25 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
 
                 {/* CTA */}
                 <div className="px-8 pb-7 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <Checkbox
+                      id="accept-terms"
+                      className="mt-0.5"
+                      checked={acceptedTerms}
+                      onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                    />
+                    <label htmlFor="accept-terms" className="text-xs leading-relaxed text-muted-foreground">
+                      I have read and agree to the{' '}
+                      <a href="/terms" target="_blank" rel="noreferrer" className="font-medium text-primary underline underline-offset-2">
+                        Terms of Use
+                      </a>
+                      ,{' '}
+                      <a href="/privacy-policy" target="_blank" rel="noreferrer" className="font-medium text-primary underline underline-offset-2">
+                        Privacy Policy
+                      </a>{' '}
+                      and disclaimer, and I understand that scores, ranks and placements are not guaranteed.
+                    </label>
+                  </div>
                   <Button
                     className="w-full h-12 text-base font-bold rounded-xl transition-all hover:scale-[1.02] active:scale-100"
                     style={{
@@ -321,7 +344,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                       border: 'none',
                     }}
                     onClick={handleSubscribe}
-                    disabled={subscribing}
+                    disabled={subscribing || !acceptedTerms}
                   >
                     {subscribing ? (
                       <span className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Outlet, HeadContent, useNavigate, useLocation } from '@tanstack/react-router'
+import { DisclaimerGate } from '@/components/DisclaimerGate'
 import { clearAuth, UNAUTHORIZED_EVENT } from '@/lib/auth-storage'
 
 export function RootLayout() {
@@ -24,6 +25,7 @@ export function RootLayout() {
     <>
       <HeadContent />
       <Outlet />
+      <DisclaimerGate />
     </>
   )
 }

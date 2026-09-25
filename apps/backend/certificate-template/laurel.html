@@ -1,0 +1,73 @@
+<!doctype html>
+<!--
+  Laurel branch drawn either side of the practice area. Renders the LEFT branch by default;
+  add #right to the URL to mirror it. Viewbox is 641 x 289 (design box 160 x 72 px).
+-->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="s" xmlns="http://www.w3.org/2000/svg" width="641" height="289" viewBox="0 0 641 289"></svg>
+<script>
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('s');
+  const mirror = location.hash === '#right';
+  const root = document.createElementNS(NS, 'g');
+  if (mirror) root.setAttribute('transform', 'translate(641 0) scale(-1 1)');
+  svg.appendChild(root);
+
+  // Stem: outer tip (top-left) to inner end (right), cubic bezier.
+  const P = [[85, 72], [250, 140], [420, 178], [607, 175]];
+  const bez = (t) => {
+    const u = 1 - t;
+    return [0, 1].map((k) => u * u * u * P[0][k] + 3 * u * u * t * P[1][k] + 3 * u * t * t * P[2][k] + t * t * t * P[3][k]);
+  };
+  const tan = (t) => {
+    const u = 1 - t;
+    return [0, 1].map((k) => 3 * u * u * (P[1][k] - P[0][k]) + 6 * u * t * (P[2][k] - P[1][k]) + 3 * t * t * (P[3][k] - P[2][k]));
+  };
+
+  const stem = document.createElementNS(NS, 'path');
+  stem.setAttribute('d', `M${P[0]} C${P[1]} ${P[2]} ${P[3]}`);
+  stem.setAttribute('fill', 'none');
+  stem.setAttribute('stroke', '#8b5e1a');
+  stem.setAttribute('stroke-width', '5');
+  stem.setAttribute('stroke-linecap', 'round');
+  root.appendChild(stem);
+
+  const leaf = (x, y, angleDeg, len, wid, fill) => {
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', `M0 0 Q${len / 2} ${-wid} ${len} 0 Q${len / 2} ${wid} 0 0 Z`);
+    p.setAttribute('fill', fill);
+    p.setAttribute('transform', `translate(${x} ${y}) rotate(${angleDeg})`);
+    root.appendChild(p);
+  };
+
+  const DARK = '#8b5e1a';
+  const LIGHT = '#c29a4a';
+
+  // Tip leaf continues the stem towards the outer end.
+  {
+    const [tx, ty] = tan(0);
+    leaf(P[0][0] + 6, P[0][1] + 2, (Math.atan2(-ty, -tx) * 180) / Math.PI, 62, 19, DARK);
+  }
+
+  const pairs = 7;
+  for (let i = 0; i < pairs; i++) {
+    const t = 0.16 + (0.84 * i) / (pairs - 0.4);
+    const size = 1 - (pairs - 1 - i) * 0.0; // uniform, matches the reference
+    const [tx, ty] = tan(t);
+    const base = (Math.atan2(-ty, -tx) * 180) / Math.PI; // heading towards the outer tip
+    const [ux, uy] = bez(t);
+    const [lx, ly] = bez(Math.min(1, t + 0.035));
+    leaf(ux, uy, base + 35, 72 * size, 34, DARK);
+    leaf(lx, ly, base - 35, 72 * size, 32, LIGHT);
+  }
+</script>
+</body>
+</html>
