@@ -1,4 +1,4 @@
-import { ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react'
 
 import {
   DropdownMenu,
@@ -74,6 +74,7 @@ export function TeamSwitcher({
               {roles.map((role) => (
                 <DropdownMenuItem key={role} onClick={() => onRoleChange(role)} className="gap-2 p-2">
                   {formatRole(role)}
+                  {role === activeRole && <Check className="ml-auto size-4" />}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
