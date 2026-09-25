@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useAntiCheat } from '@/hooks/use-anti-cheat'
 import { AntiCheatMonitor } from '@/components/anti-cheat-monitor'
+import { ViolationWarning } from '@/components/violation-warning'
 import { Loader2 } from 'lucide-react'
 
 // ─── Markdown renderer (minimal, no extra deps) ────────────────────────────
@@ -631,6 +632,11 @@ export function TestAttemptPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Violation Warning (tab switch / focus lost) */}
+      {phase === 'test' && !currentRules?.allowTabSwitching && (
+        <ViolationWarning violation={antiCheat.lastViolation} onDismiss={antiCheat.dismissViolation} />
       )}
 
       {/* Sidebar */}

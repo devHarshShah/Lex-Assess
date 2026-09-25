@@ -14,7 +14,11 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173',
+    // FRONTEND_ORIGIN may be a comma-separated list (e.g. prod + localhost).
+    origin: (configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173')
+      .split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     credentials: true,
   });
 

@@ -199,3 +199,43 @@ jobs:
             SMTP_USER=${{ vars.SMTP_USER }}
             SMTP_SECURE=${{ vars.SMTP_SECURE }}
             SMTP_FROM=${{ vars.SMTP_FROM }}
+
+  # Seeds the Media & Entertainment paper. Runs after `deploy` because the
+  # 'Media and Entertainment' category is created by PrismaService at app boot
+  # and the seed script looks it up rather than creating it. The script is
+  # idempotent (skips when the paper already exists and never rebuilds one that
+  # has attempts), so running it on every deploy is safe. Deliberately not
+  # seed-all: that rebuilds every paper's questions and is unsafe once real
+  # attempts exist (see DEPLOYMENT.md, section 7).
+  seed:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Seed Media & Entertainment paper
+        run: |
+          gcloud run jobs deploy lex-assess-seed-media \
+            --image "${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPOSITORY }}/${{ env.SERVICE }}:${{ github.sha }}" \
+            --region "${{ env.REGION }}" \
+            --command="node" \
+            --args="dist/src/scripts/seed-media-entertainment.js" \
+            --memory=512Mi \
+            --task-timeout=300s \
+            --service-account "${{ secrets.GCP_RUN_SERVICE_ACCOUNT }}" \
+            --set-cloudsql-instances="" \
+            --network=default \
+            --subnet=default \
+            --vpc-egress=private-ranges-only \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest" \
+            --execute-now \
+            --wait

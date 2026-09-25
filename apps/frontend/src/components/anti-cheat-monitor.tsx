@@ -33,9 +33,9 @@ export function AntiCheatMonitor({ userStream, micLevel, isScreenShared, violati
     <div className="fixed bottom-6 right-6 z-[50] flex flex-col gap-4 pointer-events-none">
       {/* Violations Counter */}
       {violations > 0 && (
-        <div className="bg-red-600 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce self-end">
-          <AlertCircle size={18} />
-          <span className="font-bold text-sm">Violations: {violations}</span>
+        <div className="bg-red-600 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-3 animate-bounce self-end">
+          <AlertCircle size={28} />
+          <span className="font-extrabold text-xl">Violations: {violations}</span>
         </div>
       )}
 

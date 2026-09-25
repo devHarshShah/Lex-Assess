@@ -610,7 +610,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                         <SelectTrigger>
                           <SelectValue placeholder="Select college" />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent side="bottom" avoidCollisions={false}>
                           {options.colleges.map((item) => (
                             <SelectItem key={item} value={item}>
                               {item}

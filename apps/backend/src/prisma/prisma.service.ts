@@ -80,6 +80,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       'Data Protection',
       'Technology',
       'Energy and Infrastructure',
+      'Media and Entertainment',
     ];
 
     for (let index = 0; index < specializationDefaults.length; index += 1) {

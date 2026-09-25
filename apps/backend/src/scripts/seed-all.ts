@@ -31,6 +31,7 @@ const SEED_SCRIPTS = [
   'seed-data-protection',
   'seed-energy-infrastructure',
   'seed-general-corporate-law',
+  'seed-media-entertainment',
   'seed-legal-research-skills',
 ];
 

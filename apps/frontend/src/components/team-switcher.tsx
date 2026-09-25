@@ -1,4 +1,4 @@
-import { ChevronsUpDown, ShieldCheck } from 'lucide-react'
+import { ChevronsUpDown } from 'lucide-react'
 
 import {
   DropdownMenu,
@@ -9,6 +9,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar'
 import type { Role } from '@/lib/auth'
+
+const ROLE_LABELS: Record<Role, string> = {
+  SUPERADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  COMPANY: 'Company',
+  USER: 'User',
+  INTERVIEWER: 'Interviewer',
+}
+
+function formatRole(role: Role) {
+  return ROLE_LABELS[role] ?? role
+}
 
 export function TeamSwitcher({
   appName,
@@ -29,12 +41,11 @@ export function TeamSwitcher({
       <SidebarMenuItem>
         {isSingleRole ? (
           <SidebarMenuButton size="lg" className="cursor-default">
-            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-              <ShieldCheck className="size-4" />
+            <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white">
+              <img src="/logo.png" alt="" className="size-6 object-contain" />
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">{appName}</span>
-              <span className="truncate text-xs">{activeRole}</span>
             </div>
           </SidebarMenuButton>
         ) : (
@@ -44,12 +55,11 @@ export function TeamSwitcher({
                 size="lg"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               >
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <ShieldCheck className="size-4" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-white">
+                  <img src="/logo.png" alt="" className="size-6 object-contain" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-semibold">{appName}</span>
-                  <span className="truncate text-xs">{activeRole}</span>
                 </div>
                 <ChevronsUpDown className="ml-auto" />
               </SidebarMenuButton>
@@ -63,7 +73,7 @@ export function TeamSwitcher({
               <DropdownMenuLabel className="text-xs text-muted-foreground">Switch Role</DropdownMenuLabel>
               {roles.map((role) => (
                 <DropdownMenuItem key={role} onClick={() => onRoleChange(role)} className="gap-2 p-2">
-                  {role}
+                  {formatRole(role)}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>

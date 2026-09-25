@@ -8,6 +8,14 @@ export interface ProctoringEvent {
   durationSeconds?: number
 }
 
+export interface ViolationNotice {
+  id: number
+  kind: 'tab-switch' | 'focus-lost'
+  count: number
+  max: number
+  cancelled: boolean
+}
+
 export interface AntiCheatState {
   isSecureWindow: boolean
   isScreenShared: boolean
@@ -17,6 +25,7 @@ export interface AntiCheatState {
   screenStream: MediaStream | null
   userStream: MediaStream | null
   events: ProctoringEvent[]
+  lastViolation: ViolationNotice | null
 }
 
 export function useAntiCheat(sectionRules?: SectionRules | null) {
@@ -29,6 +38,7 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
     screenStream: null,
     userStream: null,
     events: [],
+    lastViolation: null,
   })
 
   const awayStartTimeRef = React.useRef<number | null>(null)
@@ -123,6 +133,10 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
     setState(prev => ({ ...prev, violations: 0 }))
   }, [])
 
+  const dismissViolation = React.useCallback(() => {
+    setState(prev => ({ ...prev, lastViolation: null }))
+  }, [])
+
   // Monitor violations — respects section rules
   React.useEffect(() => {
     if (!state.isScreenShared || !state.isCamMicAllowed) return
@@ -134,8 +148,12 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
       if (!allowTabSwitching) {
         if (document.visibilityState === 'visible') {
           violationsRef.current += 1
-          setState(prev => ({ ...prev, violations: violationsRef.current }))
-          toast.warning(`Warning: Window focus lost. (${violationsRef.current}/${maxViolations})`)
+          const count = violationsRef.current
+          setState(prev => ({
+            ...prev,
+            violations: count,
+            lastViolation: { id: Date.now(), kind: 'focus-lost', count, max: maxViolations, cancelled: count >= maxViolations },
+          }))
         }
       }
       
@@ -185,13 +203,12 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
 
         if (!allowTabSwitching) {
           violationsRef.current += 1
-          setState(prev => ({ ...prev, violations: violationsRef.current }))
-          const remaining = maxViolations - violationsRef.current
-          if (remaining <= 0) {
-            toast.error('Maximum violations reached! This section has been cancelled.')
-          } else {
-            toast.error(`Violation: Tab switched! ${remaining} violation(s) remaining before cancellation.`)
-          }
+          const count = violationsRef.current
+          setState(prev => ({
+            ...prev,
+            violations: count,
+            lastViolation: { id: Date.now(), kind: 'tab-switch', count, max: maxViolations, cancelled: count >= maxViolations },
+          }))
         }
       }
     }
@@ -245,5 +262,6 @@ export function useAntiCheat(sectionRules?: SectionRules | null) {
     requestScreenShare,
     requestCamMic,
     resetViolations,
+    dismissViolation,
   }
 }
