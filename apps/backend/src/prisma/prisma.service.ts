@@ -175,6 +175,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         title: 'New seats opened for Banking & Finance internship applicants.',
         description: null,
         sortOrder: 1,
+        isActive: false,
       },
       {
         placement: 'BANNER' as const,
@@ -182,6 +183,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         title: 'Disputes assessment window extended for the current cycle.',
         description: null,
         sortOrder: 2,
+        isActive: false,
       },
       {
         placement: 'BANNER' as const,
@@ -189,6 +191,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         title: 'Capital Markets review panel is now accepting fresh student submissions.',
         description: null,
         sortOrder: 3,
+        isActive: false,
       },
       {
         placement: 'CARD' as const,
@@ -197,6 +200,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         description:
           'Fresh internship seats are now open for General Corporate applicants in the current cycle.',
         sortOrder: 1,
+        isActive: false,
       },
       {
         placement: 'CARD' as const,
@@ -205,6 +209,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         description:
           'Students targeting disputes can continue submitting assessment-backed applications for the active intake.',
         sortOrder: 2,
+        isActive: false,
       },
       {
         placement: 'CARD' as const,
@@ -213,6 +218,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
         description:
           'Multiple legal teams are actively scouting ranked students with Banking & Finance assessment performance.',
         sortOrder: 3,
+        isActive: false,
       },
     ];
 
@@ -224,11 +230,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
             title: item.title,
           },
         },
+        // `isActive` is intentionally left out of `update`: it's admin-controlled
+        // (see UsersService.updateNotification) once seeded. Forcing it on every
+        // boot used to silently undo an admin's deactivation on the next deploy.
         update: {
           label: item.label,
           description: item.description,
           sortOrder: item.sortOrder,
-          isActive: true,
         },
         create: item,
       });
