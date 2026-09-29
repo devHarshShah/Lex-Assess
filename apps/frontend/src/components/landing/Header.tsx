@@ -64,13 +64,14 @@ export function Header() {
                   {item.label}
                 </Link>
               ) : (
-                <a
+                <Link
                   key={item.label}
-                  href={item.href}
+                  to="/"
+                  hash={item.href.slice(1)}
                   className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground transition-colors hover:text-foreground"
                 >
                   {item.label}
-                </a>
+                </Link>
               )
             ))}
           </nav>

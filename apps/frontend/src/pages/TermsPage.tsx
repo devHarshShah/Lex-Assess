@@ -115,8 +115,8 @@ export function TermsPage() {
               LexAssess
               <br />
               Email:{' '}
-              <a href="mailto:lexassessofficial@gmail.com" className="text-primary hover:underline">
-                lexassessofficial@gmail.com
+              <a href="mailto:contact@lexassess.in" className="text-primary hover:underline">
+                contact@lexassess.in
               </a>
               <br />
               Address: New Delhi

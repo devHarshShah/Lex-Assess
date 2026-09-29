@@ -37,26 +37,26 @@ export function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-widest text-foreground">
               Links
             </h4>
-            <a
-              href="#"
+            <Link
+              to="/" hash="process"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               About
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/directory"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               For Firms
-            </a>
-            <a
-              href="#"
+            </Link>
+            <Link
+              to="/" hash="assessment"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Sample Papers
-            </a>
+            </Link>
             <a
-              href="#"
+              href="mailto:contact@lexassess.in"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Contact
@@ -69,10 +69,10 @@ export function Footer() {
               Contact
             </h4>
             <a
-              href="mailto:support@lexassess.in"
+              href="mailto:contact@lexassess.in"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
-              support@lexassess.in
+              contact@lexassess.in
             </a>
             <span className="text-sm text-muted-foreground">
               New Delhi, India

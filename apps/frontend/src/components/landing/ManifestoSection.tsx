@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 
 export function ManifestoSection() {
@@ -24,17 +25,19 @@ export function ManifestoSection() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button
+              asChild
               size="lg"
               className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm"
             >
-              Register & Apply
+              <Link to="/signup">Register & Apply</Link>
             </Button>
             <Button
+              asChild
               size="lg"
               variant="outline"
               className="h-14 px-8 text-sm font-bold uppercase tracking-widest rounded-sm border-2 border-border text-foreground hover:bg-muted"
             >
-              Browse Practice Areas
+              <Link to="/" hash="practice-areas">Browse Practice Areas</Link>
             </Button>
           </div>
         </div>

@@ -190,8 +190,8 @@ export function PrivacyPolicyPage() {
               Grievance Officer: Hemant
               <br />
               Email:{' '}
-              <a href="mailto:lexassessofficial@gmail.com" className="text-primary hover:underline">
-                lexassessofficial@gmail.com
+              <a href="mailto:contact@lexassess.in" className="text-primary hover:underline">
+                contact@lexassess.in
               </a>
               <br />
               Response timeline: We aim to acknowledge and resolve grievances within the period prescribed
@@ -238,8 +238,8 @@ export function PrivacyPolicyPage() {
               LexAssess
               <br />
               Email:{' '}
-              <a href="mailto:lexassessofficial@gmail.com" className="text-primary hover:underline">
-                lexassessofficial@gmail.com
+              <a href="mailto:contact@lexassess.in" className="text-primary hover:underline">
+                contact@lexassess.in
               </a>
               <br />
               Address: New Delhi

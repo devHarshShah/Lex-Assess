@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
@@ -14,7 +15,7 @@ function Column({
   title: string;
   description: string;
   steps: string[];
-  buttonLabel: string;
+  buttonLabel?: string;
   filled?: boolean;
 }) {
   return (
@@ -39,13 +40,16 @@ function Column({
           </div>
         ))}
       </div>
-      <Button
-        size="lg"
-        variant={filled ? 'default' : 'outline'}
-        className="w-full h-14 text-xs font-bold uppercase tracking-widest rounded-sm"
-      >
-        {buttonLabel}
-      </Button>
+      {buttonLabel && (
+        <Button
+          asChild
+          size="lg"
+          variant={filled ? 'default' : 'outline'}
+          className="w-full h-14 text-xs font-bold uppercase tracking-widest rounded-sm"
+        >
+          <Link to="/signup">{buttonLabel}</Link>
+        </Button>
+      )}
     </Card>
   );
 }
@@ -87,7 +91,6 @@ export function TwoColSection() {
           title="In-Chamber / In-Office"
           description="Work directly with practitioners in their chambers or firm offices. Experience the reality of legal practice on the ground."
           steps={[]}
-          buttonLabel="Apply for Physical"
         />
       </div>
     </section>
