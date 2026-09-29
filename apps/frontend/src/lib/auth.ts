@@ -157,11 +157,11 @@ export function storeUser(user: AuthUser) {
 }
 
 export async function exchangeGoogleCode(code: string, state?: string | null): Promise<AuthResponse> {
-  return api.post<AuthResponse>('/auth/google/exchange', { code, state })
+  return api.post<AuthResponse>('/auth/google/exchange', { code, state }, { skipToast: true })
 }
 
 export async function fetchCurrentUser(): Promise<AuthUser> {
-  return api.get<AuthUser>('/auth/me')
+  return api.get<AuthUser>('/auth/me', { skipToast: true })
 }
 
 export async function registerWithPassword(input: {
@@ -173,15 +173,15 @@ export async function registerWithPassword(input: {
   if (input.role === 'COMPANY' && isPublicEmailProvider(input.email)) {
     throw new Error('Please use a company email address to register as a company.')
   }
-  return api.post<AuthResponse>('/auth/register', input)
+  return api.post<AuthResponse>('/auth/register', input, { skipToast: true })
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<AuthResponse> {
-  return api.post<AuthResponse>('/auth/login', { email, password })
+  return api.post<AuthResponse>('/auth/login', { email, password }, { skipToast: true })
 }
 
 export async function setPasswordWithToken(token: string, password: string): Promise<void> {
-  return api.post('/auth/set-password', { token, password })
+  return api.post('/auth/set-password', { token, password }, { skipToast: true })
 }
 
 export async function fetchAllUsersForSuperadmin(): Promise<ManagedUser[]> {

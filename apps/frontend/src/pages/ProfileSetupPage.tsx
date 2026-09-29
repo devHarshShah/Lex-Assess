@@ -220,7 +220,6 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
       }
     } catch {
       setOptions(FALLBACK_PROFILE_OPTIONS)
-      toast.error('Using fallback profile options for now.')
     } finally {
       setLoading(false)
     }

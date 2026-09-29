@@ -28,14 +28,16 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
     const data = isNoContent ? ({} as T) : await response.json().catch(() => ({} as T))
 
     if (!response.ok) {
-      if (response.status === 401) {
+      const isUnauthorized = response.status === 401
+      if (isUnauthorized) {
         window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT))
       }
 
       const errorData = data as any
       const message = errorData.message || response.statusText || 'An unexpected error occurred'
       
-      if (!skipToast) {
+      // 401s are handled by the redirect to /login; a toast is just noise.
+      if (!skipToast && !isUnauthorized) {
         toast.error(message)
       }
       
