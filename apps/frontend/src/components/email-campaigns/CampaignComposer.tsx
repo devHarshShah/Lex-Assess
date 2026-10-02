@@ -135,6 +135,7 @@ export function CampaignComposer({ onSent }: { onSent: () => void }) {
     if (stages.length) patchAudience({ stages });
   }
 
+  const isSuggested = (t: { suggestedStages: string[] }) => t.suggestedStages.some((s) => draft.audience.stages.includes(s));
   const stageLabel = (key: string) => meta?.stages.find((s) => s.key === key)?.label ?? key;
   const hasCoupon = !!draft.couponId;
   const coupon = coupons.find((c) => c.id === draft.couponId);
@@ -297,8 +298,10 @@ export function CampaignComposer({ onSent }: { onSent: () => void }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {meta.templates.map((t) => {
-                    const suggested = t.suggestedStages.some((s) => draft.audience.stages.includes(s));
+                  {[...meta.templates]
+                    .sort((a, b) => Number(isSuggested(b)) - Number(isSuggested(a)))
+                    .map((t) => {
+                    const suggested = isSuggested(t);
                     return (
                       <button
                         key={t.key}

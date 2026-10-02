@@ -1,3 +1,4 @@
+import { FUNNEL_STAGES } from '../analytics/analytics.types';
 import { renderCampaignEmail } from './render';
 import { sanitizeBody } from './sanitize';
 import { BUILT_IN_TEMPLATES } from './templates';
@@ -70,6 +71,16 @@ describe('renderCampaignEmail', () => {
       expect(out.html).not.toMatch(/\{\{/);
       expect(out.subject).not.toMatch(/\{\{/);
     }
+  });
+
+  it('every funnel stage has a dedicated template, and a coupon one for the conversion stages', () => {
+    for (const stage of FUNNEL_STAGES) {
+      expect(BUILT_IN_TEMPLATES.some((t) => t.suggestedStages.includes(stage))).toBe(true);
+    }
+    for (const stage of ['REGISTERED', 'PROFILE_COMPLETE', 'PAYMENT_INITIATED', 'LAPSED'] as const) {
+      expect(BUILT_IN_TEMPLATES.some((t) => t.usesCoupon && t.suggestedStages.includes(stage))).toBe(true);
+    }
+    expect(new Set(BUILT_IN_TEMPLATES.map((t) => t.key)).size).toBe(BUILT_IN_TEMPLATES.length);
   });
 
   it('sample values cover every variable', () => {

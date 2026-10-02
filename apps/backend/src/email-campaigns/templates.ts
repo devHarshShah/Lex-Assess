@@ -89,10 +89,10 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
   {
     key: 'win-back',
     name: 'Win-back: we miss you',
-    description: 'For students who cancelled or whose access ended.',
+    description: 'For students whose paid access has ended.',
     subject: 'We\'d love to have you back, {{firstName}}',
     preheader: 'Your LexAssess progress is still here.',
-    suggestedStages: ['CANCELLED_ACTIVE', 'LAPSED'],
+    suggestedStages: ['LAPSED'],
     usesCoupon: false,
     bodyHtml: `<h2>Come back to LexAssess</h2>
 <p>Hi {{firstName}}, we noticed your subscription is no longer active. Your profile and past work are still saved, and your place can be restored the moment you resubscribe.</p>
@@ -110,6 +110,93 @@ export const BUILT_IN_TEMPLATES: BuiltInTemplate[] = [
     bodyHtml: `<h2>Your free trial ends on {{trialEndsAt}}</h2>
 <p>Hi {{firstName}}, your free period is coming to an end. There's still time to take your assessment and get on the rank list.</p>
 <p class="btn-row"><a class="btn" href="{{dashboardUrl}}">Go to my dashboard</a></p>`,
+  },
+  {
+    key: 'registered-coupon',
+    name: 'Registered: free days to get started',
+    description: 'Welcome plus a coupon, for students who signed up but have not started a profile. Choose a coupon.',
+    subject: '{{firstName}}, {{couponFreeDays}} free days to start with LexAssess',
+    preheader: 'Set up your profile and use code {{couponCode}}.',
+    suggestedStages: ['REGISTERED'],
+    usesCoupon: true,
+    bodyHtml: `<h2>Welcome, {{firstName}} — here's a head start</h2>
+<p>You joined LexAssess but haven't set up your profile yet. To help you get going, here are <strong>{{couponFreeDays}} free days</strong> on us.</p>
+<div class="coupon">{{couponCode}}</div>
+<p>Set up your profile first (about 5 minutes), then enter the code when you subscribe. It is valid until {{couponExpiry}}.</p>
+<p class="btn-row"><a class="btn" href="{{profileUrl}}">Set up my profile</a></p>`,
+  },
+  {
+    key: 'profile-complete-coupon',
+    name: 'Profile complete: free days to subscribe',
+    description: 'Coupon nudge for students with a complete profile and no subscription. Choose a coupon.',
+    subject: '{{firstName}}, your profile is ready — {{couponFreeDays}} free days inside',
+    preheader: 'Use code {{couponCode}} when you subscribe.',
+    suggestedStages: ['PROFILE_COMPLETE'],
+    usesCoupon: true,
+    bodyHtml: `<h2>You've done the hard part</h2>
+<p>Hi {{firstName}}, your profile is complete. Subscribe now and your first <strong>{{couponFreeDays}} days are free</strong> with this code:</p>
+<div class="coupon">{{couponCode}}</div>
+<p>Valid until {{couponExpiry}}. You can cancel any time before your free period ends.</p>
+<p class="btn-row"><a class="btn" href="{{subscribeUrl}}">Start my free days</a></p>`,
+  },
+  {
+    key: 'complete-payment-coupon',
+    name: 'Payment not finished: free days to come back',
+    description: 'For students who abandoned checkout, with a coupon to bring them back. Choose a coupon.',
+    subject: '{{firstName}}, finish subscribing and get {{couponFreeDays}} days free',
+    preheader: 'Your checkout is waiting. Use code {{couponCode}}.',
+    suggestedStages: ['PAYMENT_INITIATED'],
+    usesCoupon: true,
+    bodyHtml: `<h2>Come back and finish — it's on us</h2>
+<p>Hi {{firstName}}, you started subscribing to LexAssess but didn't finish. To make it easier, use this code for <strong>{{couponFreeDays}} days free</strong>:</p>
+<div class="coupon">{{couponCode}}</div>
+<p>Enter it at checkout. It is valid until {{couponExpiry}}.</p>
+<p class="btn-row"><a class="btn" href="{{subscribeUrl}}">Complete my subscription</a></p>
+<p>Ran into a payment problem? Let us know and we'll sort it out.</p>`,
+  },
+  {
+    key: 'access-ending',
+    name: 'Access ending: autopay cancelled',
+    description: 'For students who cancelled autopay but still have access until the paid period ends.',
+    subject: '{{firstName}}, your LexAssess access ends on {{accessEndsAt}}',
+    preheader: 'You still have access until then — make the most of it.',
+    suggestedStages: ['CANCELLED_ACTIVE'],
+    usesCoupon: false,
+    bodyHtml: `<h2>Your access ends on {{accessEndsAt}}</h2>
+<p>Hi {{firstName}}, you cancelled autopay, so your LexAssess access will end on <strong>{{accessEndsAt}}</strong>. Until then everything still works — including your assessment and your place on the rank list.</p>
+<p>If you cancelled by mistake, or want to keep your access, you can subscribe again before it ends.</p>
+<p class="btn-row"><a class="btn" href="{{dashboardUrl}}">Go to my dashboard</a></p>`,
+  },
+  {
+    key: 'win-back-coupon',
+    name: 'Win-back with free days',
+    description: 'Offers a coupon to students whose paid access has ended. Choose a coupon.',
+    subject: '{{firstName}}, come back to LexAssess — {{couponFreeDays}} days free',
+    preheader: 'Your place can be restored. Use code {{couponCode}}.',
+    suggestedStages: ['LAPSED'],
+    usesCoupon: true,
+    bodyHtml: `<h2>We'd love to have you back</h2>
+<p>Hi {{firstName}}, your LexAssess subscription is no longer active, but your profile and past work are still saved. Resubscribe and your first <strong>{{couponFreeDays}} days are free</strong>:</p>
+<div class="coupon">{{couponCode}}</div>
+<p>Valid until {{couponExpiry}}.</p>
+<p class="btn-row"><a class="btn" href="{{subscribeUrl}}">Resubscribe</a></p>`,
+  },
+  {
+    key: 'paid-thank-you',
+    name: 'Thank you & get the most out of it',
+    description: 'For active, paying students: a thank-you and a nudge to use the platform.',
+    subject: 'Thanks for being part of LexAssess, {{firstName}}',
+    preheader: 'A few ways to get the most from your subscription.',
+    suggestedStages: ['PAID'],
+    usesCoupon: false,
+    bodyHtml: `<h2>Thank you, {{firstName}}</h2>
+<p>We're glad to have you on LexAssess. A quick reminder of how to get the most from your subscription:</p>
+<ul>
+<li>Take your practice-area assessment if you haven't yet</li>
+<li>Complete your interview with a legal professional</li>
+<li>Keep your profile up to date — it's what companies see</li>
+</ul>
+<p class="btn-row"><a class="btn" href="{{dashboardUrl}}">Open my dashboard</a></p>`,
   },
   {
     key: 'announcement',
