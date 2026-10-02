@@ -16,6 +16,26 @@ export function addMonths(date: Date, months: number): Date {
   return d;
 }
 
+// A cancel event is ignored only for an attempt that never went through (e.g. an
+// unpaid checkout we replaced): no payment, no confirmed trial and no access.
+export function shouldIgnoreCancel(input: {
+  hasCapturedPayment: boolean;
+  hasConfirmedTrial: boolean;
+  hasActiveSubscription: boolean;
+}): boolean {
+  return !input.hasCapturedPayment && !input.hasConfirmedTrial && !input.hasActiveSubscription;
+}
+
+// Prisma `where` fragment for users who currently have access (same rule as
+// hasAccess). Used to hide students who stopped paying from the rank list and
+// from companies; it's evaluated on read, so resubscribing brings them back.
+export function activeAccessWhere(now: Date = new Date()) {
+  return {
+    hasActiveSubscription: true,
+    OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: now } }],
+  };
+}
+
 export interface CancelAccessInput {
   // Razorpay subscription.current_end (epoch seconds), end of the paid cycle
   currentEndEpoch?: number | null;

@@ -107,8 +107,16 @@ export function AdminRankingPage() {
             </TableHeader>
             <TableBody>
               {rows.map((row) => (
-                <TableRow key={row.studentId}>
-                  <TableCell className="font-semibold">#{row.rank}</TableCell>
+                <TableRow key={row.studentId} className={row.softDeleted ? 'opacity-60' : undefined}>
+                  <TableCell className="font-semibold">
+                    {row.softDeleted ? (
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Soft deleted (was #{row.releasedRank}) · access ended
+                      </span>
+                    ) : (
+                      <>#{row.rank}</>
+                    )}
+                  </TableCell>
                   <TableCell>{row.anonymizedId}</TableCell>
                   <TableCell>{row.practiceArea}</TableCell>
                   <TableCell>

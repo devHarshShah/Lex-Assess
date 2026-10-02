@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { AttemptStatus, Prisma, CandidateWorkflowStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { activeAccessWhere } from '../payments/access';
 import { MailService } from '../mail/mail.service';
 import { CompanyCandidateFilterStatus, UpdateCompanyCandidateDto } from './dto/update-company-candidate.dto';
 
@@ -82,6 +83,8 @@ export class CompanyCandidatesService {
     const attempts = await this.prisma.testAttempt.findMany({
       where: {
         status: AttemptStatus.SUBMITTED,
+        // Students who stopped paying are no longer shown to companies.
+        user: activeAccessWhere(),
       },
       include: {
         user: {
@@ -198,6 +201,7 @@ export class CompanyCandidatesService {
       where: {
         id: attemptId,
         status: AttemptStatus.SUBMITTED,
+        user: activeAccessWhere(),
       },
       include: {
         user: {

@@ -60,7 +60,7 @@ export class AnalyticsService {
       include: {
         profile: true,
         transactions: { select: { amount: true, status: true, createdAt: true } },
-        couponRedemptions: { include: { coupon: { select: { code: true } } } },
+        couponRedemptions: { where: { confirmedAt: { not: null } }, include: { coupon: { select: { code: true } } } },
       },
     });
 

@@ -112,16 +112,14 @@ export function SuperadminCouponsPage() {
                 >
                   {c.isActive ? 'Deactivate' : 'Activate'}
                 </Button>
-                {c.redemptionCount === 0 && (
-                  <Button
+                <Button
                     size="sm"
                     variant="destructive"
                     disabled={busyId === c.id}
                     onClick={() => run(c.id, () => deleteCoupon(c.id), 'Deleted')}
                   >
-                    Delete
+                    Delete (kept in records)
                   </Button>
-                )}
               </div>
             </div>
           ))}

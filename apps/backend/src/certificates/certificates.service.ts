@@ -9,6 +9,7 @@ import * as QRCode from 'qrcode';
 import { READ_URL_EXPIRY_SECONDS, StorageService } from '../common/storage.service';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasAccess } from '../payments/access';
 import { RankingService } from '../ranking/ranking.service';
 
 const ASSETS_DIR = join(__dirname, 'assets');
@@ -73,6 +74,17 @@ export class CertificatesService {
   async generateForUser(userId: string): Promise<CertificateDto> {
     const rankEntry = await this.rankingService.getLiveEntry(userId);
     if (!rankEntry) {
+      // Students whose access ended drop out of the ranking: they keep their old
+      // certificate but can't generate a new one until they resubscribe.
+      const account = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { hasActiveSubscription: true, accessEndsAt: true },
+      });
+      if (account && !hasAccess(account)) {
+        throw new BadRequestException(
+          'Your access has ended, so a new certificate cannot be generated. You can still download your existing certificate. Resubscribe to generate a new one.',
+        );
+      }
       throw new BadRequestException(
         'You are not yet eligible for a certificate. A submitted, scored test attempt and a completed, marked interview are required.',
       );

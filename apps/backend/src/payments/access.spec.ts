@@ -46,3 +46,26 @@ describe('computeAccessEndOnCancel', () => {
     expect(end.toISOString()).toBe('2027-06-01T00:00:00.000Z');
   });
 });
+
+import { shouldIgnoreCancel } from './access';
+
+describe('shouldIgnoreCancel', () => {
+  const none = { hasCapturedPayment: false, hasConfirmedTrial: false, hasActiveSubscription: false };
+  it('ignores an attempt that never went through', () => expect(shouldIgnoreCancel(none)).toBe(true));
+  it.each(['hasCapturedPayment', 'hasConfirmedTrial', 'hasActiveSubscription'] as const)(
+    'processes the cancel when %s',
+    (k) => expect(shouldIgnoreCancel({ ...none, [k]: true })).toBe(false),
+  );
+});
+
+import { activeAccessWhere } from './access';
+
+describe('activeAccessWhere', () => {
+  it('requires the flag and an unset or future end date', () => {
+    const now = new Date('2026-10-02T00:00:00Z');
+    expect(activeAccessWhere(now)).toEqual({
+      hasActiveSubscription: true,
+      OR: [{ accessEndsAt: null }, { accessEndsAt: { gt: now } }],
+    });
+  });
+});

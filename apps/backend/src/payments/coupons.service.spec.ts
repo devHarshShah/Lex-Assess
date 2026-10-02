@@ -5,14 +5,14 @@ const future = new Date(Date.now() + 86400000);
 const past = new Date(Date.now() - 86400000);
 
 function setup(coupon: any, alreadyRedeemed = false, claimCount = 1) {
-  const tx = {
+  const tx: any = {
     coupon: { updateMany: jest.fn().mockResolvedValue({ count: claimCount }) },
     couponRedemption: { create: jest.fn().mockResolvedValue({ id: 'r1' }) },
   };
   const prisma: any = {
     coupon: { findUnique: jest.fn().mockResolvedValue(coupon) },
     couponRedemption: {
-      findUnique: jest.fn().mockResolvedValue(alreadyRedeemed ? { id: 'x' } : null),
+      findUnique: jest.fn().mockResolvedValue(alreadyRedeemed ? { id: 'x', confirmedAt: new Date() } : null),
     },
     $transaction: jest.fn((fn: any) => fn(tx)),
   };
@@ -48,17 +48,56 @@ describe('CouponsService', () => {
     await expect(service.validate('u1', 'FREE1')).rejects.toThrow('already used');
   });
 
-  it('redeem claims atomically and returns freeDays', async () => {
-    const { service, tx } = setup({ ...base, maxRedemptions: 5 });
-    await expect(service.redeem('u1', 'FREE1')).resolves.toEqual({ redemptionId: 'r1', freeDays: 30 });
-    expect(tx.coupon.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ redemptionCount: { lt: 5 } }) }),
-    );
+  it('rejects only a confirmed prior use, not a pending claim', async () => {
+    const { service, prisma } = setup(base);
+    prisma.couponRedemption.findUnique.mockResolvedValue({ id: 'x', confirmedAt: null });
+    await expect(service.validate('u1', 'FREE1')).resolves.toMatchObject({ valid: true });
   });
 
-  it('redeem fails when a concurrent request took the last slot', async () => {
-    const { service, tx } = setup({ ...base, maxRedemptions: 1 }, false, 0);
-    await expect(service.redeem('u1', 'FREE1')).rejects.toBeInstanceOf(BadRequestException);
-    expect(tx.couponRedemption.create).not.toHaveBeenCalled();
+  it('claim creates a pending row without touching the counter', async () => {
+    const { service, prisma } = setup(base);
+    prisma.couponRedemption.upsert = jest.fn().mockResolvedValue({ id: 'r1' });
+    await expect(service.claim('u1', 'FREE1')).resolves.toEqual({ redemptionId: 'r1', freeDays: 30 });
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('confirm marks the claim used and increments once', async () => {
+    const { service, prisma, tx } = setup(base);
+    prisma.couponRedemption.findFirst = jest.fn().mockResolvedValue({ id: 'r1', couponId: 'c1' });
+    (tx.couponRedemption as any).updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    (tx.coupon as any).update = jest.fn().mockResolvedValue({});
+    await service.confirm('u1', 'sub_1');
+    expect(tx.coupon.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { redemptionCount: { increment: 1 } },
+    });
+  });
+
+  it('confirm is idempotent', async () => {
+    const { service, prisma, tx } = setup(base);
+    prisma.couponRedemption.findFirst = jest.fn().mockResolvedValue({ id: 'r1', couponId: 'c1' });
+    (tx.couponRedemption as any).updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    (tx.coupon as any).update = jest.fn();
+    await service.confirm('u1', 'sub_1');
+    expect(tx.coupon.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('CouponsService soft delete', () => {
+  it('remove marks deleted and inactive without deleting rows', async () => {
+    const { service, prisma } = setup({ ...base, deletedAt: null });
+    prisma.coupon.update = jest.fn().mockResolvedValue({});
+    prisma.coupon.delete = jest.fn();
+    await expect(service.remove('c1')).resolves.toEqual({ success: true });
+    expect(prisma.coupon.update).toHaveBeenCalledWith({
+      where: { id: 'c1' },
+      data: { deletedAt: expect.any(Date), isActive: false },
+    });
+    expect(prisma.coupon.delete).not.toHaveBeenCalled();
+  });
+
+  it('a soft-deleted coupon is invalid', async () => {
+    const { service } = setup({ ...base, deletedAt: new Date() });
+    await expect(service.validate('u1', 'FREE1')).rejects.toBeInstanceOf(BadRequestException);
   });
 });

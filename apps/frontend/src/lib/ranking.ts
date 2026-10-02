@@ -11,7 +11,11 @@ export interface PublicLeaderboard {
   entries: LeaderboardEntry[]
 }
 
-export interface FullLeaderboardEntry extends LeaderboardEntry {
+export interface FullLeaderboardEntry extends Omit<LeaderboardEntry, 'rank'> {
+  // null when the student has lost access (soft deleted from the rank list)
+  rank: number | null
+  releasedRank: number
+  softDeleted: boolean
   studentId: string
   testScore: number
   testMaxScore: number

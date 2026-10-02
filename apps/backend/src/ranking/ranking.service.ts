@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { AttemptStatus, InterviewStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { activeAccessWhere, hasAccess } from '../payments/access';
 import { RANK_WEIGHT_CV, RANK_WEIGHT_INTERVIEW, RANK_WEIGHT_TEST } from './ranking.constants';
 import { computeVersionMarks, SectionQuestionMark, SectionRule } from './scoring.util';
 
@@ -102,7 +103,7 @@ export class RankingService {
 
   private async computeGlobalRankingUncached(): Promise<RankedCandidate[]> {
     const attempts = await this.prisma.testAttempt.findMany({
-      where: { status: AttemptStatus.SUBMITTED, score: { not: null } },
+      where: { status: AttemptStatus.SUBMITTED, score: { not: null }, user: activeAccessWhere() },
       include: {
         user: { select: { id: true, profile: { select: { rollNumber: true, cvScore: true } } } },
         version: { include: { paper: { include: { specialization: true } } } },
@@ -265,19 +266,26 @@ export class RankingService {
     };
   }
 
+  // Public list: only students who still have access, renumbered 1..n so hidden
+  // students leave no gaps. Resubscribing brings a student back in on the next load.
   async getReleasedLeaderboard(limit?: number): Promise<ReleasedLeaderboard> {
     const release = await this.getLatestRelease();
     if (!release) return { release: null, entries: [] };
 
     const entries = await this.prisma.rankEntry.findMany({
-      where: { releaseId: release.id },
+      where: { releaseId: release.id, user: activeAccessWhere() },
       orderBy: { rank: 'asc' },
       ...(limit && limit > 0 ? { take: limit } : {}),
-      select: { rank: true, anonymizedId: true, practiceArea: true },
+      select: { anonymizedId: true, practiceArea: true },
     });
-    return { release: { label: release.label, releasedAt: release.releasedAt }, entries };
+    return {
+      release: { label: release.label, releasedAt: release.releasedAt },
+      entries: entries.map((entry, index) => ({ ...entry, rank: index + 1 })),
+    };
   }
 
+  // Admin list: everyone in the release. Students without access are kept but
+  // marked softDeleted (no live rank); the rest are renumbered 1..n.
   async getReleasedFullLeaderboard() {
     const release = await this.getLatestRelease();
     if (!release) return { release: null, entries: [] };
@@ -296,20 +304,44 @@ export class RankingService {
         interviewMarks: true,
         cvScore: true,
         commonScore: true,
+        user: { select: { hasActiveSubscription: true, accessEndsAt: true } },
       },
     });
-    return { release, entries: entries.map(({ userId, ...entry }) => ({ ...entry, studentId: userId })) };
+    let nextRank = 1;
+    return {
+      release,
+      entries: entries.map(({ userId, user, rank, ...entry }) => {
+        const active = hasAccess(user);
+        return {
+          ...entry,
+          studentId: userId,
+          rank: active ? nextRank++ : null,
+          releasedRank: rank,
+          softDeleted: !active,
+        };
+      }),
+    };
   }
 
-  // Rank as of the newest release, or null when the student isn't in it.
+  // Rank as of the newest release, or null when the student isn't in it. For a student
+  // with access it is renumbered among students with access; otherwise the originally
+  // released rank is returned (used to verify certificates already issued).
   async getReleasedRank(studentId: string) {
     const release = await this.getLatestRelease();
     if (!release) return null;
     const entry = await this.prisma.rankEntry.findUnique({
       where: { releaseId_userId: { releaseId: release.id, userId: studentId } },
-      select: { rank: true, commonScore: true },
+      select: { rank: true, commonScore: true, user: { select: { hasActiveSubscription: true, accessEndsAt: true } } },
     });
-    return entry ? { ...entry, releaseLabel: release.label, releasedAt: release.releasedAt } : null;
+    if (!entry) return null;
+    let rank = entry.rank;
+    if (hasAccess(entry.user)) {
+      const ahead = await this.prisma.rankEntry.count({
+        where: { releaseId: release.id, rank: { lt: entry.rank }, user: activeAccessWhere() },
+      });
+      rank = ahead + 1;
+    }
+    return { rank, commonScore: entry.commonScore, releaseLabel: release.label, releasedAt: release.releasedAt };
   }
 
   async getMyStanding(studentId: string): Promise<RankStanding> {
@@ -322,7 +354,7 @@ export class RankingService {
     if (!latest) return { status: 'PENDING', provisionalRank: null, basedOnReleaseLabel: null, commonScore: live.commonScore };
 
     const ahead = await this.prisma.rankEntry.count({
-      where: { releaseId: latest.id, commonScore: { gt: live.commonScore } },
+      where: { releaseId: latest.id, commonScore: { gt: live.commonScore }, user: activeAccessWhere() },
     });
     return { status: 'PENDING', provisionalRank: ahead + 1, basedOnReleaseLabel: latest.label, commonScore: live.commonScore };
   }

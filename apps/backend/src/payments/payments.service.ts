@@ -2,7 +2,7 @@ import { Injectable, Logger, BadRequestException, InternalServerErrorException }
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from './coupons.service';
-import { computeAccessEndOnCancel, hasAccess } from './access';
+import { computeAccessEndOnCancel, hasAccess, shouldIgnoreCancel } from './access';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 
@@ -95,7 +95,11 @@ export class PaymentsService {
       try {
         const existing = await this.razorpay.subscriptions.fetch(user.razorpaySubscriptionId);
         const deadStatuses = ['cancelled', 'completed', 'expired'];
-        if (existing?.status && !deadStatuses.includes(existing.status)) {
+        if (existing?.status === 'created' && couponCode) {
+          // Unpaid, never-authenticated attempt: replace it so the coupon's deferred
+          // start applies instead of silently reusing a subscription without it.
+          await this.razorpay.subscriptions.cancel(user.razorpaySubscriptionId);
+        } else if (existing?.status && !deadStatuses.includes(existing.status)) {
           this.logger.log(
             `Reusing existing subscription ${user.razorpaySubscriptionId} for user ${userId} (status: ${existing.status})`,
           );
@@ -136,12 +140,12 @@ export class PaymentsService {
       }
     }
 
-    // Redeem the coupon (if any) only now, after every early-return path, so a
-    // reused subscription never consumes a coupon. Undone below on failure.
+    // Claim the coupon (if any) only now, after every early-return path. The claim
+    // is pending and only consumed once the mandate/payment succeeds (confirm).
     let redemptionId: string | null = null;
     let trialEndsAt: Date | null = null;
     if (couponCode) {
-      const redeemed = await this.coupons.redeem(userId, couponCode);
+      const redeemed = await this.coupons.claim(userId, couponCode);
       redemptionId = redeemed.redemptionId;
       trialEndsAt = new Date(Date.now() + redeemed.freeDays * 24 * 60 * 60 * 1000);
     }
@@ -316,6 +320,8 @@ export class PaymentsService {
           });
         }
 
+        await this.coupons.confirm(user.id, subscriptionId);
+
         this.logger.log(`Activated/Updated subscription for user ${user.id}`);
       } else {
         this.logger.warn(`Webhook ${event} for subscription ${subscriptionId} matched no user (notes.userId="${subscription?.notes?.userId}")`);
@@ -334,6 +340,16 @@ export class PaymentsService {
           orderBy: { createdAt: 'desc' },
           select: { createdAt: true },
         });
+        // Ignore cancels of attempts that never went through (e.g. an unpaid checkout we
+        // replaced above): no captured payment, no confirmed coupon trial and no current access.
+        const confirmedTrial = await this.prisma.couponRedemption.findFirst({
+          where: { userId: user.id, razorpaySubscriptionId: subscriptionId, confirmedAt: { not: null } },
+          select: { id: true },
+        });
+        if (shouldIgnoreCancel({ hasCapturedPayment: !!lastCaptured, hasConfirmedTrial: !!confirmedTrial, hasActiveSubscription: user.hasActiveSubscription })) {
+          this.logger.log(`Ignoring cancel of never-completed subscription ${subscriptionId} for user ${user.id}`);
+          return;
+        }
         const accessEndsAt = computeAccessEndOnCancel({
           currentEndEpoch: subscription.current_end ?? null,
           lastPaymentAt: lastCaptured?.createdAt ?? null,
@@ -411,6 +427,8 @@ export class PaymentsService {
           accessEndsAt: null,
         },
       });
+
+      await this.coupons.confirm(userId, razorpay_subscription_id);
 
       this.logger.log(`Subscription activated for user ${userId} via payment verification`);
       return { success: true, pending: false };

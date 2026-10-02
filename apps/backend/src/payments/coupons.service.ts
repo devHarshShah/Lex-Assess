@@ -25,7 +25,7 @@ export class CouponsService {
     if (!code || code.length > 64) throw new BadRequestException('Invalid coupon code');
 
     const coupon = await this.prisma.coupon.findUnique({ where: { code } });
-    if (!coupon || !coupon.isActive) throw new BadRequestException('Invalid coupon code');
+    if (!coupon || !coupon.isActive || coupon.deletedAt) throw new BadRequestException('Invalid coupon code');
     if (coupon.expiresAt && coupon.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('This coupon has expired');
     }
@@ -35,7 +35,8 @@ export class CouponsService {
     const already = await this.prisma.couponRedemption.findUnique({
       where: { couponId_userId: { couponId: coupon.id, userId } },
     });
-    if (already) throw new BadRequestException('You have already used this coupon');
+    // A pending (checkout opened but never completed) claim doesn't count as used.
+    if (already?.confirmedAt) throw new BadRequestException('You have already used this coupon');
     return coupon;
   }
 
@@ -44,45 +45,43 @@ export class CouponsService {
     return { valid: true, code: coupon.code, freeDays: coupon.freeDays };
   }
 
-  // Atomically claims one redemption. The conditional updateMany guards the
-  // max-redemptions limit against concurrent requests.
-  async redeem(userId: string, code: string) {
+  // Records a pending claim when checkout starts. Nothing is consumed yet: the
+  // coupon only counts as used once confirm() runs after the mandate/payment
+  // succeeds, so an abandoned checkout leaves it reusable.
+  async claim(userId: string, code: string) {
     const coupon = await this.findUsable(userId, code);
+    const redemption = await this.prisma.couponRedemption.upsert({
+      where: { couponId_userId: { couponId: coupon.id, userId } },
+      create: { couponId: coupon.id, userId },
+      update: { razorpaySubscriptionId: null },
+    });
+    return { redemptionId: redemption.id, freeDays: coupon.freeDays };
+  }
 
-    return this.prisma.$transaction(async (tx) => {
-      const claimed = await tx.coupon.updateMany({
-        where: {
-          id: coupon.id,
-          isActive: true,
-          ...(coupon.maxRedemptions != null
-            ? { redemptionCount: { lt: coupon.maxRedemptions } }
-            : {}),
-        },
-        data: { redemptionCount: { increment: 1 } },
-      });
-      if (claimed.count === 0) throw new BadRequestException('This coupon is no longer available');
-
-      try {
-        const redemption = await tx.couponRedemption.create({
-          data: { couponId: coupon.id, userId },
-        });
-        return { redemptionId: redemption.id, freeDays: coupon.freeDays };
-      } catch (error: any) {
-        if (error?.code === 'P2002') throw new BadRequestException('You have already used this coupon');
-        throw error;
-      }
+  // Drops a pending claim when the Razorpay call that depended on it failed.
+  async release(redemptionId: string) {
+    await this.prisma.couponRedemption.deleteMany({
+      where: { id: redemptionId, confirmedAt: null },
     });
   }
 
-  // Undo a redemption when the Razorpay call that depended on it failed.
-  async release(redemptionId: string) {
+  // Consumes the user's pending claim for this subscription. Idempotent. If the
+  // cap filled up meanwhile we still confirm: the student already authorised
+  // autopay, so the count may exceed maxRedemptions by a few in-flight users.
+  async confirm(userId: string, razorpaySubscriptionId: string) {
+    const redemption = await this.prisma.couponRedemption.findFirst({
+      where: { userId, razorpaySubscriptionId, confirmedAt: null },
+    });
+    if (!redemption) return;
     await this.prisma.$transaction(async (tx) => {
-      const redemption = await tx.couponRedemption.findUnique({ where: { id: redemptionId } });
-      if (!redemption) return;
-      await tx.couponRedemption.delete({ where: { id: redemptionId } });
+      const marked = await tx.couponRedemption.updateMany({
+        where: { id: redemption.id, confirmedAt: null },
+        data: { confirmedAt: new Date() },
+      });
+      if (marked.count === 0) return;
       await tx.coupon.update({
         where: { id: redemption.couponId },
-        data: { redemptionCount: { decrement: 1 } },
+        data: { redemptionCount: { increment: 1 } },
       });
     });
   }
@@ -97,7 +96,7 @@ export class CouponsService {
   // ---- Admin ----
 
   list() {
-    return this.prisma.coupon.findMany({ orderBy: { createdAt: 'desc' } });
+    return this.prisma.coupon.findMany({ where: { deletedAt: null }, orderBy: { createdAt: 'desc' } });
   }
 
   private parseFields(input: CouponInput) {
@@ -149,13 +148,11 @@ export class CouponsService {
     return this.prisma.coupon.update({ where: { id }, data: this.parseFields(input) });
   }
 
+  // Soft delete: redemption links must survive, so nothing is ever removed.
   async remove(id: string) {
     const coupon = await this.prisma.coupon.findUnique({ where: { id } });
-    if (!coupon) throw new NotFoundException('Coupon not found');
-    if (coupon.redemptionCount > 0) {
-      throw new BadRequestException('This coupon has been redeemed; deactivate it instead');
-    }
-    await this.prisma.coupon.delete({ where: { id } });
+    if (!coupon || coupon.deletedAt) throw new NotFoundException('Coupon not found');
+    await this.prisma.coupon.update({ where: { id }, data: { deletedAt: new Date(), isActive: false } });
     return { success: true };
   }
 }
