@@ -5,7 +5,8 @@
 // it shouldn't recur. This only patches existing bad state.
 //
 // Usage (against production, see DEPLOYMENT.md):
-//   REPAIR_USER_EMAIL=... REPAIR_SUBSCRIPTION_ID=... node dist/src/scripts/repair-subscription.js
+//   REPAIR_USER_EMAIL=... [REPAIR_SUBSCRIPTION_ID=...] [REPAIR_ACCESS_ENDS_AT=<ISO date>] node dist/src/scripts/repair-subscription.js
+// REPAIR_ACCESS_ENDS_AT restores access until that date (used after a wrongly-ended subscription).
 
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
@@ -18,9 +19,14 @@ const prisma = new PrismaClient({ adapter });
 async function main(): Promise<void> {
   const email = process.env.REPAIR_USER_EMAIL;
   const subscriptionId = process.env.REPAIR_SUBSCRIPTION_ID;
+  const accessEndsAtRaw = process.env.REPAIR_ACCESS_ENDS_AT;
 
-  if (!email || !subscriptionId) {
-    throw new Error('REPAIR_USER_EMAIL and REPAIR_SUBSCRIPTION_ID must both be set.');
+  if (!email || (!subscriptionId && !accessEndsAtRaw)) {
+    throw new Error('REPAIR_USER_EMAIL and one of REPAIR_SUBSCRIPTION_ID / REPAIR_ACCESS_ENDS_AT must be set.');
+  }
+  const accessEndsAt = accessEndsAtRaw ? new Date(accessEndsAtRaw) : undefined;
+  if (accessEndsAt && Number.isNaN(accessEndsAt.getTime())) {
+    throw new Error(`Invalid REPAIR_ACCESS_ENDS_AT: ${accessEndsAtRaw}`);
   }
 
   const before = await prisma.user.findUnique({ where: { email } });
@@ -29,16 +35,20 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Before: hasActiveSubscription=${before.hasActiveSubscription}, razorpaySubscriptionId=${before.razorpaySubscriptionId}`,
+    `Before: hasActiveSubscription=${before.hasActiveSubscription}, accessEndsAt=${before.accessEndsAt?.toISOString() ?? null}, razorpaySubscriptionId=${before.razorpaySubscriptionId}`,
   );
 
   const after = await prisma.user.update({
     where: { email },
-    data: { hasActiveSubscription: true, razorpaySubscriptionId: subscriptionId },
+    data: {
+      hasActiveSubscription: true,
+      ...(subscriptionId ? { razorpaySubscriptionId: subscriptionId } : {}),
+      ...(accessEndsAt ? { accessEndsAt } : {}),
+    },
   });
 
   console.log(
-    `After: hasActiveSubscription=${after.hasActiveSubscription}, razorpaySubscriptionId=${after.razorpaySubscriptionId}`,
+    `After: hasActiveSubscription=${after.hasActiveSubscription}, accessEndsAt=${after.accessEndsAt?.toISOString() ?? null}, razorpaySubscriptionId=${after.razorpaySubscriptionId}`,
   );
 }
 

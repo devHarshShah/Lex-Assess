@@ -29,6 +29,7 @@ export class AnalyticsExportService {
       { header: 'Coupon', key: 'couponCode', width: 14 },
       { header: 'Trial ends', key: 'trialEndsAt', width: 18 },
       { header: 'Active subscription', key: 'hasActiveSubscription', width: 18 },
+      { header: 'Access until (autopay cancelled)', key: 'accessEndsAt', width: 24 },
       { header: 'Payments', key: 'paymentCount', width: 10 },
       { header: 'Total paid (INR)', key: 'totalPaidInr', width: 16 },
       { header: 'Last payment', key: 'lastPaymentAt', width: 18 },
@@ -43,6 +44,7 @@ export class AnalyticsExportService {
         ...r,
         registeredAt: date(r.registeredAt),
         trialEndsAt: date(r.trialEndsAt),
+        accessEndsAt: date(r.accessEndsAt),
         lastPaymentAt: date(r.lastPaymentAt),
         profileStarted: yn(r.profileStarted),
         profileComplete: yn(r.profileComplete),
@@ -50,7 +52,7 @@ export class AnalyticsExportService {
         hasActiveSubscription: yn(r.hasActiveSubscription),
       });
     }
-    for (const key of ['registeredAt', 'trialEndsAt', 'lastPaymentAt']) {
+    for (const key of ['registeredAt', 'trialEndsAt', 'accessEndsAt', 'lastPaymentAt']) {
       ws.getColumn(key).numFmt = 'dd-mmm-yyyy hh:mm';
     }
     ws.getColumn('totalPaidInr').numFmt = '#,##0.00';

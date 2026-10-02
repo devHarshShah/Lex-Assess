@@ -27,6 +27,7 @@ export interface UserReportRow {
   couponCode: string | null
   trialEndsAt: string | null
   hasActiveSubscription: boolean
+  accessEndsAt: string | null
   paymentCount: number
   totalPaidInr: number
   lastPaymentAt: string | null

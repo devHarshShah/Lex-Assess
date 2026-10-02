@@ -35,4 +35,12 @@ describe('deriveStage', () => {
     expect(deriveStage({ ...base, hasActiveSubscription: true })).toBe('PAID'));
   it('non-student roles are separate', () =>
     expect(deriveStage({ ...base, role: 'COMPANY', hasProfile: true })).toBe('NON_STUDENT'));
+  it('autopay cancelled but access still running', () =>
+    expect(
+      deriveStage({ ...base, hasActiveSubscription: true, capturedPayments: 1, accessEndsAt: new Date(Date.now() + 86400000) }),
+    ).toBe('CANCELLED_ACTIVE'));
+  it('access end passed counts as lapsed', () =>
+    expect(
+      deriveStage({ ...base, hasActiveSubscription: true, capturedPayments: 1, accessEndsAt: new Date(Date.now() - 86400000) }),
+    ).toBe('LAPSED'));
 });

@@ -113,6 +113,8 @@ model User {
   razorpaySubscriptionId String?      @unique
   razorpayCustomerId     String?
   trialEndsAt            DateTime?
+  // Set when autopay is cancelled: access lasts until here (see payments/access.ts)
+  accessEndsAt           DateTime?
   couponRedemptions      CouponRedemption[]
 
   @@index([role])

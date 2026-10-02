@@ -15,6 +15,7 @@ import { UpdateSpecializationDto } from './dto/update-specialization.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
 import { isPublicEmailProvider } from '../common/utils/email.utils';
 import { MailService } from '../mail/mail.service';
+import { hasAccess } from '../payments/access';
 
 interface GoogleTokenInfo {
   sub: string;
@@ -329,7 +330,7 @@ export class AuthService {
     if (!isValidPassword) throw new UnauthorizedException('Invalid email or password');
 
     const profileCompleted = await this.usersService.isProfileCompleted(user.id);
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, hasAccess(user));
   }
 
   async createPasswordSetupToken(userId: string): Promise<string> {
@@ -480,7 +481,7 @@ export class AuthService {
     });
 
     const profileCompleted = await this.usersService.isProfileCompleted(user.id);
-    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, user.hasActiveSubscription);
+    return this.issueToken(user.id, user.email, user.role, user.name, user.avatarUrl, profileCompleted, hasAccess(user));
   }
 
   private issueToken(

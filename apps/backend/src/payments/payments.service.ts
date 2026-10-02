@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException, InternalServerErrorException }
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from './coupons.service';
+import { computeAccessEndOnCancel, hasAccess } from './access';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 
@@ -76,8 +77,9 @@ export class PaymentsService {
     // Record consent before anything is created at Razorpay, so a payment can't start without it.
     await this.prisma.termsAcceptance.create({ data: { userId, version: termsVersion, context: 'PAYMENT' } });
 
-    // If they already have an active subscription, just return
-    if (user.hasActiveSubscription) {
+    // Already subscribed. A student who cancelled autopay (accessEndsAt set) may still
+    // start a new subscription to resume before their access runs out.
+    if (hasAccess(user) && !user.accessEndsAt) {
       throw new BadRequestException('User already has an active subscription');
     }
 
@@ -291,7 +293,7 @@ export class PaymentsService {
         // what makes the link self-healing instead of the update being lost.
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { hasActiveSubscription: true, razorpaySubscriptionId: subscriptionId }
+          data: { hasActiveSubscription: true, razorpaySubscriptionId: subscriptionId, accessEndsAt: null }
         });
 
         // Record the transaction
@@ -324,7 +326,27 @@ export class PaymentsService {
 
       const user = await this.findUserForSubscriptionEvent(subscription);
 
-      if (user) {
+      if (user && event === 'subscription.cancelled') {
+        // Autopay was cancelled (often by the student in their UPI/bank app). That only
+        // stops future charges: keep access until the end of what they paid for.
+        const lastCaptured = await this.prisma.transaction.findFirst({
+          where: { userId: user.id, status: 'captured' },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        });
+        const accessEndsAt = computeAccessEndOnCancel({
+          currentEndEpoch: subscription.current_end ?? null,
+          lastPaymentAt: lastCaptured?.createdAt ?? null,
+          trialEndsAt: user.trialEndsAt,
+          existingAccessEndsAt: user.accessEndsAt,
+        });
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { hasActiveSubscription: accessEndsAt.getTime() > Date.now(), accessEndsAt },
+        });
+        this.logger.log(`Subscription cancelled for user ${user.id}; access until ${accessEndsAt.toISOString()}`);
+      } else if (user) {
+        // halted: a charge failed, so access stops immediately.
         await this.prisma.user.update({
           where: { id: user.id },
           data: { hasActiveSubscription: false }
@@ -386,6 +408,7 @@ export class PaymentsService {
         data: {
           hasActiveSubscription: true,
           razorpaySubscriptionId: razorpay_subscription_id,
+          accessEndsAt: null,
         },
       });
 

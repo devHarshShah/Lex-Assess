@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasAccess } from '../payments/access';
 import {
   FUNNEL_STAGES,
   STAGE_LABELS,
@@ -14,6 +15,7 @@ export interface StageInput {
   profileComplete: boolean;
   razorpaySubscriptionId: string | null;
   hasActiveSubscription: boolean;
+  accessEndsAt?: Date | null;
   trialEndsAt: Date | null;
   capturedPayments: number;
 }
@@ -21,8 +23,10 @@ export interface StageInput {
 // Highest stage reached. Students only; other roles are reported separately.
 export function deriveStage(u: StageInput): FunnelStage {
   if (u.role !== 'USER') return 'NON_STUDENT';
-  if (u.capturedPayments > 0) return u.hasActiveSubscription ? 'PAID' : 'LAPSED';
-  if (u.hasActiveSubscription) return u.trialEndsAt ? 'TRIAL' : 'PAID';
+  const active = hasAccess(u);
+  if (active && u.accessEndsAt) return 'CANCELLED_ACTIVE';
+  if (u.capturedPayments > 0) return active ? 'PAID' : 'LAPSED';
+  if (active) return u.trialEndsAt ? 'TRIAL' : 'PAID';
   if (u.razorpaySubscriptionId) return 'PAYMENT_INITIATED';
   if (u.profileComplete) return 'PROFILE_COMPLETE';
   if (u.hasProfile) return 'PROFILE_STARTED';
@@ -70,6 +74,7 @@ export class AnalyticsService {
         profileComplete: !!u.profile?.isComplete,
         razorpaySubscriptionId: u.razorpaySubscriptionId,
         hasActiveSubscription: u.hasActiveSubscription,
+        accessEndsAt: u.accessEndsAt,
         trialEndsAt: u.trialEndsAt,
         capturedPayments: captured.length,
       });
@@ -96,7 +101,8 @@ export class AnalyticsService {
         paymentInitiated: !!u.razorpaySubscriptionId || captured.length > 0,
         couponCode: u.couponRedemptions[0]?.coupon.code ?? null,
         trialEndsAt: u.trialEndsAt?.toISOString() ?? null,
-        hasActiveSubscription: u.hasActiveSubscription,
+        hasActiveSubscription: hasAccess(u),
+        accessEndsAt: u.accessEndsAt?.toISOString() ?? null,
         paymentCount: captured.length,
         totalPaidInr: captured.reduce((sum, t) => sum + t.amount, 0) / 100,
         lastPaymentAt: last?.toISOString() ?? null,

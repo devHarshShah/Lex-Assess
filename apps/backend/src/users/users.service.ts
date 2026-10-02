@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadsService, READ_URL_EXPIRY_SECONDS } from '../auth/uploads.service';
 import { PublicUser, UserManagementRecord, UserProfileDto } from './user.types';
+import { hasAccess } from '../payments/access';
 
 @Injectable()
 export class UsersService {
@@ -90,7 +91,7 @@ export class UsersService {
       role: user.role,
       avatarUrl: user.avatarUrl,
       profileCompleted: false,
-      hasActiveSubscription: user.hasActiveSubscription,
+      hasActiveSubscription: hasAccess(user),
     };
   }
 
@@ -112,7 +113,7 @@ export class UsersService {
       role: input.role,
       avatarUrl: input.avatarUrl,
       profileCompleted,
-      hasActiveSubscription: input.hasActiveSubscription,
+      hasActiveSubscription: hasAccess(input),
     };
   }
 

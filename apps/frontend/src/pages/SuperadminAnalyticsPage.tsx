@@ -25,6 +25,7 @@ const STAGES: { value: string; label: string }[] = [
   { value: 'PAYMENT_INITIATED', label: 'Payment initiated, not active' },
   { value: 'TRIAL', label: 'In free trial' },
   { value: 'PAID', label: 'Paid and active' },
+  { value: 'CANCELLED_ACTIVE', label: 'Autopay cancelled, still has access' },
   { value: 'LAPSED', label: 'Paid, now inactive' },
   { value: 'NON_STUDENT', label: 'Non-student account' },
 ]

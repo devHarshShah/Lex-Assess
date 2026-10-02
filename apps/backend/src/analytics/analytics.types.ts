@@ -5,6 +5,7 @@ export const FUNNEL_STAGES = [
   'PAYMENT_INITIATED',
   'TRIAL',
   'PAID',
+  'CANCELLED_ACTIVE',
   'LAPSED',
 ] as const;
 
@@ -17,6 +18,7 @@ export const STAGE_LABELS: Record<FunnelStage, string> = {
   PAYMENT_INITIATED: 'Payment initiated, not active',
   TRIAL: 'In free trial',
   PAID: 'Paid and active',
+  CANCELLED_ACTIVE: 'Autopay cancelled, still has access',
   LAPSED: 'Paid, now inactive',
   NON_STUDENT: 'Non-student account',
 };
@@ -47,6 +49,7 @@ export interface UserReportRow {
   couponCode: string | null;
   trialEndsAt: string | null;
   hasActiveSubscription: boolean;
+  accessEndsAt: string | null;
   paymentCount: number;
   totalPaidInr: number;
   lastPaymentAt: string | null;
