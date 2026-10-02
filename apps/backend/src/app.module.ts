@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { InterviewModule } from './interview/interview.module';
 import { RankingModule } from './ranking/ranking.module';
 import { CertificatesModule } from './certificates/certificates.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CertificatesModule } from './certificates/certificates.module';
     InterviewModule,
     RankingModule,
     CertificatesModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -117,6 +117,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           { title: 'Notifications', url: '/dashboard/notifications' },
           { title: 'Coupons', url: '/dashboard/coupons' },
         ],
+      },
+      {
+        title: 'Analytics',
+        url: '/dashboard/analytics',
+        icon: BarChart3,
+        items: [{ title: 'User & Payment Funnel', url: '/dashboard/analytics' }],
       }
     )
   } else if (activeRole === 'ADMIN') {

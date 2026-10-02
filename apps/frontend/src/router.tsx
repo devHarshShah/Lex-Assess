@@ -24,6 +24,7 @@ import { dashboardSubmissionScoringRoute } from './routes/dashboard-submission-s
 import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success'
 import { dashboardNotificationsRoute } from './routes/dashboard-notifications'
 import { dashboardCouponsRoute } from './routes/dashboard-coupons'
+import { dashboardAnalyticsRoute } from './routes/dashboard-analytics'
 import { dashboardInterviewersRoute } from './routes/dashboard-interviewers'
 import { dashboardRankingRoute } from './routes/dashboard-ranking'
 import { dashboardCertificateRoute } from './routes/dashboard-certificate'
@@ -64,6 +65,7 @@ const routeTree = rootRoute.addChildren([
     dashboardPaymentSuccessRoute,
     dashboardNotificationsRoute,
     dashboardCouponsRoute,
+    dashboardAnalyticsRoute,
     dashboardInterviewersRoute as any,
     dashboardRankingRoute,
     dashboardCertificateRoute,
