@@ -116,6 +116,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         items: [
           { title: 'Notifications', url: '/dashboard/notifications' },
           { title: 'Coupons', url: '/dashboard/coupons' },
+          { title: 'Email Campaigns', url: '/dashboard/email-campaigns' },
         ],
       },
       {

@@ -24,6 +24,8 @@ import { dashboardSubmissionScoringRoute } from './routes/dashboard-submission-s
 import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success'
 import { dashboardNotificationsRoute } from './routes/dashboard-notifications'
 import { dashboardCouponsRoute } from './routes/dashboard-coupons'
+import { dashboardEmailCampaignsRoute } from './routes/dashboard-email-campaigns'
+import { unsubscribeRoute } from './routes/unsubscribe'
 import { dashboardAnalyticsRoute } from './routes/dashboard-analytics'
 import { dashboardInterviewersRoute } from './routes/dashboard-interviewers'
 import { dashboardRankingRoute } from './routes/dashboard-ranking'
@@ -44,6 +46,7 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   googleCallbackRoute,
   setPasswordRoute,
+  unsubscribeRoute,
   dashboardTestAttemptRoute,
   dashboardRoute.addChildren([
     dashboardIndexRoute,
@@ -65,6 +68,7 @@ const routeTree = rootRoute.addChildren([
     dashboardPaymentSuccessRoute,
     dashboardNotificationsRoute,
     dashboardCouponsRoute,
+    dashboardEmailCampaignsRoute,
     dashboardAnalyticsRoute,
     dashboardInterviewersRoute as any,
     dashboardRankingRoute,

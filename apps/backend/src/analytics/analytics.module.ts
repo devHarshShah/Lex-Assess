@@ -7,5 +7,6 @@ import { SuperadminAnalyticsController } from './superadmin-analytics.controller
 @Module({
   providers: [AnalyticsService, AnalyticsExportService, PrismaService],
   controllers: [SuperadminAnalyticsController],
+  exports: [AnalyticsService],
 })
 export class AnalyticsModule {}

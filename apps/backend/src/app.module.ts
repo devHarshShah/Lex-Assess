@@ -14,6 +14,7 @@ import { InterviewModule } from './interview/interview.module';
 import { RankingModule } from './ranking/ranking.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     RankingModule,
     CertificatesModule,
     AnalyticsModule,
+    EmailCampaignsModule,
   ],
   controllers: [AppController],
   providers: [

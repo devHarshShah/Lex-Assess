@@ -116,6 +116,9 @@ model User {
   // Set when autopay is cancelled: access lasts until here (see payments/access.ts)
   accessEndsAt           DateTime?
   couponRedemptions      CouponRedemption[]
+  // Set when the student unsubscribes from marketing/campaign emails (transactional mail is unaffected)
+  marketingUnsubscribedAt DateTime?
+  emailRecipients        EmailCampaignRecipient[]
 
   @@index([role])
 }
@@ -507,4 +510,75 @@ model TermsAcceptance {
   acceptedAt DateTime @default(now())
 
   @@index([userId])
+}
+
+// Reusable custom body saved by a superadmin (built-in templates live in code).
+// Soft deleted so campaigns that used it keep their link.
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  preheader   String   @default("")
+  bodyHtml    String
+  createdById String
+  deletedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum EmailCampaignStatus {
+  QUEUED
+  SENDING
+  DONE
+  CANCELLED
+}
+
+enum EmailRecipientStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+// One bulk send. subject/bodyHtml are a snapshot so later template edits never rewrite history.
+model EmailCampaign {
+  id          String              @id @default(cuid())
+  name        String
+  templateKey String?
+  subject     String
+  preheader   String              @default("")
+  bodyHtml    String
+  audience    Json
+  couponId    String?
+  status      EmailCampaignStatus @default(QUEUED)
+  createdById String
+  createdAt   DateTime            @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  recipients  EmailCampaignRecipient[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EmailCampaignRecipient {
+  id          String               @id @default(cuid())
+  campaignId  String
+  campaign    EmailCampaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email       String
+  status      EmailRecipientStatus @default(PENDING)
+  attempts    Int                  @default(0)
+  error       String?
+  // Lease so a crashed worker's rows become claimable again
+  leasedUntil DateTime?
+  sentAt      DateTime?
+  createdAt   DateTime             @default(now())
+
+  // A student can't be queued twice in one campaign
+  @@unique([campaignId, userId])
+  @@index([campaignId, status])
+  @@index([userId, sentAt])
 }

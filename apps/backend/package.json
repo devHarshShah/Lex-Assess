@@ -63,7 +63,8 @@
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "sanitize-html": "^2.13.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -83,6 +84,7 @@
     "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.15",
+    "@types/sanitize-html": "^2.16.2",
     "@types/supertest": "^7.0.0",
     "eslint": "^9.39.1",
     "jest": "^30.0.0",

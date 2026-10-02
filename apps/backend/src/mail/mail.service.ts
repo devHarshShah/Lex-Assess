@@ -10,6 +10,12 @@ import { InterviewerWelcomeEmail } from './templates/InterviewerWelcomeEmail';
 
 const RETRY_DELAYS_MS = [1000, 3000, 9000];
 
+export interface SendMailOptions {
+  headers?: Record<string, string>;
+  replyTo?: string;
+  retryDelaysMs?: number[];
+}
+
 @Injectable()
 export class MailService {
   private transporter: nodemailer.Transporter;
@@ -48,12 +54,13 @@ export class MailService {
     return { html, text };
   }
 
-  async sendMail(to: string, subject: string, html: string, text?: string) {
+  async sendMail(to: string, subject: string, html: string, text?: string, options: SendMailOptions = {}) {
+    const retryDelays = options.retryDelaysMs ?? RETRY_DELAYS_MS;
     const from = this.configService.get<string>('SMTP_FROM') || 'noreply@lexassess.com';
     const isStream = !this.configService.get<string>('SMTP_HOST');
 
     let lastError: unknown;
-    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    for (let attempt = 0; attempt <= retryDelays.length; attempt++) {
       try {
         const info = await this.transporter.sendMail({
           from: `"LexAssess" <${from}>`,
@@ -61,6 +68,8 @@ export class MailService {
           subject,
           text: text || subject,
           html,
+          ...(options.headers ? { headers: options.headers } : {}),
+          ...(options.replyTo ? { replyTo: options.replyTo } : {}),
         });
 
         if (isStream) {
@@ -73,12 +82,12 @@ export class MailService {
         return info;
       } catch (error) {
         lastError = error;
-        const isLastAttempt = attempt === RETRY_DELAYS_MS.length;
+        const isLastAttempt = attempt === retryDelays.length;
         if (isLastAttempt) {
           this.logger.error(`Failed to send email to ${to} after ${attempt + 1} attempt(s)`, error as Error);
           break;
         }
-        const delay = RETRY_DELAYS_MS[attempt];
+        const delay = retryDelays[attempt];
         this.logger.warn(`Attempt ${attempt + 1} to send email to ${to} failed, retrying in ${delay}ms`);
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
@@ -126,5 +135,20 @@ export class MailService {
     const { html, text } = await this.renderEmail(CertificateReadyEmail({ name, rollNumber, practiceArea, certificateUrl }));
 
     return this.sendMail(email, subject, html, text);
+  }
+
+  // Bulk/marketing mail: one quick retry (the campaign worker does its own retrying) and the
+  // headers mail clients use to show an "Unsubscribe" button.
+  async sendCampaignMail(to: string, mail: { subject: string; html: string; text: string }, unsubscribe: { url: string; oneClickUrl?: string }) {
+    const headers: Record<string, string> = {
+      'List-Unsubscribe': `<${unsubscribe.oneClickUrl ?? unsubscribe.url}>`,
+      Precedence: 'bulk',
+    };
+    if (unsubscribe.oneClickUrl) headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
+    return this.sendMail(to, mail.subject, mail.html, mail.text, {
+      headers,
+      replyTo: this.configService.get<string>('EMAIL_REPLY_TO') || undefined,
+      retryDelaysMs: [1000],
+    });
   }
 }

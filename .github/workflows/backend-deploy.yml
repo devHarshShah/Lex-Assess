@@ -180,6 +180,7 @@ jobs:
             RAZORPAY_KEY_SECRET=RAZORPAY_KEY_SECRET:latest
             RAZORPAY_WEBHOOK_SECRET=RAZORPAY_WEBHOOK_SECRET:latest
             SMTP_PASS=SMTP_PASS:latest
+            EMAIL_WORKER_SECRET=EMAIL_WORKER_SECRET:latest
             GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest
             GOOGLE_CALENDAR_REFRESH_TOKEN=GOOGLE_CALENDAR_REFRESH_TOKEN:latest
           env_vars: |
@@ -199,6 +200,10 @@ jobs:
             SMTP_USER=${{ vars.SMTP_USER }}
             SMTP_SECURE=${{ vars.SMTP_SECURE }}
             SMTP_FROM=${{ vars.SMTP_FROM }}
+            API_PUBLIC_URL=${{ vars.API_PUBLIC_URL }}
+            EMAIL_BATCH_SIZE=40
+            EMAIL_MAX_PER_HOUR=40
+            EMAIL_MAX_PER_DAY=250
 
   # Seeds the Media & Entertainment paper. Runs after `deploy` because the
   # 'Media and Entertainment' category is created by PrismaService at app boot
