@@ -3,6 +3,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
 import { TERMS_VERSION } from '@/lib/legal'
 import { getActiveRole, hasRole, type AuthUser } from '@/lib/auth'
 import { fetchStudentPapers, type QuestionPaper } from '@/lib/question-papers'
@@ -22,7 +23,7 @@ import {
   Briefcase,
 } from 'lucide-react'
 import { useRazorpay } from 'react-razorpay'
-import { createSubscription, verifyPayment } from '@/lib/payments'
+import { createSubscription, validateCoupon, verifyPayment } from '@/lib/payments'
 import { toast } from 'sonner'
 import { CompanyDashboardPage } from './CompanyDashboardPage'
 import { InterviewerDashboardPage } from './InterviewerDashboardPage'
@@ -53,6 +54,9 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [loading, setLoading] = React.useState(false)
   const [subscribing, setSubscribing] = React.useState(false)
   const [acceptedTerms, setAcceptedTerms] = React.useState(false)
+  const [couponInput, setCouponInput] = React.useState('')
+  const [appliedCoupon, setAppliedCoupon] = React.useState<{ code: string; freeDays: number } | null>(null)
+  const [applyingCoupon, setApplyingCoupon] = React.useState(false)
   const { Razorpay } = useRazorpay()
 
   const role = getActiveRole(user)
@@ -67,10 +71,25 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
     }
   }, [isStudent])
 
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return
+    try {
+      setApplyingCoupon(true)
+      const res = await validateCoupon(couponInput.trim())
+      setAppliedCoupon({ code: res.code, freeDays: res.freeDays })
+      toast.success('Coupon applied')
+    } catch (err) {
+      setAppliedCoupon(null)
+      toast.error(err instanceof Error ? err.message : 'Invalid coupon code')
+    } finally {
+      setApplyingCoupon(false)
+    }
+  }
+
   const handleSubscribe = async () => {
     try {
       setSubscribing(true)
-      const res = await createSubscription(TERMS_VERSION)
+      const res = await createSubscription(TERMS_VERSION, appliedCoupon?.code)
 
       const options = {
         key: res.keyId,
@@ -119,9 +138,11 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
             JSON.stringify({
               paymentId: response.razorpay_payment_id,
               subscriptionId: response.razorpay_subscription_id,
-              amount: '₹499.00',
+              amount: res.trialEndsAt ? '₹0.00' : '₹499.00',
               plan: 'Lex-Assess Premium',
-              validity: '3 Months',
+              validity: res.trialEndsAt
+                ? `${appliedCoupon?.freeDays ?? 30} days free, then ₹499 / 3 months from ${new Date(res.trialEndsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                : '3 Months',
               date: new Date().toISOString(),
             })
           )
@@ -314,8 +335,33 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                   </div>
                 </div>
 
+                {/* Coupon */}
+                <div className="px-8 space-y-1.5">
+                  <div className="flex gap-2">
+                    <Input
+                      value={couponInput}
+                      onChange={(e) => {
+                        setCouponInput(e.target.value.toUpperCase())
+                        setAppliedCoupon(null)
+                      }}
+                      placeholder="Have a coupon code?"
+                      maxLength={64}
+                      aria-label="Coupon code"
+                    />
+                    <Button type="button" variant="outline" onClick={handleApplyCoupon} disabled={applyingCoupon || !couponInput.trim()}>
+                      {applyingCoupon ? 'Checking...' : 'Apply'}
+                    </Button>
+                  </div>
+                  {appliedCoupon && (
+                    <p className="text-xs font-semibold text-emerald-700">
+                      {appliedCoupon.freeDays} days free, then ₹499 every 3 months. First charge on{' '}
+                      {new Date(Date.now() + appliedCoupon.freeDays * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.
+                    </p>
+                  )}
+                </div>
+
                 {/* CTA */}
-                <div className="px-8 pb-7 space-y-3">
+                <div className="px-8 pb-7 pt-3 space-y-3">
                   <div className="flex items-start gap-2.5">
                     <Checkbox
                       id="accept-terms"

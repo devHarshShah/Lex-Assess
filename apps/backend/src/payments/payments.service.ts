@@ -1,6 +1,7 @@
 import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { CouponsService } from './coupons.service';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
 
@@ -17,6 +18,7 @@ export class PaymentsService {
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
+    private readonly coupons: CouponsService,
   ) {
     this.keyId = this.configService.getOrThrow<string>('RAZORPAY_KEY_ID');
     this.keySecret = this.configService.getOrThrow<string>('RAZORPAY_KEY_SECRET');
@@ -62,7 +64,7 @@ export class PaymentsService {
     }
   }
 
-  async createSubscription(userId: string, termsVersion: string) {
+  async createSubscription(userId: string, termsVersion: string, couponCode?: string) {
     await this.planInitializationPromise;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -128,12 +130,22 @@ export class PaymentsService {
       }
     }
 
+    // Redeem the coupon (if any) only now, after every early-return path, so a
+    // reused subscription never consumes a coupon. Undone below on failure.
+    let redemptionId: string | null = null;
+    let trialEndsAt: Date | null = null;
+    if (couponCode) {
+      const redeemed = await this.coupons.redeem(userId, couponCode);
+      redemptionId = redeemed.redemptionId;
+      trialEndsAt = new Date(Date.now() + redeemed.freeDays * 24 * 60 * 60 * 1000);
+    }
+
     try {
       this.logger.log(`Creating subscription for user ${user.id} with planId: "${this.planId}" and customerId: "${customerId}"`);
       if (!this.planId) {
         throw new BadRequestException('Razorpay Plan ID is not initialized. Please check backend logs for initialization errors.');
       }
-      
+
       const subscriptionParams: any = {
         plan_id: this.planId,
         total_count: 60, // 60 cycles of 3 months = 15 years
@@ -144,6 +156,11 @@ export class PaymentsService {
         }
       };
 
+      // Free period: defer the first charge. Access starts once the mandate is authenticated.
+      if (trialEndsAt) {
+        subscriptionParams.start_at = Math.floor(trialEndsAt.getTime() / 1000);
+      }
+
       // Only add customer_id if we have one and it looks valid
       if (customerId) {
         subscriptionParams.customer_id = customerId;
@@ -153,16 +170,26 @@ export class PaymentsService {
 
       await this.prisma.user.update({
         where: { id: userId },
-        data: { razorpaySubscriptionId: subscription.id }
+        data: { razorpaySubscriptionId: subscription.id, trialEndsAt }
       });
+      if (redemptionId) {
+        await this.coupons.attachSubscription(redemptionId, subscription.id);
+      }
 
       return {
         subscriptionId: subscription.id,
         keyId: this.keyId,
+        trialEndsAt,
       };
     } catch (error: any) {
       this.logger.error('Failed to create Razorpay subscription', error?.response || error);
-      
+
+      if (redemptionId) {
+        await this.coupons.release(redemptionId).catch((e) =>
+          this.logger.error(`Failed to release coupon redemption ${redemptionId}`, e),
+        );
+      }
+
       // If the error is about an invalid ID, it might be a stale customerId in our DB
       const errorMsg = error?.description || error?.error?.description || '';
       if (errorMsg.includes('ID provided is invalid') || error.statusCode === 400) {
@@ -237,7 +264,16 @@ export class PaymentsService {
     }
 
     const event = payload.event;
-    if (event === 'subscription.charged' || event === 'subscription.activated') {
+
+    // During a coupon free period no charge happens, so Razorpay only sends
+    // `authenticated` (mandate approved). Treat that as activation, but only
+    // when the first charge is scheduled in the future; otherwise an
+    // authenticated-but-uncharged normal subscription would get access.
+    const isTrialAuthenticated =
+      event === 'subscription.authenticated' &&
+      Number(payload.payload?.subscription?.entity?.start_at) * 1000 > Date.now();
+
+    if (event === 'subscription.charged' || event === 'subscription.activated' || isTrialAuthenticated) {
       const subscription = payload.payload.subscription.entity;
       const payment = payload.payload.payment?.entity;
       const subscriptionId = subscription.id;

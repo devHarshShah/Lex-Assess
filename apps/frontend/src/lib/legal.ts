@@ -1,6 +1,6 @@
 // Bump TERMS_VERSION whenever the disclaimer or Terms of Use change materially: it re-prompts
 // every visitor and is the version recorded against a payment.
-export const TERMS_VERSION = '2026-09-25'
+export const TERMS_VERSION = '2026-10-01'
 
 const DISCLAIMER_KEY = 'lexassess_disclaimer_accepted'
 

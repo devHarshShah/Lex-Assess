@@ -113,7 +113,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: 'Marketing',
         url: '/dashboard/notifications',
         icon: Bell,
-        items: [{ title: 'Notifications', url: '/dashboard/notifications' }],
+        items: [
+          { title: 'Notifications', url: '/dashboard/notifications' },
+          { title: 'Coupons', url: '/dashboard/coupons' },
+        ],
       }
     )
   } else if (activeRole === 'ADMIN') {

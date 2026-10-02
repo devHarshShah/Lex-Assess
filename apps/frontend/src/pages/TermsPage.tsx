@@ -86,6 +86,12 @@ export function TermsPage() {
               activated. You will be shown the applicable price and period before you pay, and you must accept
               these Terms at that point.
             </p>
+            <p>
+              Coupon codes may offer a free introductory period. A coupon is valid for one use per user and may be
+              withdrawn or expire. When a free period applies, you authorise Razorpay to charge your selected payment
+              method the then-current subscription price when the free period ends, and again at the end of each
+              subscription cycle, until you cancel. Cancel before the free period ends to avoid being charged.
+            </p>
           </Section>
 
           <Section title="9. Limitation of Liability">
