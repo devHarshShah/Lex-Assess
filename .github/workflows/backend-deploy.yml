@@ -50,6 +50,9 @@ jobs:
       - run: pnpm check-types
 
       - run: pnpm lint
+        env:
+          # type-aware ESLint across the backend outgrew Node's default heap on the runner
+          NODE_OPTIONS: --max-old-space-size=6144
 
       - run: pnpm test
 
