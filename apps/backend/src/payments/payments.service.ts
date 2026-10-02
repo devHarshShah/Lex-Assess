@@ -117,6 +117,10 @@ export class PaymentsService {
           name: user.name,
           email: user.email,
           contact: user.profile?.mobileNumber || undefined,
+          // Razorpay rejects a duplicate email/contact by default; with '0' it
+          // returns the existing customer instead. Needed whenever our DB lost
+          // the customer id (see the stale-id reset in the catch below).
+          fail_existing: '0',
         });
         customerId = customer.id;
         
