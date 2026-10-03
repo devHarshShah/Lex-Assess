@@ -36,6 +36,8 @@ const LEASE_MS = 5 * 60 * 1000;
 const RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const CLAIM_CHUNK = 10;
 const CONCURRENCY = 5;
+// Superadmin test sends always go to this address, not the admin's own inbox.
+const TEST_EMAIL_RECIPIENT = 'harshdipashah@gmail.com';
 
 const formatDate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(d) : '';
@@ -158,8 +160,8 @@ export class EmailCampaignsService {
       unsubscribeUrl: links.url,
       frontendOrigin: this.frontendOrigin,
     });
-    await this.mail.sendCampaignMail(admin.email, { ...mail, subject: `[TEST] ${mail.subject}` }, links);
-    return { sentTo: admin.email };
+    await this.mail.sendCampaignMail(TEST_EMAIL_RECIPIENT, { ...mail, subject: `[TEST] ${mail.subject}` }, links);
+    return { sentTo: TEST_EMAIL_RECIPIENT };
   }
 
   // ---- audience -------------------------------------------------------------------------

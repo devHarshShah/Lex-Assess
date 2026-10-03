@@ -430,7 +430,7 @@ export function CampaignComposer({ onSent }: { onSent: () => void }) {
                   <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
                   <div className="flex gap-2">
                     <Button variant="outline" disabled={!canContinue2 || busy === 'test'} onClick={onTest}>
-                      {busy === 'test' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test to me
+                      {busy === 'test' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test email
                     </Button>
                     <Button disabled={!canContinue2} onClick={() => setStep(3)}>Continue</Button>
                   </div>
@@ -474,7 +474,7 @@ export function CampaignComposer({ onSent }: { onSent: () => void }) {
               <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
               <div className="flex gap-2">
                 <Button variant="outline" disabled={busy === 'test'} onClick={onTest}>
-                  {busy === 'test' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test to me
+                  {busy === 'test' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Send test email
                 </Button>
                 <Button disabled={!canContinue1 || !canContinue2} onClick={() => setConfirmOpen(true)}><Send className="mr-2 h-4 w-4" />Send to {audience?.recipientCount ?? 0} students</Button>
               </div>
