@@ -92,8 +92,7 @@ export function renderCampaignEmail(input: RenderInput): { subject: string; html
     <tr><td style="padding:0 36px;"><div style="border-top:1px solid #eeeeee;"></div></td></tr>
     <tr><td style="padding:20px 36px 30px;font-family:${FONT};font-size:12px;line-height:19px;color:#8a8a8a;">
       You are receiving this because you have a LexAssess account.<br>
-      <a href="${unsubscribe}" style="color:#8a8a8a;text-decoration:underline;">Unsubscribe</a> from these emails any time. Account and payment emails will still reach you.<br>
-      <span style="color:#b0b0b0;">&copy; LexAssess</span>
+      <a href="${unsubscribe}" style="color:#8a8a8a;text-decoration:underline;">Unsubscribe</a> from these emails any time. Account and payment emails will still reach you.
     </td></tr>
   </table>
 </td></tr>
