@@ -135,8 +135,15 @@ export class GoogleCalendarService {
       },
       // Real Google Meet conferencing - only possible under a real Google
       // account identity (usingRealGoogleAccount), never a bare service
-      // account, which has no Meet provisioning.
+      // account, which has no Meet provisioning. Same for attendees: without
+      // them the event only lives on the organizer's calendar, but a bare
+      // service account can't invite attendees without Domain-Wide Delegation.
       ...(this.usingRealGoogleAccount && {
+        attendees: [
+          { email: details.studentEmail, displayName: details.studentName },
+          { email: details.interviewerEmail, displayName: details.interviewerName },
+        ],
+        guestsCanModify: false,
         conferenceData: {
           createRequest: {
             requestId: `lexassess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
@@ -153,6 +160,9 @@ export class GoogleCalendarService {
         calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail!,
         requestBody: event,
         conferenceDataVersion: this.usingRealGoogleAccount ? 1 : undefined,
+        // Google emails the invite to attendees, which is what puts the
+        // event on their calendars (any provider, not just Google).
+        sendUpdates: this.usingRealGoogleAccount ? 'all' : undefined,
       });
 
       const meetLink = res.data.hangoutLink;
@@ -177,6 +187,7 @@ export class GoogleCalendarService {
       await this.calendar.events.delete({
         calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail ?? 'primary',
         eventId,
+        sendUpdates: this.usingRealGoogleAccount ? 'all' : undefined,
       });
     } catch (error) {
       this.logger.error(`Failed to delete event ${eventId}`, error);
