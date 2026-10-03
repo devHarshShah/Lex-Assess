@@ -249,11 +249,6 @@ whether it has at least one paper with a `PUBLISHED` version — so a category n
 paper for never appears in the profile dropdown, and adding a new paper later and re-running this
 job re-activates its category automatically.
 
-The Media & Entertainment paper is the exception to "run by hand": `seed-media-entertainment.ts`
-is seeded automatically by the `seed` job in `.github/workflows/backend-deploy.yml` on every push
-to `main`. It's safe to re-run - it skips when the paper already exists, and with `SEED_FORCE=true`
-it will only rebuild a paper that has no attempts.
-
 **Re-running is not fully idempotent for live papers**: each script does
 `paperSection.deleteMany`/`question.deleteMany` on its own version before recreating them, which is
 harmless while no `TestAttempt` references those questions, but would orphan or corrupt scoring for

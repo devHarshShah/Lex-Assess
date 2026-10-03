@@ -575,6 +575,10 @@ model EmailCampaignRecipient {
   // Lease so a crashed worker's rows become claimable again
   leasedUntil DateTime?
   sentAt      DateTime?
+  // Funnel stage when the campaign was queued; null on campaigns created before conversion tracking
+  stageAtSend String?
+  // True when stageAtSend was reconstructed after the fact (backfill) rather than snapshotted
+  stageEstimated Boolean            @default(false)
   createdAt   DateTime             @default(now())
 
   // A student can't be queued twice in one campaign

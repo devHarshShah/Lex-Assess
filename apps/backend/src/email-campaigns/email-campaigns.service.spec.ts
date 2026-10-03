@@ -139,3 +139,51 @@ describe('EmailCampaignsService delivery', () => {
     expect(await svc.remainingQuota()).toBe(1);
   });
 });
+
+describe('computeCampaignMetrics', () => {
+  const { computeCampaignMetrics } = require('./campaign-metrics');
+  const sent = new Date('2026-10-01T00:00:00Z');
+  const later = new Date('2026-10-02T00:00:00Z');
+  const earlier = new Date('2026-09-30T00:00:00Z');
+
+  it('counts advancement, paid conversion, revenue, coupons and unsubscribes after send', () => {
+    const m = computeCampaignMetrics({
+      recipients: [
+        { userId: 'a', sentAt: sent, stageAtSend: 'PROFILE_COMPLETE' },
+        { userId: 'b', sentAt: sent, stageAtSend: 'PROFILE_STARTED' },
+        { userId: 'c', sentAt: sent, stageAtSend: 'REGISTERED' },
+        { userId: 'd', sentAt: sent, stageAtSend: null },
+      ],
+      currentStage: new Map([['a', 'PAID'], ['b', 'PROFILE_COMPLETE'], ['c', 'REGISTERED'], ['d', 'PAID']]),
+      payments: [
+        { userId: 'a', amount: 49900, createdAt: later },
+        { userId: 'a', amount: 10000, createdAt: earlier },
+      ],
+      couponRedemptions: [{ userId: 'a', confirmedAt: later }],
+      unsubscribes: [{ userId: 'c', at: later }, { userId: 'b', at: earlier }],
+    });
+    expect(m).toMatchObject({ sent: 4, tracked: 3, advanced: 2, converted: 1, paidAfterSend: 1, revenueInr: 499, couponRedemptions: 1, unsubscribes: 1 });
+    expect(m.advancedPct).toBe(66.7);
+  });
+});
+
+describe('estimateStageAtSend', () => {
+  const { estimateStageAtSend } = require('./stage-backfill');
+  const sentAt = new Date('2026-10-01T00:00:00Z');
+  const before = new Date('2026-09-20T00:00:00Z');
+  const after = new Date('2026-10-05T00:00:00Z');
+  const base = { sentAt, userCreatedAt: before, profile: null, firstCapturedAt: null, redemption: null };
+
+  it('is exact for a single-stage audience', () => {
+    expect(estimateStageAtSend({ ...base, audienceStages: ['REGISTERED'], firstCapturedAt: after })).toEqual({ stage: 'REGISTERED', estimated: false });
+  });
+
+  it('reads the stage from timestamps and clamps to the audience', () => {
+    const stages = ['PROFILE_STARTED', 'PROFILE_COMPLETE'];
+    const done = { createdAt: before, updatedAt: before, isComplete: true };
+    expect(estimateStageAtSend({ ...base, audienceStages: stages, profile: done })).toEqual({ stage: 'PROFILE_COMPLETE', estimated: true });
+    expect(estimateStageAtSend({ ...base, audienceStages: stages, profile: { ...done, updatedAt: after } })).toEqual({ stage: 'PROFILE_STARTED', estimated: true });
+    // payment after send is ignored; REGISTERED isn't targeted so it clamps to the nearest
+    expect(estimateStageAtSend({ ...base, audienceStages: stages, firstCapturedAt: after })).toEqual({ stage: 'PROFILE_STARTED', estimated: true });
+  });
+});

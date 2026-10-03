@@ -75,6 +75,22 @@ export interface CampaignDetail extends CampaignSummary {
   recipients: { id: string; email: string; status: string; attempts: number; error: string | null; sentAt: string | null }[];
 }
 
+export interface CampaignMetrics {
+  hasCoupon: boolean;
+  sent: number;
+  tracked: number;
+  estimated: boolean;
+  advanced: number;
+  advancedPct: number;
+  converted: number;
+  convertedPct: number;
+  paidAfterSend: number;
+  revenueInr: number;
+  couponRedemptions: number;
+  unsubscribes: number;
+  transitions: { from: string; to: string; fromLabel: string; toLabel: string; count: number; changed: boolean }[];
+}
+
 export interface SavedTemplate {
   id: string;
   name: string;
@@ -94,6 +110,7 @@ export const sendTestEmail = (d: CampaignDraft) => api.post<{ sentTo: string }>(
 export const createCampaign = (d: CampaignDraft) => api.post<{ id: string; recipientCount: number }>(`${base}/campaigns`, d);
 export const fetchCampaigns = () => api.get<CampaignSummary[]>(`${base}/campaigns`);
 export const fetchCampaign = (id: string) => api.get<CampaignDetail>(`${base}/campaigns/${id}`);
+export const fetchCampaignMetrics = (id: string) => api.get<CampaignMetrics>(`${base}/campaigns/${id}/metrics`);
 export const cancelCampaign = (id: string) => api.post(`${base}/campaigns/${id}/cancel`, {});
 export const retryFailedCampaign = (id: string) => api.post<{ requeued: number }>(`${base}/campaigns/${id}/retry-failed`, {});
 export const fetchSavedTemplates = () => api.get<SavedTemplate[]>(`${base}/templates`);

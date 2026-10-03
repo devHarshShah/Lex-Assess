@@ -5,6 +5,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { FUNNEL_STAGES, STAGE_LABELS, type FunnelStage, type UserReportRow } from '../analytics/analytics.types';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { computeCampaignMetrics } from './campaign-metrics';
 import { renderCampaignEmail } from './render';
 import { sanitizeBody } from './sanitize';
 import { BUILT_IN_TEMPLATES } from './templates';
@@ -252,7 +253,7 @@ export class EmailCampaignsService {
         },
       });
       await tx.emailCampaignRecipient.createMany({
-        data: eligible.map((r) => ({ campaignId: created.id, userId: r.id, email: r.email })),
+        data: eligible.map((r) => ({ campaignId: created.id, userId: r.id, email: r.email, stageAtSend: r.stage })),
         skipDuplicates: true,
       });
       return created;
@@ -302,6 +303,42 @@ export class EmailCampaignsService {
       select: { id: true, email: true, status: true, attempts: true, error: true, sentAt: true },
     });
     return { ...campaign, counts: counts(id), recipients };
+  }
+
+  // Did the students we emailed move forward afterwards? Compares the stage snapshotted when the
+  // campaign was queued with their stage now; payments/coupons/unsubscribes only count after sentAt.
+  async getMetrics(id: string) {
+    const campaign = await this.prisma.emailCampaign.findUnique({ where: { id }, select: { couponId: true } });
+    if (!campaign) throw new NotFoundException('Campaign not found');
+    const sent = await this.prisma.emailCampaignRecipient.findMany({
+      where: { campaignId: id, status: 'SENT', sentAt: { not: null } },
+      select: { userId: true, sentAt: true, stageAtSend: true, stageEstimated: true },
+    });
+    const recipients = sent.map((r) => ({ userId: r.userId, sentAt: r.sentAt as Date, stageAtSend: r.stageAtSend, stageEstimated: r.stageEstimated }));
+    const ids = recipients.map((r) => r.userId);
+    const firstSent = recipients.reduce<Date | null>((min, r) => (!min || r.sentAt < min ? r.sentAt : min), null);
+
+    const [rows, payments, redemptions, unsubs] = await Promise.all([
+      this.analytics.buildRows({ role: 'USER' }),
+      firstSent
+        ? this.prisma.transaction.findMany({ where: { userId: { in: ids }, status: 'captured', createdAt: { gte: firstSent } }, select: { userId: true, amount: true, createdAt: true } })
+        : Promise.resolve([]),
+      firstSent && campaign.couponId
+        ? this.prisma.couponRedemption.findMany({ where: { couponId: campaign.couponId, userId: { in: ids }, confirmedAt: { not: null } }, select: { userId: true, confirmedAt: true } })
+        : Promise.resolve([]),
+      this.prisma.user.findMany({ where: { id: { in: ids }, marketingUnsubscribedAt: { not: null } }, select: { id: true, marketingUnsubscribedAt: true } }),
+    ]);
+
+    return {
+      hasCoupon: !!campaign.couponId,
+      ...computeCampaignMetrics({
+        recipients,
+        currentStage: new Map(rows.map((r) => [r.id, r.stage])),
+        payments,
+        couponRedemptions: redemptions.map((c) => ({ userId: c.userId, confirmedAt: c.confirmedAt as Date })),
+        unsubscribes: unsubs.map((u) => ({ userId: u.id, at: u.marketingUnsubscribedAt as Date })),
+      }),
+    };
   }
 
   async cancel(id: string) {

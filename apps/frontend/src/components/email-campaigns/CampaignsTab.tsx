@@ -5,9 +5,11 @@ import { Loader2 } from 'lucide-react';
 import {
   cancelCampaign,
   fetchCampaign,
+  fetchCampaignMetrics,
   fetchCampaigns,
   retryFailedCampaign,
   type CampaignDetail,
+  type CampaignMetrics,
   type CampaignSummary,
 } from '@/lib/email-campaigns';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +38,49 @@ function Progress({ c }: { c: CampaignSummary['counts'] }) {
       <p className="text-xs text-muted-foreground">
         {c.SENT} sent · {c.PENDING + c.SENDING} waiting{c.FAILED ? ` · ${c.FAILED} failed` : ''}{c.SKIPPED ? ` · ${c.SKIPPED} skipped` : ''} · {c.total} total
       </p>
+    </div>
+  );
+}
+
+function Metrics({ id }: { id: string }) {
+  const [m, setM] = React.useState<CampaignMetrics | null>(null);
+  React.useEffect(() => {
+    setM(null);
+    fetchCampaignMetrics(id).then(setM).catch(() => undefined);
+  }, [id]);
+  if (!m) return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+  if (!m.tracked) {
+    return <p className="text-xs text-muted-foreground">Conversion isn't tracked for this campaign (sent before tracking was added, or nothing sent yet).</p>;
+  }
+  const tiles = [
+    { label: 'Moved forward', value: `${m.advancedPct}%`, sub: `${m.advanced} of ${m.tracked}` },
+    { label: 'Started trial / paid', value: `${m.convertedPct}%`, sub: `${m.converted} students` },
+    { label: 'Revenue since send', value: `₹${m.revenueInr.toLocaleString('en-IN')}`, sub: `${m.paidAfterSend} paying` },
+    ...(m.hasCoupon ? [{ label: 'Coupon redeemed', value: String(m.couponRedemptions), sub: 'confirmed' }] : []),
+    { label: 'Unsubscribed', value: String(m.unsubscribes), sub: 'since send' },
+  ];
+  const moved = m.transitions.filter((t) => t.changed);
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {tiles.map((t) => (
+          <div key={t.label} className="rounded-md border p-2">
+            <p className="text-xs text-muted-foreground">{t.label}</p>
+            <p className="text-lg font-semibold">{t.value}</p>
+            <p className="text-xs text-muted-foreground">{t.sub}</p>
+          </div>
+        ))}
+      </div>
+      {m.estimated && (
+        <p className="text-xs text-amber-600">Starting stages for this campaign were reconstructed after the fact, so movement is approximate.</p>
+      )}
+      {moved.length > 0 && (
+        <ul className="space-y-0.5 text-xs text-muted-foreground">
+          {moved.map((t) => (
+            <li key={`${t.from}>${t.to}`}>{t.count} × {t.fromLabel} → {t.toLabel}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -121,6 +166,7 @@ export function CampaignsTab({ refreshKey }: { refreshKey: number }) {
                     </Button>
                   )}
                 </div>
+                {c.counts.SENT > 0 && <Metrics id={c.id} />}
                 {!detail ? (
                   <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 ) : (

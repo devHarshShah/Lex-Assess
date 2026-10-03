@@ -58,6 +58,11 @@ export class SuperadminEmailController {
     return this.campaigns.getCampaign(id, status);
   }
 
+  @Get('campaigns/:id/metrics')
+  metrics(@Param('id') id: string) {
+    return this.campaigns.getMetrics(id);
+  }
+
   @Post('campaigns/:id/cancel')
   @HttpCode(HttpStatus.OK)
   cancel(@Param('id') id: string) {
