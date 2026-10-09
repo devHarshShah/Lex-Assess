@@ -46,6 +46,14 @@ describe('EmailCampaignsService audience', () => {
     expect(out.stageCounts).toEqual({ REGISTERED: 4, PAID: 1, LAPSED: 1 });
   });
 
+  it('treats CRM "do not contact" students as unsubscribed', async () => {
+    const { svc, prisma } = build({ rows: [row('a', 'REGISTERED')] });
+    await svc.resolveAudience({ stages: ['REGISTERED'] });
+    expect(prisma.user.findMany.mock.calls[0][0].where.OR).toEqual(
+      expect.arrayContaining([{ crmLead: { status: 'DO_NOT_CONTACT' } }]),
+    );
+  });
+
   it('does not apply the redeemed exclusion without a coupon', async () => {
     const { svc, prisma } = build({ rows: [row('a', 'REGISTERED')], redeemed: ['a'] });
     const out = await svc.resolveAudience({ stages: ['REGISTERED'] });

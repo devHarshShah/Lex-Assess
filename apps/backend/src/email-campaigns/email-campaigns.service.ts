@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { FUNNEL_STAGES, STAGE_LABELS, type FunnelStage, type UserReportRow } from '../analytics/analytics.types';
-import { MailService } from '../mail/mail.service';
+import { MailService, TEST_EMAIL_RECIPIENT } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { computeCampaignMetrics } from './campaign-metrics';
 import { renderCampaignEmail } from './render';
@@ -37,8 +37,6 @@ const LEASE_MS = 5 * 60 * 1000;
 const RETRY_BACKOFF_MS = 2 * 60 * 1000;
 const CLAIM_CHUNK = 10;
 const CONCURRENCY = 5;
-// Superadmin test sends always go to this address, not the admin's own inbox.
-const TEST_EMAIL_RECIPIENT = 'harshdipashah@gmail.com';
 
 const formatDate = (d: Date | null | undefined) =>
   d ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(d) : '';
@@ -186,8 +184,12 @@ export class EmailCampaignsService {
     const ids = inStages.map((r) => r.id);
     const excluded = { unsubscribed: 0, alreadyRedeemed: 0, recentlyEmailed: 0 };
 
+    // Students marked "Do not contact" in the CRM count as unsubscribed
     const [unsub, redeemed, recent] = await Promise.all([
-      this.prisma.user.findMany({ where: { id: { in: ids }, marketingUnsubscribedAt: { not: null } }, select: { id: true } }),
+      this.prisma.user.findMany({
+        where: { id: { in: ids }, OR: [{ marketingUnsubscribedAt: { not: null } }, { crmLead: { status: 'DO_NOT_CONTACT' } }] },
+        select: { id: true },
+      }),
       spec.skipRedeemedCoupon && couponId
         ? this.prisma.couponRedemption.findMany({ where: { couponId, userId: { in: ids }, confirmedAt: { not: null } }, select: { userId: true } })
         : Promise.resolve([] as { userId: string }[]),
@@ -444,12 +446,20 @@ export class EmailCampaignsService {
     recipient: { id: string; userId: string; email: string; attempts: number },
   ): Promise<'sent' | 'failed' | 'retrying' | 'skipped'> {
     try {
-      const user = await this.prisma.user.findUnique({ where: { id: recipient.userId }, include: { profile: true } });
-      // Re-check at send time: they may have unsubscribed after the campaign was queued
-      if (!user || user.marketingUnsubscribedAt) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: recipient.userId },
+        include: { profile: true, crmLead: { select: { status: true } } },
+      });
+      // Re-check at send time: they may have unsubscribed (or been marked do-not-contact) after queueing
+      const doNotContact = user?.crmLead?.status === 'DO_NOT_CONTACT';
+      if (!user || user.marketingUnsubscribedAt || doNotContact) {
         await this.prisma.emailCampaignRecipient.update({
           where: { id: recipient.id },
-          data: { status: 'SKIPPED', error: user ? 'Unsubscribed' : 'User no longer exists', leasedUntil: null },
+          data: {
+            status: 'SKIPPED',
+            error: !user ? 'User no longer exists' : doNotContact ? 'Marked do not contact' : 'Unsubscribed',
+            leasedUntil: null,
+          },
         });
         return 'skipped';
       }

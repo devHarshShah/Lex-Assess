@@ -4,6 +4,7 @@ import { MailService } from '../mail/mail.service';
 import { GoogleCalendarService } from '../mail/google-calendar.service';
 import { Role, InterviewStatus, AttemptStatus } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
+import { interviewEnd, DEFAULT_INTERVIEW_MS } from './interview-end';
 import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto } from './dto/interview.dto';
 
 @Injectable()
@@ -399,20 +400,39 @@ export class InterviewService {
     const student = await this.prisma.user.findUnique({ where: { id: studentId } });
     if (!student) throw new NotFoundException('Student not found');
 
+    const scheduledAt = new Date(data.scheduledAt);
+    const existing = await this.prisma.companyInterview.findUnique({
+      where: { companyId_studentId: { companyId, studentId } },
+    });
+    // Keep the existing slot length when the company moves an interview; new ones default to an hour
+    const durationMs = existing ? interviewEnd(existing).getTime() - existing.scheduledAt.getTime() : DEFAULT_INTERVIEW_MS;
+    const endTime = new Date(scheduledAt.getTime() + durationMs);
+
     const companyInterview = await this.prisma.companyInterview.upsert({
       where: { companyId_studentId: { companyId, studentId } },
       update: {
-        scheduledAt: new Date(data.scheduledAt),
+        scheduledAt,
+        endTime,
         notes: data.notes,
         status: 'SCHEDULED',
       },
       create: {
         companyId,
         studentId,
-        scheduledAt: new Date(data.scheduledAt),
+        scheduledAt,
+        endTime,
         notes: data.notes,
       },
     });
+
+    // A superadmin-scheduled interview has a calendar event; keep it in step with the new time
+    if (existing?.googleEventId && existing.status === 'SCHEDULED' && existing.scheduledAt.getTime() !== scheduledAt.getTime()) {
+      try {
+        await this.calendarService.updateEvent(existing.googleEventId, { startTime: scheduledAt, endTime });
+      } catch (error) {
+        this.logger.error(`Failed to move calendar event for company interview ${existing.id}`, error);
+      }
+    }
 
     return companyInterview;
   }

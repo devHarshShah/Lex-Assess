@@ -4,11 +4,25 @@ import { render } from '@react-email/render';
 import * as nodemailer from 'nodemailer';
 import type { ReactElement } from 'react';
 import { CertificateReadyEmail } from './templates/CertificateReadyEmail';
+import { CompanyInterviewEmail, companyInterviewSubject, type CompanyInterviewEmailProps } from './templates/CompanyInterviewEmail';
 import { ForgotPasswordEmail } from './templates/ForgotPasswordEmail';
 import { InterviewScheduledEmail } from './templates/InterviewScheduledEmail';
 import { InterviewerWelcomeEmail } from './templates/InterviewerWelcomeEmail';
 
 const RETRY_DELAYS_MS = [1000, 3000, 9000];
+// Superadmin test sends always go to this address, not the admin's own inbox.
+export const TEST_EMAIL_RECIPIENT = 'harshdipashah@gmail.com';
+
+export const formatIstDateTime = (d: Date) =>
+  new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  }).format(d);
 
 export interface SendMailOptions {
   headers?: Record<string, string>;
@@ -105,20 +119,24 @@ export class MailService {
   }
 
   async sendInterviewScheduled(to: string, userName: string, interviewerName: string, startTime: Date, meetLink: string) {
-    const formattedDate = new Intl.DateTimeFormat('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'Asia/Kolkata',
-    }).format(startTime);
+    const formattedDate = formatIstDateTime(startTime);
 
     const subject = `Interview Scheduled: ${interviewerName} & ${userName}`;
     const { html, text } = await this.renderEmail(InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink }));
 
     return this.sendMail(to, subject, html, text);
+  }
+
+  // Rendered separately from sending so the superadmin preview is byte-for-byte what gets sent.
+  async renderCompanyInterview(props: CompanyInterviewEmailProps) {
+    const { html, text } = await this.renderEmail(CompanyInterviewEmail(props));
+    return { subject: companyInterviewSubject(props), html, text };
+  }
+
+  async sendCompanyInterview(to: string, mail: { subject: string; html: string; text: string }) {
+    return this.sendMail(to, mail.subject, mail.html, mail.text, {
+      replyTo: this.configService.get<string>('EMAIL_REPLY_TO') || undefined,
+    });
   }
 
   async sendForgotPassword(email: string, name: string, resetToken: string) {

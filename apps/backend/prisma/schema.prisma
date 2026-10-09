@@ -73,6 +73,49 @@ enum CompanyInterviewStatus {
   CANCELLED
 }
 
+enum CompanyInterviewSource {
+  COMPANY
+  SUPERADMIN
+}
+
+enum CrmLeadStatus {
+  NEW
+  ATTEMPTED
+  CONTACTED
+  INTERESTED
+  FOLLOW_UP
+  NOT_INTERESTED
+  DO_NOT_CONTACT
+  INVALID_NUMBER
+}
+
+enum CrmPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CrmActivityType {
+  CALL
+  WHATSAPP
+  EMAIL
+  NOTE
+  STATUS_CHANGE
+  FOLLOW_UP_SET
+  INTERVIEW_SCHEDULED
+  INTERVIEW_RESCHEDULED
+  INTERVIEW_CANCELLED
+}
+
+enum CrmCallOutcome {
+  CONNECTED
+  NO_ANSWER
+  BUSY
+  SWITCHED_OFF
+  WRONG_NUMBER
+  CALLBACK_REQUESTED
+}
+
 enum CompanyVerificationStatus {
   PENDING
   APPROVED
@@ -107,6 +150,10 @@ model User {
   passwordSetupTokens     PasswordSetupToken[]
   companyInterviewsAsCompany CompanyInterview[] @relation("CompanyInterviewCompany")
   companyInterviewsAsStudent CompanyInterview[] @relation("CompanyInterviewStudent")
+  companyInterviewsScheduled CompanyInterview[] @relation("CompanyInterviewScheduledBy")
+  crmLead                 CrmLead?        @relation("CrmLeadStudent")
+  crmActivities           CrmActivity[]   @relation("CrmActivityStudent")
+  crmActivitiesLogged     CrmActivity[]   @relation("CrmActivityActor")
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
   hasActiveSubscription  Boolean      @default(false)
@@ -438,13 +485,73 @@ model CompanyInterview {
   studentId   String
   student     User                   @relation("CompanyInterviewStudent", fields: [studentId], references: [id], onDelete: Cascade)
   scheduledAt DateTime
+  // Nullable so older app revisions can still insert during a deploy; read via interviewEnd()
+  endTime     DateTime?
   notes       String?
   status      CompanyInterviewStatus @default(SCHEDULED)
+  source      CompanyInterviewSource @default(COMPANY)
+  meetLink      String?
+  googleEventId String?
+  // Extra company panel members invited alongside the company account
+  extraAttendees String[]             @default([])
+  // Superadmin's personal note included in the invite emails (snapshot of the last send)
+  inviteMessage  String?
+  scheduledById  String?
+  scheduledBy    User?                @relation("CompanyInterviewScheduledBy", fields: [scheduledById], references: [id], onDelete: SetNull)
+  rescheduleCount Int                 @default(0)
+  cancelledAt    DateTime?
+  cancelReason   String?
+  // Set when the latest invite/update/cancellation email reached each side
+  studentEmailSentAt DateTime?
+  companyEmailSentAt DateTime?
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
 
   @@unique([companyId, studentId])
   @@index([studentId])
+  @@index([scheduledAt])
+}
+
+// In-house outreach state for one student. Rows are created on first touch; students without
+// one are treated as NEW.
+model CrmLead {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  user            User          @relation("CrmLeadStudent", fields: [userId], references: [id], onDelete: Cascade)
+  status          CrmLeadStatus @default(NEW)
+  priority        CrmPriority   @default(MEDIUM)
+  tags            String[]      @default([])
+  nextFollowUpAt  DateTime?
+  lastContactedAt DateTime?
+  contactAttempts Int           @default(0)
+  updatedById     String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status, nextFollowUpAt])
+}
+
+// Append-only timeline of everything done to/for a student lead; doubles as the audit log.
+model CrmActivity {
+  id          String          @id @default(cuid())
+  userId      String
+  user        User            @relation("CrmActivityStudent", fields: [userId], references: [id], onDelete: Cascade)
+  actorId     String?
+  actor       User?           @relation("CrmActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type        CrmActivityType
+  callOutcome CrmCallOutcome?
+  fromStatus  CrmLeadStatus?
+  toStatus    CrmLeadStatus?
+  note        String?
+  followUpAt  DateTime?
+  durationSec Int?
+  // Funnel stage when the activity happened, for outreach conversion metrics (like stageAtSend)
+  stageAtActivity String?
+  createdAt   DateTime        @default(now())
+
+  @@index([userId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([type, createdAt])
 }
 
 model Certificate {

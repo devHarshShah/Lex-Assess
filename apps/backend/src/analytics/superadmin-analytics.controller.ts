@@ -6,9 +6,11 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Role } from '../auth/roles';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsExportService } from './analytics-export.service';
+import { OutreachAnalyticsService } from './outreach-analytics.service';
 
 interface UsersQuery {
   stage?: string;
+  crmStatus?: string;
   role?: string;
   search?: string;
   from?: string;
@@ -23,7 +25,18 @@ export class SuperadminAnalyticsController {
   constructor(
     private readonly analytics: AnalyticsService,
     private readonly exporter: AnalyticsExportService,
+    private readonly outreach: OutreachAnalyticsService,
   ) {}
+
+  @Get('crm')
+  crm(@Query() q: UsersQuery) {
+    return this.outreach.crm({ from: q.from, to: q.to });
+  }
+
+  @Get('company-interviews')
+  companyInterviews(@Query() q: UsersQuery) {
+    return this.outreach.companyInterviews({ from: q.from, to: q.to });
+  }
 
   @Get('overview')
   overview(@Query() q: UsersQuery) {

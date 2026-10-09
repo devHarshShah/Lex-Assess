@@ -25,6 +25,7 @@ export const STAGE_LABELS: Record<FunnelStage, string> = {
 
 export interface AnalyticsFilters {
   stage?: string;
+  crmStatus?: string;
   role?: string;
   search?: string;
   from?: string;
@@ -55,4 +56,8 @@ export interface UserReportRow {
   lastPaymentAt: string | null;
   stage: FunnelStage;
   stageLabel: string;
+  // Students only; NEW when nobody has worked the lead yet
+  crmStatus: string | null;
+  lastContactedAt: string | null;
+  companyInterviews: number;
 }

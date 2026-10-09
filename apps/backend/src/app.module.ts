@@ -15,6 +15,7 @@ import { RankingModule } from './ranking/ranking.module';
 import { CertificatesModule } from './certificates/certificates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
+import { CrmModule } from './crm/crm.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
     CertificatesModule,
     AnalyticsModule,
     EmailCampaignsModule,
+    CrmModule,
   ],
   controllers: [AppController],
   providers: [

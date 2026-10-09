@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { hasAccess } from '../payments/access';
 import {
@@ -50,23 +51,43 @@ export class AnalyticsService {
   async buildRows(filters: AnalyticsFilters): Promise<UserReportRow[]> {
     const from = this.parseDate(filters.from);
     const to = this.parseDate(filters.to, true);
+    const rows = await this.loadRows({
+      ...(filters.role ? { role: filters.role as never } : {}),
+      ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
+    });
 
+    const search = filters.search?.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (!filters.stage || r.stage === filters.stage) &&
+        (!filters.crmStatus || r.crmStatus === filters.crmStatus) &&
+        (!search ||
+          r.email.toLowerCase().includes(search) ||
+          r.name.toLowerCase().includes(search) ||
+          (r.college ?? '').toLowerCase().includes(search)),
+    );
+  }
+
+  // Report rows (with live funnel stage) for specific users, e.g. to snapshot a stage.
+  async rowsForUsers(ids: string[]): Promise<UserReportRow[]> {
+    if (!ids.length) return [];
+    return this.loadRows({ id: { in: ids } });
+  }
+
+  private async loadRows(where: Prisma.UserWhereInput): Promise<UserReportRow[]> {
     const users = await this.prisma.user.findMany({
-      where: {
-        ...(filters.role ? { role: filters.role as never } : {}),
-        ...(from || to ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}),
-      },
+      where,
       orderBy: { createdAt: 'desc' },
       include: {
         profile: true,
         transactions: { select: { amount: true, status: true, createdAt: true } },
         couponRedemptions: { where: { confirmedAt: { not: null } }, include: { coupon: { select: { code: true } } } },
+        crmLead: { select: { status: true, lastContactedAt: true } },
+        _count: { select: { companyInterviewsAsStudent: true } },
       },
     });
 
-    const search = filters.search?.trim().toLowerCase();
-
-    const rows = users.map((u): UserReportRow => {
+    return users.map((u): UserReportRow => {
       const captured = u.transactions.filter((t) => t.status === 'captured');
       const stage = deriveStage({
         role: u.role,
@@ -108,17 +129,11 @@ export class AnalyticsService {
         lastPaymentAt: last?.toISOString() ?? null,
         stage,
         stageLabel: STAGE_LABELS[stage],
+        crmStatus: u.role === 'USER' ? (u.crmLead?.status ?? 'NEW') : null,
+        lastContactedAt: u.crmLead?.lastContactedAt?.toISOString() ?? null,
+        companyInterviews: u._count.companyInterviewsAsStudent,
       };
     });
-
-    return rows.filter(
-      (r) =>
-        (!filters.stage || r.stage === filters.stage) &&
-        (!search ||
-          r.email.toLowerCase().includes(search) ||
-          r.name.toLowerCase().includes(search) ||
-          (r.college ?? '').toLowerCase().includes(search)),
-    );
   }
 
   async listUsers(filters: AnalyticsFilters, page = 1) {

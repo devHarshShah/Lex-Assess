@@ -3,6 +3,7 @@ import { getApiBaseUrl } from './auth-storage'
 
 export interface AnalyticsFilters {
   stage?: string
+  crmStatus?: string
   role?: string
   search?: string
   from?: string
@@ -33,6 +34,55 @@ export interface UserReportRow {
   lastPaymentAt: string | null
   stage: string
   stageLabel: string
+  crmStatus: string | null
+  lastContactedAt: string | null
+  companyInterviews: number
+}
+
+export interface CrmAnalytics {
+  totals: {
+    eligibleLeads: number
+    neverContacted: number
+    overdueFollowUps: number
+    activities: number
+    contacts: number
+    calls: number
+    connectRatePct: number
+    studentsContacted: number
+  }
+  byStatus: { key: string; label: string; count: number }[]
+  callOutcomes: { key: string; label: string; count: number }[]
+  activityTypes: { label: string; count: number }[]
+  contactsPerDay: { date: string; count: number }[]
+  byActor: { name: string; activities: number; contacts: number }[]
+  conversion: {
+    contacted: number
+    tracked: number
+    advanced: number
+    advancedPct: number
+    converted: number
+    convertedPct: number
+    paidAfterContact: number
+    revenueInr: number
+    transitions: { from: string; to: string; fromLabel: string; toLabel: string; count: number }[]
+  }
+}
+
+export interface CompanyInterviewAnalytics {
+  totals: {
+    total: number
+    scheduled: number
+    upcoming: number
+    completed: number
+    cancelled: number
+    students: number
+    rescheduledPct: number
+    completionPct: number
+    emailDeliveryPct: number
+  }
+  bySource: { label: string; count: number }[]
+  byCompany: { label: string; scheduled: number; completed: number; cancelled: number }[]
+  perDay: { date: string; count: number }[]
 }
 
 export interface AnalyticsOverview {
@@ -67,6 +117,12 @@ export const fetchAnalyticsOverview = (f: AnalyticsFilters) =>
 
 export const fetchAnalyticsUsers = (f: AnalyticsFilters, page: number) =>
   api.get<UsersPage>(`/superadmin/analytics/users${qs({ ...f, page })}`)
+
+export const fetchCrmAnalytics = (f: AnalyticsFilters) =>
+  api.get<CrmAnalytics>(`/superadmin/analytics/crm${qs({ from: f.from, to: f.to })}`)
+
+export const fetchCompanyInterviewAnalytics = (f: AnalyticsFilters) =>
+  api.get<CompanyInterviewAnalytics>(`/superadmin/analytics/company-interviews${qs({ from: f.from, to: f.to })}`)
 
 export async function downloadAnalyticsXlsx(f: AnalyticsFilters): Promise<void> {
   const res = await fetch(`${getApiBaseUrl()}/superadmin/analytics/users.xlsx${qs({ ...f })}`, {

@@ -34,6 +34,9 @@ export class AnalyticsExportService {
       { header: 'Total paid (INR)', key: 'totalPaidInr', width: 16 },
       { header: 'Last payment', key: 'lastPaymentAt', width: 18 },
       { header: 'Stage', key: 'stageLabel', width: 30 },
+      { header: 'CRM status', key: 'crmStatus', width: 16 },
+      { header: 'Last contacted', key: 'lastContactedAt', width: 18 },
+      { header: 'Company interviews', key: 'companyInterviews', width: 18 },
     ];
     ws.getRow(1).font = { bold: true };
 
@@ -46,13 +49,14 @@ export class AnalyticsExportService {
         trialEndsAt: date(r.trialEndsAt),
         accessEndsAt: date(r.accessEndsAt),
         lastPaymentAt: date(r.lastPaymentAt),
+        lastContactedAt: date(r.lastContactedAt),
         profileStarted: yn(r.profileStarted),
         profileComplete: yn(r.profileComplete),
         paymentInitiated: yn(r.paymentInitiated),
         hasActiveSubscription: yn(r.hasActiveSubscription),
       });
     }
-    for (const key of ['registeredAt', 'trialEndsAt', 'accessEndsAt', 'lastPaymentAt']) {
+    for (const key of ['registeredAt', 'trialEndsAt', 'accessEndsAt', 'lastPaymentAt', 'lastContactedAt']) {
       ws.getColumn(key).numFmt = 'dd-mmm-yyyy hh:mm';
     }
     ws.getColumn('totalPaidInr').numFmt = '#,##0.00';

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Award, BarChart3, Bell, BookOpen, Building2, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
+import { Award, BarChart3, PhoneCall, Bell, BookOpen, Building2, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2 } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -101,7 +101,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: 'Interviews',
         url: '/dashboard/interviewers',
         icon: GraduationCap,
-        items: [{ title: 'Manage Interviewers', url: '/dashboard/interviewers' }],
+        items: [
+          { title: 'Manage Interviewers', url: '/dashboard/interviewers' },
+          { title: 'Company Interviews', url: '/dashboard/company-interviews' },
+        ],
+      },
+      {
+        title: 'Student CRM',
+        url: '/dashboard/crm',
+        icon: PhoneCall,
+        items: [{ title: 'Leads & Follow-ups', url: '/dashboard/crm' }],
       },
       {
         title: 'Ranking',

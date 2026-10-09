@@ -101,6 +101,15 @@ export class GoogleCalendarService {
     }
   }
 
+  get isConfigured(): boolean {
+    return !!this.calendar && (!!this.serviceAccountEmail || this.usingRealGoogleAccount);
+  }
+
+  // True when events can carry attendees and Meet links (a real Google account identity).
+  get canInviteAttendees(): boolean {
+    return !!this.calendar && this.usingRealGoogleAccount;
+  }
+
   async createInterviewEvent(details: {
     studentName: string;
     studentEmail: string;
@@ -111,13 +120,35 @@ export class GoogleCalendarService {
     summary?: string;
     description?: string;
   }) {
+    return this.createEvent({
+      summary: details.summary || `Interview: ${details.studentName} & ${details.interviewerName}`,
+      description: details.description || 'LexAssess Professional Interview Session.',
+      startTime: details.startTime,
+      endTime: details.endTime,
+      attendees: [
+        { email: details.studentEmail, displayName: details.studentName },
+        { email: details.interviewerEmail, displayName: details.interviewerName },
+      ],
+    });
+  }
+
+  async createEvent(details: {
+    summary: string;
+    description: string;
+    startTime: Date;
+    endTime: Date;
+    attendees: { email: string; displayName?: string }[];
+    // Use this link instead of generating a Google Meet
+    location?: string;
+  }) {
     if (!this.calendar || (!this.serviceAccountEmail && !this.usingRealGoogleAccount)) {
       throw new Error('Google Calendar service is not initialized. Please check credentials.');
     }
 
     const event: calendar_v3.Schema$Event = {
-      summary: details.summary || `Interview: ${details.studentName} & ${details.interviewerName}`,
-      description: details.description || 'LexAssess Professional Interview Session.',
+      summary: details.summary,
+      description: details.description,
+      ...(details.location ? { location: details.location } : {}),
       start: {
         dateTime: details.startTime.toISOString(),
         timeZone: 'Asia/Kolkata',
@@ -139,17 +170,16 @@ export class GoogleCalendarService {
       // them the event only lives on the organizer's calendar, but a bare
       // service account can't invite attendees without Domain-Wide Delegation.
       ...(this.usingRealGoogleAccount && {
-        attendees: [
-          { email: details.studentEmail, displayName: details.studentName },
-          { email: details.interviewerEmail, displayName: details.interviewerName },
-        ],
+        attendees: details.attendees,
         guestsCanModify: false,
-        conferenceData: {
-          createRequest: {
-            requestId: `lexassess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-            conferenceSolutionKey: { type: 'hangoutsMeet' },
+        ...(!details.location && {
+          conferenceData: {
+            createRequest: {
+              requestId: `lexassess-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
           },
-        },
+        }),
       }),
     };
 
@@ -157,7 +187,7 @@ export class GoogleCalendarService {
       const res = await this.calendar.events.insert({
         // A real Google account's own calendar is addressed as 'primary';
         // the bare-service-account fallback paths address it by email.
-        calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail!,
+        calendarId: this.calendarId,
         requestBody: event,
         conferenceDataVersion: this.usingRealGoogleAccount ? 1 : undefined,
         // Google emails the invite to attendees, which is what puts the
@@ -166,13 +196,13 @@ export class GoogleCalendarService {
       });
 
       const meetLink = res.data.hangoutLink;
-      if (this.usingRealGoogleAccount && !meetLink) {
+      if (this.usingRealGoogleAccount && !details.location && !meetLink) {
         this.logger.warn(`Event ${res.data.id} created without a Meet link - conferenceData may not have been granted.`);
       }
 
       return {
         eventId: res.data.id!,
-        meetLink: meetLink ?? '',
+        meetLink: details.location ?? meetLink ?? '',
         htmlLink: res.data.htmlLink!,
       };
     } catch (error: any) {
@@ -181,11 +211,46 @@ export class GoogleCalendarService {
     }
   }
 
+  // Moves an event (and optionally replaces its guest list); Google notifies attendees.
+  async updateEvent(
+    eventId: string,
+    changes: {
+      startTime: Date;
+      endTime: Date;
+      description?: string;
+      attendees?: { email: string; displayName?: string }[];
+    },
+  ) {
+    if (!this.calendar) {
+      throw new Error('Google Calendar service is not initialized. Please check credentials.');
+    }
+    try {
+      await this.calendar.events.patch({
+        calendarId: this.calendarId,
+        eventId,
+        sendUpdates: this.usingRealGoogleAccount ? 'all' : undefined,
+        requestBody: {
+          start: { dateTime: changes.startTime.toISOString(), timeZone: 'Asia/Kolkata' },
+          end: { dateTime: changes.endTime.toISOString(), timeZone: 'Asia/Kolkata' },
+          ...(changes.description !== undefined ? { description: changes.description } : {}),
+          ...(this.usingRealGoogleAccount && changes.attendees ? { attendees: changes.attendees } : {}),
+        },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to update event ${eventId}`, error);
+      throw error;
+    }
+  }
+
+  private get calendarId(): string {
+    return this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail ?? 'primary';
+  }
+
   async deleteEvent(eventId: string) {
     if (!this.calendar) return;
     try {
       await this.calendar.events.delete({
-        calendarId: this.usingRealGoogleAccount ? 'primary' : this.serviceAccountEmail ?? 'primary',
+        calendarId: this.calendarId,
         eventId,
         sendUpdates: this.usingRealGoogleAccount ? 'all' : undefined,
       });
