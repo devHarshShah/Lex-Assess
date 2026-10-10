@@ -331,11 +331,16 @@ model Interview {
   marks           Int?
   notes           String?
   status          InterviewStatus @default(SCHEDULED)
+  // Null until the Google Calendar event (Meet link) is created and the scheduled emails are sent;
+  // the worker retries pending rows so a Calendar outage never blocks a booking
+  calendarSyncedAt     DateTime?
+  calendarSyncAttempts Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@index([studentId])
   @@index([interviewerId])
+  @@index([calendarSyncedAt])
 }
 
 model Specialization {
@@ -692,4 +697,11 @@ model EmailCampaignRecipient {
   @@unique([campaignId, userId])
   @@index([campaignId, status])
   @@index([userId, sentAt])
+}
+
+// Small global key/value settings toggled by the superadmin (e.g. maintenance mode)
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }

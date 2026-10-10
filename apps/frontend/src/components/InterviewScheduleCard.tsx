@@ -106,9 +106,14 @@ export function InterviewScheduleCard({ specialization }: { specialization?: str
                     </div>
 
                     <div className="pt-1">
-                      {interview.status === 'SCHEDULED' ? (
+                      {interview.status === 'SCHEDULED' && !interview.meetLink ? (
+                        // Booked while Google Calendar was unavailable; the link is emailed once it syncs
+                        <div className="py-2.5 px-4 bg-amber-50 text-amber-700 rounded-xl text-xs font-bold border border-amber-100 text-center">
+                          Booked! Your meeting link will be emailed shortly.
+                        </div>
+                      ) : interview.status === 'SCHEDULED' ? (
                         <Button className="w-full text-white font-bold h-10 rounded-xl shadow-sm" style={{ backgroundColor: '#d97706' }} asChild>
-                          <a href={interview.meetLink} target="_blank" rel="noreferrer">
+                          <a href={interview.meetLink ?? undefined} target="_blank" rel="noreferrer">
                             Join Session <ExternalLink className="h-4 w-4 ml-2" />
                           </a>
                         </Button>

@@ -23,6 +23,7 @@ import { dashboardSpecializationSubmissionsRoute } from './routes/dashboard-spec
 import { dashboardSubmissionScoringRoute } from './routes/dashboard-submission-scoring'
 import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success'
 import { dashboardNotificationsRoute } from './routes/dashboard-notifications'
+import { dashboardMaintenanceRoute } from './routes/dashboard-maintenance'
 import { dashboardCouponsRoute } from './routes/dashboard-coupons'
 import { dashboardEmailCampaignsRoute } from './routes/dashboard-email-campaigns'
 import { unsubscribeRoute } from './routes/unsubscribe'
@@ -69,6 +70,7 @@ const routeTree = rootRoute.addChildren([
     dashboardSubmissionScoringRoute,
     dashboardPaymentSuccessRoute,
     dashboardNotificationsRoute,
+    dashboardMaintenanceRoute,
     dashboardCouponsRoute,
     dashboardEmailCampaignsRoute,
     dashboardAnalyticsRoute,

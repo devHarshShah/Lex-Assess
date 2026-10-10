@@ -301,8 +301,9 @@ export class InterviewService {
       throw new BadRequestException('Slot is no longer available');
     }
 
-    // Mark slot as booked and create interview
-    const result = await this.prisma.$transaction(async (tx) => {
+    // Book first; the Calendar event and emails follow outside the transaction so a
+    // Google outage never blocks a booking (the email worker retries pending syncs).
+    const interview = await this.prisma.$transaction(async (tx) => {
       await tx.interviewSlot.update({
         where: { id: slot.id },
         data: { isBooked: true }
@@ -311,64 +312,112 @@ export class InterviewService {
       const student = await tx.user.findUnique({ where: { id: studentId } });
       if (!student) throw new NotFoundException('Student not found');
 
-      try {
-        const event = await this.calendarService.createInterviewEvent({
-          studentName: student.name,
-          studentEmail: student.email,
-          interviewerName: slot.interviewer.name,
-          interviewerEmail: slot.interviewer.email,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        });
-
-        const interview = await tx.interview.create({
-          data: {
-            studentId,
-            interviewerId: slot.interviewerId,
-            slotId: slot.id,
-            status: InterviewStatus.SCHEDULED,
-            meetLink: event.meetLink,
-            googleEventId: event.eventId,
-          },
-          include: { 
-            interviewer: true, 
-            student: true,
-            slot: true 
-          }
-        });
-
-        return interview;
-      } catch (error: any) {
-        this.logger.error('Failed to schedule interview due to calendar error:', error);
-        throw new BadRequestException(`Failed to schedule interview: ${error.message || 'Google Calendar error'}`);
-      }
+      return tx.interview.create({
+        data: {
+          studentId,
+          interviewerId: slot.interviewerId,
+          slotId: slot.id,
+          status: InterviewStatus.SCHEDULED,
+        },
+      });
     });
 
-    // Send emails
-    try {
-      if (result.student && result.interviewer && result.slot) {
-        await Promise.all([
-          this.mailService.sendInterviewScheduled(
-            result.student.email,
-            result.student.name,
-            result.interviewer.name,
-            result.slot.startTime,
-            result.meetLink!
-          ),
-          this.mailService.sendInterviewScheduled(
-            result.interviewer.email,
-            result.student.name,
-            result.interviewer.name,
-            result.slot.startTime,
-            result.meetLink!
-          )
-        ]);
+    await this.trySyncCalendar(interview.id);
+
+    const result = await this.prisma.interview.findUniqueOrThrow({
+      where: { id: interview.id },
+      include: {
+        interviewer: true,
+        student: true,
+        slot: true
       }
-    } catch (error) {
-      this.logger.error('Failed to send interview scheduled emails', error);
+    });
+    return result;
+  }
+
+  /**
+   * Creates the Calendar event (Meet link) for a booked interview, then sends the
+   * scheduled emails. Returns false and leaves the row pending when Google fails;
+   * syncPendingInterviews retries it.
+   */
+  async trySyncCalendar(interviewId: string): Promise<boolean> {
+    const interview = await this.prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: { student: true, interviewer: true, slot: true },
+    });
+    // googleEventId set = an event already exists (e.g. booked by the pre-migration revision)
+    if (!interview || interview.calendarSyncedAt || interview.googleEventId || interview.status !== InterviewStatus.SCHEDULED) return false;
+
+    // Claim the attempt: if the request path and the worker race, only one creates the event
+    const claimed = await this.prisma.interview.updateMany({
+      where: { id: interviewId, calendarSyncedAt: null, calendarSyncAttempts: interview.calendarSyncAttempts },
+      data: { calendarSyncAttempts: { increment: 1 } },
+    });
+    if (claimed.count === 0) return false;
+
+    let event: { meetLink: string | null | undefined; eventId: string | null | undefined };
+    try {
+      event = await this.calendarService.createInterviewEvent({
+        studentName: interview.student.name,
+        studentEmail: interview.student.email,
+        interviewerName: interview.interviewer.name,
+        interviewerEmail: interview.interviewer.email,
+        startTime: interview.slot.startTime,
+        endTime: interview.slot.endTime,
+      });
+    } catch (error: any) {
+      this.logger.error(`Calendar sync failed for interview ${interviewId} (attempt ${interview.calendarSyncAttempts + 1}): ${error?.message ?? error}`);
+      return false;
     }
 
-    return result;
+    await this.prisma.interview.update({
+      where: { id: interviewId },
+      data: { meetLink: event.meetLink ?? null, googleEventId: event.eventId ?? null, calendarSyncedAt: new Date() },
+    });
+
+    try {
+      await Promise.all([
+        this.mailService.sendInterviewScheduled(
+          interview.student.email,
+          interview.student.name,
+          interview.interviewer.name,
+          interview.slot.startTime,
+          event.meetLink!
+        ),
+        this.mailService.sendInterviewScheduled(
+          interview.interviewer.email,
+          interview.student.name,
+          interview.interviewer.name,
+          interview.slot.startTime,
+          event.meetLink!
+        )
+      ]);
+    } catch (error: any) {
+      this.logger.error(`Failed to send interview scheduled emails for ${interviewId}: ${error?.message ?? error}`);
+    }
+    return true;
+  }
+
+  /** Retries Calendar sync for bookings made while Google was failing. Called by the email worker. */
+  async syncPendingInterviews(): Promise<{ pending: number; synced: number }> {
+    const pending = await this.prisma.interview.findMany({
+      where: {
+        calendarSyncedAt: null,
+        googleEventId: null,
+        status: InterviewStatus.SCHEDULED,
+        calendarSyncAttempts: { lt: 50 },
+        slot: { endTime: { gt: new Date() } },
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    });
+    let synced = 0;
+    for (const { id } of pending) {
+      if (await this.trySyncCalendar(id)) synced++;
+      else break; // Google is still failing; don't burn attempts on the rest this tick
+    }
+    return { pending: pending.length, synced };
   }
 
   /**

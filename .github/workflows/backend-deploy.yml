@@ -190,6 +190,7 @@ jobs:
             FRONTEND_ORIGIN=${{ vars.FRONTEND_ORIGIN }}
             COOKIE_SECURE=true
             COOKIE_SAMESITE=none
+            TRUST_PROXY_HOPS=2
             GOOGLE_CLIENT_ID=${{ vars.GOOGLE_CLIENT_ID }}
             GOOGLE_REDIRECT_URI=${{ vars.GOOGLE_REDIRECT_URI }}
             GOOGLE_SERVICE_ACCOUNT_EMAIL=${{ vars.GOOGLE_SERVICE_ACCOUNT_EMAIL }}

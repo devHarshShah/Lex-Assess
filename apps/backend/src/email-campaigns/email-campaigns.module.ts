@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { InterviewModule } from '../interview/interview.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailCampaignsService } from './email-campaigns.service';
@@ -9,7 +10,7 @@ import { SuperadminEmailController } from './superadmin-email.controller';
 import { UnsubscribeController } from './unsubscribe.controller';
 
 @Module({
-  imports: [ConfigModule, AnalyticsModule],
+  imports: [ConfigModule, AnalyticsModule, InterviewModule],
   providers: [EmailCampaignsService, EmailTemplatesService, PrismaService],
   controllers: [SuperadminEmailController, EmailWorkerController, UnsubscribeController],
 })

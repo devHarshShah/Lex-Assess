@@ -7,6 +7,14 @@ import * as fs from 'fs';
 
 const CALENDAR_SCOPES = ['https://www.googleapis.com/auth/calendar'];
 
+// GaxiosErrors carry the request config (refresh token included), so never log or rethrow them raw.
+function describeGoogleError(error: unknown): string {
+  const e = error as { message?: string; response?: { status?: number; data?: unknown } };
+  const data = e?.response?.data as { error?: unknown; error_description?: unknown } | undefined;
+  const detail = data?.error ? ` (${JSON.stringify(data.error)}${data.error_description ? `: ${String(data.error_description)}` : ''})` : '';
+  return `${e?.message ?? String(error)}${e?.response?.status ? ` [HTTP ${e.response.status}]` : ''}${detail}`;
+}
+
 @Injectable()
 export class GoogleCalendarService {
   private calendar: calendar_v3.Calendar | null = null;
@@ -97,7 +105,7 @@ export class GoogleCalendarService {
       this.calendar = google.calendar({ version: 'v3', auth });
       this.logger.log('Google Calendar service initialized.');
     } catch (error) {
-      this.logger.error('Failed to initialize Google Calendar service', error);
+      this.logger.error(`Failed to initialize Google Calendar service: ${describeGoogleError(error)}`);
     }
   }
 
@@ -206,8 +214,9 @@ export class GoogleCalendarService {
         htmlLink: res.data.htmlLink!,
       };
     } catch (error: any) {
-      this.logger.error('Failed to create Google Calendar event', error);
-      throw error;
+      const description = describeGoogleError(error);
+      this.logger.error(`Failed to create Google Calendar event: ${description}`);
+      throw new Error(description);
     }
   }
 
@@ -237,8 +246,9 @@ export class GoogleCalendarService {
         },
       });
     } catch (error) {
-      this.logger.error(`Failed to update event ${eventId}`, error);
-      throw error;
+      const description = describeGoogleError(error);
+      this.logger.error(`Failed to update event ${eventId}: ${description}`);
+      throw new Error(description);
     }
   }
 
@@ -255,7 +265,7 @@ export class GoogleCalendarService {
         sendUpdates: this.usingRealGoogleAccount ? 'all' : undefined,
       });
     } catch (error) {
-      this.logger.error(`Failed to delete event ${eventId}`, error);
+      this.logger.error(`Failed to delete event ${eventId}: ${describeGoogleError(error)}`);
     }
   }
 }

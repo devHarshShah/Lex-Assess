@@ -163,21 +163,26 @@ For iterating on the Cloud Run configuration itself, skip GitHub entirely and dr
 against the already-pushed image — `gcloud run jobs deploy lex-assess-migrate --image <ref> …` /
 `gcloud run deploy lex-assess-backend --image <ref> …` — then commit once it works.
 
-## 5. Cross-site cookies
+## 5. Cookies and the `/api` proxy
 
-The frontend (Vercel) and backend (Cloud Run, currently on the raw `*.run.app` domain — no custom
-domain is wired up yet) are different origins with no shared apex, so `COOKIE_DOMAIN` is
-deliberately left unset: setting it to a domain the backend isn't actually served from would make
-browsers reject the cookie outright. `buildAuthCookieOptions` (`apps/backend/src/auth/auth-cookie.ts`)
-already handles this — an unset `COOKIE_DOMAIN` falls back to `undefined`, which scopes the cookie
-to the exact host serving the response. `COOKIE_SECURE=true` and `COOKIE_SAMESITE=none` are still
-required for the httpOnly auth cookie to be sent cross-site at all. `FRONTEND_ORIGIN` must exactly
-match the frontend's actual origin for CORS in the backend to accept the requests.
+The browser talks to the backend through Vercel: `apps/frontend/vercel.json` rewrites
+`https://lexassess.in/api/*` to the Cloud Run URL, and the frontend is built with
+`VITE_API_BASE_URL=/api` (set in Vercel's project env). The httpOnly auth cookie is therefore
+first-party to `lexassess.in`. Calling `*.run.app` directly made it a third-party cookie, which
+iOS Safari (and every iPhone browser, all WebKit) drops by default: login returned 201 but the
+next `/auth/me` was 401 and the user was bounced back to the login page.
 
-If `api.lexassess.in` is later put in front of Cloud Run via a load balancer (see the region
-limitation noted elsewhere), and the frontend also moves to a `lexassess.in` subdomain, revisit
-whether a shared `COOKIE_DOMAIN=.lexassess.in` is worth reintroducing at that point — it isn't
-required either way, since `SameSite=None; Secure` already works cross-site.
+`COOKIE_DOMAIN` stays unset (the cookie is scoped to the host that set it). `COOKIE_SECURE=true`
+and `COOKIE_SAMESITE=none` are kept: `None` works both through the proxy and for any client still
+calling `*.run.app` directly, so backend and frontend deploys can land in either order.
+`FRONTEND_ORIGIN` must still list the frontend origins for CORS.
+
+`TRUST_PROXY_HOPS=2` (Vercel + Cloud Run's front end) makes `req.ip` the real client IP, which the
+rate limiter (`ClientThrottlerGuard`) keys on; login/register/forgot-password are keyed by IP +
+email. Requests that bypass Vercel and hit `*.run.app` directly can spoof `X-Forwarded-For`, so the
+limiter is a courtesy against accidental hammering, not a hard security boundary.
+
+The Razorpay webhook and the Cloud Scheduler email worker keep calling `*.run.app` directly.
 
 ## 6. Secret rotation
 
@@ -327,7 +332,15 @@ If this token is ever lost or revoked, mint a new one:
 4. `echo -n "<refresh-token>" | gcloud secrets versions add GOOGLE_CALENDAR_REFRESH_TOKEN --data-file=- --project "$PROJECT_ID"`, then redeploy.
 
 Refresh tokens don't expire under normal use, so this is a one-time setup, not something to rotate
-on a schedule.
+on a schedule. Two gotchas seen in practice: a token minted while the consent screen was still in
+"Testing" dies after 7 days even if the app is published later, and the Playground silently uses
+its own client unless "Use your own OAuth credentials" is ticked (the backend then gets
+`unauthorized_client`). Check a token before storing it by exchanging it at
+`https://oauth2.googleapis.com/token` with our client ID/secret.
+
+If Calendar is down, bookings still succeed: the interview is saved without a Meet link, and the
+email worker (`/internal/email/process`, every minute) retries `InterviewService.syncPendingInterviews`
+until the event is created, then sends the "interview scheduled" emails.
 
 ## Out of scope here
 

@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -7,8 +8,12 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
   const configService = app.get(ConfigService);
+
+  // Number of proxies in front of the app, so req.ip (and the rate limiter) sees the real client:
+  // 1 = Cloud Run's front end only, 2 = Vercel's /api proxy + Cloud Run.
+  app.set('trust proxy', Number(configService.get<string>('TRUST_PROXY_HOPS') ?? 1));
 
   app.use(helmet());
   app.use(cookieParser());

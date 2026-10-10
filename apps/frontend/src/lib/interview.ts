@@ -31,7 +31,8 @@ export interface Interview {
   interviewerId: string;
   interviewer?: Interviewer;
   slot: InterviewSlot;
-  meetLink?: string;
+  // null until the Google Calendar event is created (booked during a Calendar outage)
+  meetLink?: string | null;
   marks?: number;
   notes?: string;
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';

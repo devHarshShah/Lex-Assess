@@ -3,6 +3,8 @@ export const ACTIVE_ROLE_KEY = 'lexassess_active_role'
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000'
 
 export const UNAUTHORIZED_EVENT = 'lexassess_unauthorized'
+// Fired with { detail: message } when the API answers 503 MAINTENANCE
+export const MAINTENANCE_EVENT = 'lexassess_maintenance'
 
 export function getApiBaseUrl() {
   return API_BASE_URL

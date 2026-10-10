@@ -20,12 +20,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
+    // Machine-readable reason the frontend can switch on (e.g. 'MAINTENANCE')
+    let code: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const res = exception.getResponse() as any;
       message = res.message || exception.message;
       error = res.error || exception.name;
+      code = typeof res?.code === 'string' ? res.code : undefined;
     } else if (exception.code === 'P2002') {
       // Prisma unique constraint violation
       status = HttpStatus.BAD_REQUEST;
@@ -54,6 +57,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: status,
       message: finalMessage,
       error: error,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: (request as any).url,
     });

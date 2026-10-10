@@ -1,5 +1,5 @@
 import { toast } from 'sonner'
-import { getApiBaseUrl, UNAUTHORIZED_EVENT } from './auth-storage'
+import { getApiBaseUrl, MAINTENANCE_EVENT, UNAUTHORIZED_EVENT } from './auth-storage'
 
 interface RequestOptions extends RequestInit {
   skipToast?: boolean
@@ -35,9 +35,15 @@ export async function request<T>(endpoint: string, options: RequestOptions = {})
 
       const errorData = data as any
       const message = errorData.message || response.statusText || 'An unexpected error occurred'
+
+      // RootLayout swaps the whole app for the maintenance screen; no toast needed.
+      const isMaintenance = response.status === 503 && errorData.code === 'MAINTENANCE'
+      if (isMaintenance) {
+        window.dispatchEvent(new CustomEvent(MAINTENANCE_EVENT, { detail: message }))
+      }
       
       // 401s are handled by the redirect to /login; a toast is just noise.
-      if (!skipToast && !isUnauthorized) {
+      if (!skipToast && !isUnauthorized && !isMaintenance) {
         toast.error(message)
       }
       

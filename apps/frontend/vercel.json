@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://lex-assess-backend-iwk2yzeciq-el.a.run.app/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

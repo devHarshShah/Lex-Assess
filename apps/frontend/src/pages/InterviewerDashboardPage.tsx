@@ -94,11 +94,17 @@ export function InterviewerDashboardPage() {
                     <CardDescription>{format(new Date(session.slot.startTime), 'PPP p')}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Button className="w-full" asChild>
-                      <a href={session.meetLink} target="_blank" rel="noreferrer">
-                        Join Google Meet <ExternalLink className="h-4 w-4 ml-2" />
-                      </a>
-                    </Button>
+                    {session.meetLink ? (
+                      <Button className="w-full" asChild>
+                        <a href={session.meetLink} target="_blank" rel="noreferrer">
+                          Join Google Meet <ExternalLink className="h-4 w-4 ml-2" />
+                        </a>
+                      </Button>
+                    ) : (
+                      <p className="rounded-md border px-3 py-2 text-center text-sm text-muted-foreground">
+                        Meeting link will be emailed shortly
+                      </p>
+                    )}
                     <Button 
                       variant="outline" 
                       className="w-full"

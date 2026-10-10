@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -16,6 +16,9 @@ import { CertificatesModule } from './certificates/certificates.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
 import { CrmModule } from './crm/crm.module';
+import { SettingsModule } from './settings/settings.module';
+import { MaintenanceGuard } from './settings/maintenance.guard';
+import { ClientThrottlerGuard } from './common/guards/client-throttler.guard';
 
 @Module({
   imports: [
@@ -39,14 +42,20 @@ import { CrmModule } from './crm/crm.module';
     AnalyticsModule,
     EmailCampaignsModule,
     CrmModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
     PrismaService,
+    // Maintenance runs first so blocked requests don't use up anyone's rate limit
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: MaintenanceGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ClientThrottlerGuard,
     },
   ],
 })
