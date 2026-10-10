@@ -553,7 +553,7 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                     </div>
 
                     <div className="space-y-2 sm:col-span-2">
-                      <Label>Resume <span className="text-muted-foreground font-normal">(Optional)</span></Label>
+                      <Label>Resume <span className="text-muted-foreground font-normal">(Recommended)</span></Label>
                       <div className="flex items-center gap-4">
                         <Input
                           type="file"
@@ -595,6 +595,12 @@ export function ProfileSetupPage({ user, mode = 'setup' }: { user: AuthUser; mod
                           </div>
                         )}
                       </div>
+                      {!uploadingResume && !resumeUrl && (
+                        <p className="text-xs text-amber-700">
+                          Your CV is part of your rank score. Profiles without a resume can't get a CV score, so we strongly
+                          recommend adding one.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

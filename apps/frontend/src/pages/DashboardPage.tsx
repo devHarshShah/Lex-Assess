@@ -1,11 +1,11 @@
 import React from 'react'
-import { useRouterState } from '@tanstack/react-router'
+import { Link, useRouterState } from '@tanstack/react-router'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { TERMS_VERSION } from '@/lib/legal'
-import { getActiveRole, hasRole, type AuthUser } from '@/lib/auth'
+import { fetchMyProfile, getActiveRole, hasRole, type AuthUser, type UserProfile } from '@/lib/auth'
 import { fetchStudentPapers, type QuestionPaper } from '@/lib/question-papers'
 import {
   Clock,
@@ -57,6 +57,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [couponInput, setCouponInput] = React.useState('')
   const [appliedCoupon, setAppliedCoupon] = React.useState<{ code: string; freeDays: number } | null>(null)
   const [applyingCoupon, setApplyingCoupon] = React.useState(false)
+  const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const { Razorpay } = useRazorpay()
 
   const role = getActiveRole(user)
@@ -68,6 +69,9 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
       fetchStudentPapers()
         .then(setPapers)
         .finally(() => setLoading(false))
+      fetchMyProfile()
+        .then(setProfile)
+        .catch(() => setProfile(null))
     }
   }, [isStudent])
 
@@ -245,6 +249,27 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
           </div>
         )}
       </div>
+
+      {profile && !profile.resumeUrl && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-amber-100 bg-amber-50 p-5 sm:flex-row sm:items-center">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-amber-100 flex items-center justify-center">
+            <FileText className="h-5 w-5 text-amber-700" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-amber-900">Add your resume to complete your score</p>
+            <p className="mt-1 text-xs leading-relaxed text-amber-800">
+              Your CV is part of your overall rank score. Without a resume we can't score your CV, so your rank may be
+              lower than it should be, or you may not be ranked yet. It only takes a minute.
+            </p>
+          </div>
+          <Button asChild size="sm" className="shrink-0">
+            <Link to="/dashboard/profile">
+              Upload resume
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <div className="mb-12">
         <InterviewScheduleCard specialization={user.profile?.specialization} />
