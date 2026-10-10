@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ArrowLeft, Save, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
+import { renderMarkdown } from '@/lib/markdown'
 
 export function AdminSubmissionScoringPage() {
   const { submissionId } = useParams({ from: '/dashboard/submissions/$submissionId/score' })
@@ -161,7 +162,7 @@ export function AdminSubmissionScoringPage() {
                               )
                             )}
                           </div>
-                          <div className="text-lg font-medium pt-1">{question.text}</div>
+                          <div className="prose prose-sm dark:prose-invert max-w-none text-foreground pt-1" dangerouslySetInnerHTML={{ __html: renderMarkdown(question.text) }} />
                         </div>
                         {subQuestions.length === 0 && (
                         <div className="flex items-center gap-3">
@@ -190,7 +191,7 @@ export function AdminSubmissionScoringPage() {
                             {subQuestions.map((sq) => (
                               <div key={sq.id} className="space-y-2 border-l-2 pl-4">
                                 <div className="flex items-start justify-between gap-3">
-                                  <div className="text-sm font-medium whitespace-pre-wrap">{sq.text}</div>
+                                  <div className="prose prose-sm dark:prose-invert max-w-none text-foreground flex-1" dangerouslySetInnerHTML={{ __html: renderMarkdown(sq.text) }} />
                                   <div className="flex items-center gap-2 shrink-0">
                                     <span className="text-sm font-medium">Marks:</span>
                                     <Input

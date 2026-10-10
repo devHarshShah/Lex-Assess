@@ -3,11 +3,15 @@ import { api } from './api-client';
 export interface SubscriptionResponse {
   subscriptionId: string;
   keyId: string;
-  trialEndsAt?: string | null;
 }
 
-export async function createSubscription(termsVersion: string, couponCode?: string): Promise<SubscriptionResponse> {
-  return api.post<SubscriptionResponse>('/payments/subscription', { termsVersion, couponCode });
+export async function createSubscription(termsVersion: string): Promise<SubscriptionResponse> {
+  return api.post<SubscriptionResponse>('/payments/subscription', { termsVersion });
+}
+
+// Unlocks access for the coupon's free days directly, with no Razorpay checkout.
+export async function redeemCoupon(code: string, termsVersion: string): Promise<{ accessEndsAt: string }> {
+  return api.post('/payments/redeem-coupon', { code, termsVersion });
 }
 
 export async function validateCoupon(code: string): Promise<{ valid: boolean; code: string; freeDays: number }> {

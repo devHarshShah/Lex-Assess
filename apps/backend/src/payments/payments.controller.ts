@@ -6,6 +6,14 @@ import { PaymentsService } from './payments.service';
 import { CouponsService } from './coupons.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
+function parseTermsVersion(raw: unknown): string {
+  const termsVersion = typeof raw === 'string' ? raw.trim() : '';
+  if (!termsVersion || termsVersion.length > 32) {
+    throw new BadRequestException('You must accept the Terms of Use to continue');
+  }
+  return termsVersion;
+}
+
 @Controller('payments')
 export class PaymentsController {
   constructor(
@@ -15,13 +23,17 @@ export class PaymentsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('subscription')
-  async createSubscription(@Request() req: any, @Body() body: { termsVersion?: string; couponCode?: string }) {
-    const termsVersion = typeof body?.termsVersion === 'string' ? body.termsVersion.trim() : '';
-    if (!termsVersion || termsVersion.length > 32) {
-      throw new BadRequestException('You must accept the Terms of Use to continue');
-    }
-    const couponCode = typeof body?.couponCode === 'string' ? body.couponCode.trim() : '';
-    return this.paymentsService.createSubscription(req.user.id, termsVersion, couponCode || undefined);
+  async createSubscription(@Request() req: any, @Body() body: { termsVersion?: string }) {
+    return this.paymentsService.createSubscription(req.user.id, parseTermsVersion(body?.termsVersion));
+  }
+
+  // Coupons unlock access directly, without Razorpay.
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('redeem-coupon')
+  @HttpCode(HttpStatus.OK)
+  async redeemCoupon(@Request() req: any, @Body() body: { code?: string; termsVersion?: string }) {
+    return this.couponsService.redeem(req.user.id, body?.code ?? '', parseTermsVersion(body?.termsVersion));
   }
 
   @UseGuards(JwtAuthGuard)

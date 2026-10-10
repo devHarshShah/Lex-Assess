@@ -20,6 +20,8 @@ export interface AuthUser {
   avatarUrl: string | null
   profileCompleted: boolean
   hasActiveSubscription: boolean
+  // Set while access is time-limited (coupon period, or autopay cancelled)
+  accessEndsAt?: string | null
   profile?: UserProfile
 }
 

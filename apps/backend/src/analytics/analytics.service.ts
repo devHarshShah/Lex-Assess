@@ -25,6 +25,8 @@ export interface StageInput {
 export function deriveStage(u: StageInput): FunnelStage {
   if (u.role !== 'USER') return 'NON_STUDENT';
   const active = hasAccess(u);
+  // Coupon access is granted with accessEndsAt set and nothing charged: still a trial.
+  if (active && u.trialEndsAt && u.capturedPayments === 0) return 'TRIAL';
   if (active && u.accessEndsAt) return 'CANCELLED_ACTIVE';
   if (u.capturedPayments > 0) return active ? 'PAID' : 'LAPSED';
   if (active) return u.trialEndsAt ? 'TRIAL' : 'PAID';

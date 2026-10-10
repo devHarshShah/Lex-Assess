@@ -114,6 +114,7 @@ export class UsersService {
       avatarUrl: input.avatarUrl,
       profileCompleted,
       hasActiveSubscription: hasAccess(input),
+      accessEndsAt: hasAccess(input) ? input.accessEndsAt : null,
     };
   }
 

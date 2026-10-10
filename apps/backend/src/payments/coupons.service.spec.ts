@@ -54,6 +54,13 @@ describe('CouponsService', () => {
     await expect(service.validate('u1', 'FREE1')).resolves.toMatchObject({ valid: true });
   });
 
+  it('confirm is a no-op without a pending claim', async () => {
+    const { service, prisma } = setup(base);
+    prisma.couponRedemption.findFirst = jest.fn().mockResolvedValue(null);
+    await service.confirm('u1', 'sub_1');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   it('claim creates a pending row without touching the counter', async () => {
     const { service, prisma } = setup(base);
     prisma.couponRedemption.upsert = jest.fn().mockResolvedValue({ id: 'r1' });
@@ -99,5 +106,64 @@ describe('CouponsService soft delete', () => {
   it('a soft-deleted coupon is invalid', async () => {
     const { service } = setup({ ...base, deletedAt: new Date() });
     await expect(service.validate('u1', 'FREE1')).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('CouponsService redeem', () => {
+  function redeemSetup(coupon: any, user: any = { id: 'u1', hasActiveSubscription: false, accessEndsAt: null }) {
+    const ctx = setup(coupon);
+    ctx.prisma.user = { findUnique: jest.fn().mockResolvedValue(user) };
+    Object.assign(ctx.tx, {
+      coupon: { findUnique: jest.fn().mockResolvedValue(coupon), update: jest.fn().mockResolvedValue({}) },
+      couponRedemption: { upsert: jest.fn().mockResolvedValue({ id: 'r1' }) },
+      termsAcceptance: { create: jest.fn().mockResolvedValue({}) },
+      user: { update: jest.fn().mockResolvedValue({}) },
+    });
+    return ctx;
+  }
+
+  it('grants access for freeDays without any payment', async () => {
+    const { service, tx } = redeemSetup(base);
+    const before = Date.now();
+    const { accessEndsAt } = await service.redeem('u1', 'free1', 'v1');
+    const days = (accessEndsAt.getTime() - before) / 86400000;
+    expect(days).toBeGreaterThanOrEqual(30);
+    expect(days).toBeLessThan(30.01);
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'u1' },
+      data: { hasActiveSubscription: true, trialEndsAt: accessEndsAt, accessEndsAt },
+    });
+    expect(tx.couponRedemption.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: { couponId: 'c1', userId: 'u1', confirmedAt: expect.any(Date) },
+      update: { confirmedAt: expect.any(Date), razorpaySubscriptionId: null },
+    }));
+    expect(tx.coupon.update).toHaveBeenCalledWith({ where: { id: 'c1' }, data: { redemptionCount: { increment: 1 } } });
+    expect(tx.termsAcceptance.create).toHaveBeenCalledWith({ data: { userId: 'u1', version: 'v1', context: 'COUPON' } });
+  });
+
+  it('rejects a user who already has access', async () => {
+    const { service, tx } = redeemSetup(base, { id: 'u1', hasActiveSubscription: true, accessEndsAt: null });
+    await expect(service.redeem('u1', 'FREE1', 'v1')).rejects.toThrow('already have access');
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses the same coupon again after its period ended', async () => {
+    const { service, prisma, tx } = redeemSetup(base, { id: 'u1', hasActiveSubscription: true, accessEndsAt: past });
+    prisma.couponRedemption.findUnique.mockResolvedValue({ id: 'old', confirmedAt: past });
+    await expect(service.redeem('u1', 'FREE1', 'v1')).rejects.toThrow('already used');
+    expect(tx.user.update).not.toHaveBeenCalled();
+  });
+
+  it('allows a different coupon after an earlier one ran out', async () => {
+    const { service, tx } = redeemSetup(base, { id: 'u1', hasActiveSubscription: true, accessEndsAt: past });
+    await expect(service.redeem('u1', 'FREE1', 'v1')).resolves.toHaveProperty('accessEndsAt');
+    expect(tx.user.update).toHaveBeenCalled();
+  });
+
+  it('rejects when the cap filled up meanwhile', async () => {
+    const { service, tx } = redeemSetup({ ...base, maxRedemptions: 5, redemptionCount: 4 });
+    tx.coupon.findUnique.mockResolvedValue({ ...base, maxRedemptions: 5, redemptionCount: 5 });
+    await expect(service.redeem('u1', 'FREE1', 'v1')).rejects.toThrow('no longer available');
+    expect(tx.user.update).not.toHaveBeenCalled();
   });
 });

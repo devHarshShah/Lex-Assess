@@ -65,7 +65,7 @@ export class PaymentsService {
     }
   }
 
-  async createSubscription(userId: string, termsVersion: string, couponCode?: string) {
+  async createSubscription(userId: string, termsVersion: string) {
     await this.planInitializationPromise;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -95,11 +95,7 @@ export class PaymentsService {
       try {
         const existing = await this.razorpay.subscriptions.fetch(user.razorpaySubscriptionId);
         const deadStatuses = ['cancelled', 'completed', 'expired'];
-        if (existing?.status === 'created' && couponCode) {
-          // Unpaid, never-authenticated attempt: replace it so the coupon's deferred
-          // start applies instead of silently reusing a subscription without it.
-          await this.razorpay.subscriptions.cancel(user.razorpaySubscriptionId);
-        } else if (existing?.status && !deadStatuses.includes(existing.status)) {
+        if (existing?.status && !deadStatuses.includes(existing.status)) {
           this.logger.log(
             `Reusing existing subscription ${user.razorpaySubscriptionId} for user ${userId} (status: ${existing.status})`,
           );
@@ -140,16 +136,6 @@ export class PaymentsService {
       }
     }
 
-    // Claim the coupon (if any) only now, after every early-return path. The claim
-    // is pending and only consumed once the mandate/payment succeeds (confirm).
-    let redemptionId: string | null = null;
-    let trialEndsAt: Date | null = null;
-    if (couponCode) {
-      const redeemed = await this.coupons.claim(userId, couponCode);
-      redemptionId = redeemed.redemptionId;
-      trialEndsAt = new Date(Date.now() + redeemed.freeDays * 24 * 60 * 60 * 1000);
-    }
-
     try {
       this.logger.log(`Creating subscription for user ${user.id} with planId: "${this.planId}" and customerId: "${customerId}"`);
       if (!this.planId) {
@@ -166,11 +152,6 @@ export class PaymentsService {
         }
       };
 
-      // Free period: defer the first charge. Access starts once the mandate is authenticated.
-      if (trialEndsAt) {
-        subscriptionParams.start_at = Math.floor(trialEndsAt.getTime() / 1000);
-      }
-
       // Only add customer_id if we have one and it looks valid
       if (customerId) {
         subscriptionParams.customer_id = customerId;
@@ -180,25 +161,15 @@ export class PaymentsService {
 
       await this.prisma.user.update({
         where: { id: userId },
-        data: { razorpaySubscriptionId: subscription.id, trialEndsAt }
+        data: { razorpaySubscriptionId: subscription.id }
       });
-      if (redemptionId) {
-        await this.coupons.attachSubscription(redemptionId, subscription.id);
-      }
 
       return {
         subscriptionId: subscription.id,
         keyId: this.keyId,
-        trialEndsAt,
       };
     } catch (error: any) {
       this.logger.error('Failed to create Razorpay subscription', error?.response || error);
-
-      if (redemptionId) {
-        await this.coupons.release(redemptionId).catch((e) =>
-          this.logger.error(`Failed to release coupon redemption ${redemptionId}`, e),
-        );
-      }
 
       // If the error is about an invalid ID, it might be a stale customerId in our DB
       const errorMsg = error?.description || error?.error?.description || '';

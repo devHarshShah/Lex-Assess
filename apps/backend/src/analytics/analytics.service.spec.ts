@@ -39,6 +39,16 @@ describe('deriveStage', () => {
     expect(
       deriveStage({ ...base, hasActiveSubscription: true, capturedPayments: 1, accessEndsAt: new Date(Date.now() + 86400000) }),
     ).toBe('CANCELLED_ACTIVE'));
+  it('coupon access (accessEndsAt set, nothing charged) is a trial', () => {
+    const end = new Date(Date.now() + 86400000);
+    expect(deriveStage({ ...base, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end })).toBe('TRIAL');
+  });
+  it('coupon access that ran out is not active', () => {
+    const end = new Date(Date.now() - 86400000);
+    expect(
+      deriveStage({ ...base, hasProfile: true, profileComplete: true, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end }),
+    ).toBe('PROFILE_COMPLETE');
+  });
   it('access end passed counts as lapsed', () =>
     expect(
       deriveStage({ ...base, hasActiveSubscription: true, capturedPayments: 1, accessEndsAt: new Date(Date.now() - 86400000) }),

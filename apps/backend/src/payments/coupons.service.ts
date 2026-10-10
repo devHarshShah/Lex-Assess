@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { hasAccess } from './access';
 
 export const DEFAULT_FREE_DAYS = 30;
 
@@ -43,6 +44,45 @@ export class CouponsService {
   async validate(userId: string, code: string) {
     const coupon = await this.findUsable(userId, code);
     return { valid: true, code: coupon.code, freeDays: coupon.freeDays };
+  }
+
+  // Grants free access for the coupon's freeDays straight away, with no Razorpay
+  // checkout or mandate. Access lapses by itself at accessEndsAt (see access.ts),
+  // after which the paywall comes back and the same coupon can't be used again.
+  async redeem(userId: string, code: string, termsVersion: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+    if (hasAccess(user)) throw new BadRequestException('You already have access');
+
+    const coupon = await this.findUsable(userId, code);
+    const now = new Date();
+    const accessEndsAt = new Date(now.getTime() + coupon.freeDays * 24 * 60 * 60 * 1000);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Re-check the cap inside the transaction; a few concurrent redeems may still
+      // slip past it, same tolerance as confirm().
+      const fresh = await tx.coupon.findUnique({ where: { id: coupon.id } });
+      if (!fresh || (fresh.maxRedemptions != null && fresh.redemptionCount >= fresh.maxRedemptions)) {
+        throw new BadRequestException('This coupon is no longer available');
+      }
+      await tx.termsAcceptance.create({ data: { userId, version: termsVersion, context: 'COUPON' } });
+      // Upsert: an old pending claim from the Razorpay flow may already exist for this pair.
+      await tx.couponRedemption.upsert({
+        where: { couponId_userId: { couponId: coupon.id, userId } },
+        create: { couponId: coupon.id, userId, confirmedAt: now },
+        update: { confirmedAt: now, razorpaySubscriptionId: null },
+      });
+      await tx.coupon.update({
+        where: { id: coupon.id },
+        data: { redemptionCount: { increment: 1 } },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: { hasActiveSubscription: true, trialEndsAt: accessEndsAt, accessEndsAt },
+      });
+    });
+
+    return { accessEndsAt };
   }
 
   // Records a pending claim when checkout starts. Nothing is consumed yet: the

@@ -8,6 +8,8 @@ export interface PublicUser {
   avatarUrl: string | null;
   profileCompleted: boolean;
   hasActiveSubscription: boolean;
+  // Set while access is time-limited (coupon period, or autopay cancelled)
+  accessEndsAt?: Date | null;
 }
 
 export interface UserManagementRecord extends PublicUser {
