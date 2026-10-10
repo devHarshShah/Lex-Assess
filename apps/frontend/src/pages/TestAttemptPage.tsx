@@ -100,6 +100,11 @@ export function TestAttemptPage() {
   const [timeLeft, setTimeLeft] = React.useState<number | null>(null)
   const [questionTimeLeft, setQuestionTimeLeft] = React.useState<number | null>(null)
   const [isSubmitted, setIsSubmitted] = React.useState(false)
+  // Deadline on the local clock, corrected for server skew. The countdown is
+  // derived from it on every tick so throttled background tabs can't drift.
+  const deadlineRef = React.useRef<number | null>(null)
+  const submittingRef = React.useRef(false)
+  const autoSubmitFiredRef = React.useRef(false)
   const [hasOngoingAttempt, setHasOngoingAttempt] = React.useState(false)
   const [isSaving, setIsSaving] = React.useState(false)
   const [lastSaved, setLastSaved] = React.useState<Date | null>(null)
@@ -190,9 +195,10 @@ export function TestAttemptPage() {
       setIsLoading(true)
       const attempt = await startTestAttempt(versionId)
       const startTime = new Date(attempt.startTime).getTime()
-      const limitSeconds = (version?.timeLimitMinutes || 60) * 60
-      const remaining = Math.max(0, limitSeconds - Math.floor((Date.now() - startTime) / 1000))
-      setTimeLeft(remaining)
+      const limitMs = (version?.timeLimitMinutes || 60) * 60 * 1000
+      const clockSkew = new Date(attempt.serverNow).getTime() - Date.now()
+      deadlineRef.current = startTime + limitMs - clockSkew
+      setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)))
       if (attempt.answers) {
         const ans = attempt.answers as Record<string, any>
         setAnswers(ans)
@@ -277,21 +283,30 @@ export function TestAttemptPage() {
 
   // ─── Submit ────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (!versionId || isSubmitted) return
-    try {
-      setIsSubmitted(true)
-      // Include proctoring logs in the payload
-      const payload = {
-        ...answers,
-        _proctoringLogs: antiCheat.events
-      }
-      await submitTestAttempt(versionId, payload)
-      toast.success('Test submitted successfully!')
-      setTimeout(() => navigate({ to: '/dashboard' }), 2000)
-    } catch {
-      setIsSubmitted(false)
-      toast.error('Failed to submit test')
+    if (!versionId || submittingRef.current) return
+    submittingRef.current = true
+    setIsSubmitted(true)
+    // Include proctoring logs in the payload
+    const payload = {
+      ...answers,
+      _timeSpent: timeSpentRef.current,
+      _submittedSections: Array.from(submittedSections),
+      _proctoringLogs: antiCheat.events
     }
+    // Retry transient failures; the backend treats a repeated submit as a no-op.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await submitTestAttempt(versionId, payload)
+        toast.success('Test submitted successfully!')
+        setTimeout(() => navigate({ to: '/dashboard' }), 2000)
+        return
+      } catch {
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)))
+      }
+    }
+    submittingRef.current = false
+    setIsSubmitted(false)
+    toast.error('Failed to submit test. Your answers are saved — please try submitting again or contact support.', { duration: 10000 })
   }
 
   // ─── Auto-cancel section on max violations ─────────────────────────────
@@ -334,7 +349,8 @@ export function TestAttemptPage() {
       if (currentIndex < questions.length - 1) {
         toast.warning('Time up for this question! Moving to next.')
         handleNavigate(currentIndex + 1)
-      } else {
+      } else if (!autoSubmitFiredRef.current) {
+        autoSubmitFiredRef.current = true
         void handleSubmit()
       }
       return
@@ -351,8 +367,18 @@ export function TestAttemptPage() {
   // ─── Overall timer ─────────────────────────────────────────────────────
   React.useEffect(() => {
     if (timeLeft === null || isSubmitted || phase !== 'test') return
-    if (timeLeft <= 0) { void handleSubmit(); return }
-    const timer = setInterval(() => setTimeLeft(prev => prev !== null ? prev - 1 : null), 1000)
+    if (timeLeft <= 0) {
+      // Auto-submit once; a failure must not re-trigger it in a loop.
+      if (!autoSubmitFiredRef.current) {
+        autoSubmitFiredRef.current = true
+        void handleSubmit()
+      }
+      return
+    }
+    const timer = setInterval(() => {
+      if (deadlineRef.current === null) return
+      setTimeLeft(Math.max(0, Math.ceil((deadlineRef.current - Date.now()) / 1000)))
+    }, 1000)
     return () => clearInterval(timer)
   }, [timeLeft, isSubmitted, phase])
 

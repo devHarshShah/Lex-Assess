@@ -17,11 +17,13 @@ export class StudentQuestionPapersController {
   }
 
   @Post(':versionId/start')
-  startAttempt(
+  async startAttempt(
     @Param('versionId') versionId: string,
     @Req() req: { user: { sub: string } },
   ) {
-    return this.service.startAttempt(versionId, req.user.sub);
+    const attempt = await this.service.startAttempt(versionId, req.user.sub);
+    // Lets the client correct for a skewed local clock when computing the deadline.
+    return { ...attempt, serverNow: new Date() };
   }
 
   @Post(':versionId/submit')

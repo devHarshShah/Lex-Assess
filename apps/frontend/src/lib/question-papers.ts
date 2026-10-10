@@ -159,8 +159,8 @@ export async function deleteVersion(versionId: string): Promise<void> {
   return api.delete(`/admin/specializations/versions/${versionId}`)
 }
 
-export async function startTestAttempt(versionId: string): Promise<TestAttempt> {
-  return api.post<TestAttempt>(`/student/papers/${versionId}/start`)
+export async function startTestAttempt(versionId: string): Promise<TestAttempt & { serverNow: string }> {
+  return api.post<TestAttempt & { serverNow: string }>(`/student/papers/${versionId}/start`)
 }
 
 export async function saveTestAnswers(versionId: string, answers: Record<string, any>): Promise<TestAttempt> {

@@ -5,6 +5,8 @@ import { PaperStatus, QuestionType, AttemptStatus } from '@prisma/client';
 import { IsString, IsOptional, IsNotEmpty, IsEnum, IsArray, ValidateNested, IsInt, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 
+const SUBMIT_GRACE_MS = 2 * 60 * 1000;
+
 export class SubmitAttemptDto {
   @IsObject()
   @IsNotEmpty()
@@ -668,7 +670,8 @@ export class QuestionPapersService {
 
   async submitAttempt(versionId: string, userId: string, data: SubmitAttemptDto) {
     const attempt = await this.prisma.testAttempt.findFirst({
-      where: { userId, versionId, status: AttemptStatus.STARTED },
+      where: { userId, versionId },
+      orderBy: { createdAt: 'desc' },
       include: { version: true },
     });
 
@@ -676,24 +679,32 @@ export class QuestionPapersService {
       throw new BadRequestException('No active attempt found for this test');
     }
 
-    const startTime = attempt.startTime.getTime();
-    const now = new Date().getTime();
-    const limitMs = (attempt.version.timeLimitMinutes + 2) * 60 * 1000; // 2 min grace period
-    
-    if (now - startTime > limitMs) {
-      await this.prisma.testAttempt.update({
-        where: { id: attempt.id },
-        data: { status: AttemptStatus.EXPIRED, endTime: new Date() },
-      });
+    // Retried submits (slow network, double clicks) must not fail once the
+    // first one has gone through.
+    if (attempt.status === AttemptStatus.SUBMITTED) {
+      return attempt;
+    }
+
+    if (attempt.status === AttemptStatus.EXPIRED) {
       throw new BadRequestException('Time limit exceeded. Your attempt has expired.');
     }
+
+    const deadline = attempt.startTime.getTime() + attempt.version.timeLimitMinutes * 60 * 1000;
+    const isLate = Date.now() > deadline + SUBMIT_GRACE_MS;
+
+    // A late submit (client timer drifted, tab throttled) still records the
+    // attempt, but only with the answers autosaved before the deadline — the
+    // late payload is ignored apart from the proctoring logs.
+    const answers = isLate
+      ? { ...((attempt.answers as Record<string, any>) ?? {}), _proctoringLogs: data.answers?._proctoringLogs }
+      : data.answers;
 
     const updatedAttempt = await this.prisma.testAttempt.update({
       where: { id: attempt.id },
       data: {
         status: AttemptStatus.SUBMITTED,
-        endTime: new Date(),
-        answers: data.answers as any,
+        endTime: isLate ? new Date(deadline) : new Date(),
+        answers: answers as any,
       },
     });
 
@@ -706,10 +717,16 @@ export class QuestionPapersService {
   async saveAnswers(versionId: string, userId: string, data: SubmitAttemptDto) {
     const attempt = await this.prisma.testAttempt.findFirst({
       where: { userId, versionId, status: AttemptStatus.STARTED },
+      include: { version: true },
     });
 
     if (!attempt) {
       throw new BadRequestException('No active attempt found for this test');
+    }
+
+    const deadline = attempt.startTime.getTime() + attempt.version.timeLimitMinutes * 60 * 1000;
+    if (Date.now() > deadline + SUBMIT_GRACE_MS) {
+      throw new BadRequestException('Time limit exceeded. Answers can no longer be saved.');
     }
 
     return this.prisma.testAttempt.update({
