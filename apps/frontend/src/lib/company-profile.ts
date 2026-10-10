@@ -50,3 +50,20 @@ export async function reviewCompanyProfile(
 ): Promise<CompanyProfile> {
   return api.patch<CompanyProfile>(`/superadmin/company-profiles/${userId}/review`, input)
 }
+
+export async function createCompanyAccount(input: {
+  email: string
+  name: string
+  companyName: string
+  companyLegalName: string
+  companyPan?: string
+  companyGstin?: string
+  operatorName: string
+  operatorDesignation: string
+}): Promise<ManagedCompanyProfileRecord> {
+  return api.post<ManagedCompanyProfileRecord>('/superadmin/company-profiles', input)
+}
+
+export async function resendCompanyWelcome(userId: string): Promise<{ success: boolean }> {
+  return api.post<{ success: boolean }>(`/superadmin/company-profiles/${userId}/resend-welcome`)
+}

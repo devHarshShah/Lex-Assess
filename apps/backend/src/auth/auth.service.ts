@@ -10,6 +10,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ProfileStepOneDto } from './dto/profile-step-one.dto';
 import { ProfileVerificationDto } from './dto/profile-verification.dto';
 import { CompanyProfileDto } from './dto/company-profile.dto';
+import { CreateCompanyDto } from './dto/create-company.dto';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateSpecializationDto } from './dto/update-specialization.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
@@ -284,6 +285,39 @@ export class AuthService {
     dto: { status: 'APPROVED' | 'REJECTED'; rejectionReason?: string },
   ) {
     return this.usersService.reviewCompanyProfile(reviewerId, userId, dto.status, dto.rejectionReason ?? null);
+  }
+
+  // No public-email-provider check here: the superadmin is vouching for the company.
+  async createCompanyForSuperadmin(actorUserId: string, dto: CreateCompanyDto) {
+    if (await this.usersService.findByEmail(dto.email)) {
+      throw new BadRequestException('User with this email already exists');
+    }
+
+    const user = await this.usersService.createCompanyUser(actorUserId, dto);
+
+    try {
+      await this.sendCompanyWelcomeEmail(user.id, user.email, user.name, user.companyProfile!.companyName);
+    } catch (error) {
+      // Account is still usable: the superadmin can resend the setup email
+      this.logger.error('Failed to send welcome email to company', error);
+    }
+
+    return { id: user.id, email: user.email, name: user.name, role: user.role, avatarUrl: user.avatarUrl, profile: user.companyProfile };
+  }
+
+  async resendCompanyWelcome(userId: string) {
+    const user = await this.usersService.findByIdWithProfile(userId);
+    if (!user || user.role !== Role.COMPANY) {
+      throw new NotFoundException('Company not found');
+    }
+
+    await this.sendCompanyWelcomeEmail(user.id, user.email, user.name, user.companyProfile?.companyName ?? user.name);
+    return { success: true };
+  }
+
+  private async sendCompanyWelcomeEmail(userId: string, email: string, name: string, companyName: string) {
+    const token = await this.createPasswordSetupToken(userId);
+    await this.mailService.sendCompanyWelcome(email, name, companyName, token);
   }
 
   listPublicNotifications() {

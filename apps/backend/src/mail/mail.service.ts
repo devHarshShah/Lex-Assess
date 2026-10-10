@@ -4,6 +4,7 @@ import { render } from '@react-email/render';
 import * as nodemailer from 'nodemailer';
 import type { ReactElement } from 'react';
 import { CertificateReadyEmail } from './templates/CertificateReadyEmail';
+import { CompanyWelcomeEmail } from './templates/CompanyWelcomeEmail';
 import { CompanyInterviewEmail, companyInterviewSubject, type CompanyInterviewEmailProps } from './templates/CompanyInterviewEmail';
 import { ForgotPasswordEmail } from './templates/ForgotPasswordEmail';
 import { InterviewScheduledEmail } from './templates/InterviewScheduledEmail';
@@ -114,6 +115,14 @@ export class MailService {
     const subject = 'Welcome to LexAssess - Set Up Your Interviewer Account';
     const setPasswordUrl = `${this.configService.get('FRONTEND_ORIGIN')}/set-password?token=${setupToken}`;
     const { html, text } = await this.renderEmail(InterviewerWelcomeEmail({ name, email, setPasswordUrl }));
+
+    return this.sendMail(email, subject, html, text);
+  }
+
+  async sendCompanyWelcome(email: string, name: string, companyName: string, setupToken: string) {
+    const subject = 'Welcome to LexAssess - Set Up Your Company Account';
+    const setPasswordUrl = `${this.configService.get('FRONTEND_ORIGIN')}/set-password?token=${setupToken}`;
+    const { html, text } = await this.renderEmail(CompanyWelcomeEmail({ name, email, companyName, setPasswordUrl }));
 
     return this.sendMail(email, subject, html, text);
   }

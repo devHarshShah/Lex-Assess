@@ -532,6 +532,44 @@ export class UsersService {
     );
   }
 
+  // Superadmin-onboarded company: no password yet (set via emailed token) and
+  // the profile is approved up front, so the first login lands on the dashboard.
+  createCompanyUser(
+    reviewerId: string,
+    input: {
+      email: string;
+      name: string;
+      companyName: string;
+      companyLegalName: string;
+      companyPan?: string;
+      companyGstin?: string;
+      operatorName: string;
+      operatorDesignation: string;
+    },
+  ) {
+    return this.prisma.user.create({
+      data: {
+        email: input.email.trim().toLowerCase(),
+        name: input.name.trim(),
+        role: Role.COMPANY,
+        companyProfile: {
+          create: {
+            companyName: input.companyName.trim(),
+            companyLegalName: input.companyLegalName.trim(),
+            companyPan: input.companyPan?.trim() || null,
+            companyGstin: input.companyGstin?.trim() || null,
+            operatorName: input.operatorName.trim(),
+            operatorDesignation: input.operatorDesignation.trim(),
+            verificationStatus: 'APPROVED',
+            reviewedById: reviewerId,
+            reviewedAt: new Date(),
+          },
+        },
+      },
+      include: { companyProfile: true },
+    });
+  }
+
   async reviewCompanyProfile(
     reviewerId: string,
     userId: string,
