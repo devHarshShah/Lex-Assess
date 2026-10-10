@@ -138,6 +138,9 @@ export function AdminSubmissionScoringPage() {
                   const isMCQ = question.type === 'MCQ'
                   const currentScore = localScores[question.id] || 0
                   const isCorrect = isMCQ && studentAnswer === question.answer
+                  // Multi-part questions store answers and marks per sub-question;
+                  // the parent's marks are the sum of its parts.
+                  const subQuestions = question.subQuestions ?? []
 
                   return (
                     <Card key={question.id} className={isMCQ ? (isCorrect ? 'border-green-200 bg-green-50/10' : 'border-red-200 bg-red-50/10') : ''}>
@@ -160,6 +163,7 @@ export function AdminSubmissionScoringPage() {
                           </div>
                           <div className="text-lg font-medium pt-1">{question.text}</div>
                         </div>
+                        {subQuestions.length === 0 && (
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">Marks:</span>
@@ -173,8 +177,47 @@ export function AdminSubmissionScoringPage() {
                             <span className="text-sm text-muted-foreground">/ {question.marks}</span>
                           </div>
                         </div>
+                        )}
+                        {subQuestions.length > 0 && (
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">
+                            {subQuestions.reduce((acc, sq) => acc + (localScores[sq.id] || 0), 0)} / {question.marks}
+                          </span>
+                        )}
                       </CardHeader>
                       <CardContent className="pt-0">
+                        {subQuestions.length > 0 ? (
+                          <div className="space-y-4">
+                            {subQuestions.map((sq) => (
+                              <div key={sq.id} className="space-y-2 border-l-2 pl-4">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="text-sm font-medium whitespace-pre-wrap">{sq.text}</div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-sm font-medium">Marks:</span>
+                                    <Input
+                                      type="number"
+                                      className="w-20 h-8"
+                                      value={localScores[sq.id] || 0}
+                                      onChange={(e) => handleScoreChange(sq.id, parseInt(e.target.value) || 0, sq.marks)}
+                                    />
+                                    <span className="text-sm text-muted-foreground">/ {sq.marks}</span>
+                                  </div>
+                                </div>
+                                <div className="rounded-md bg-muted p-3">
+                                  <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Student's Answer</div>
+                                  <div className="whitespace-pre-wrap">
+                                    {submission.answers?.[sq.id] || <span className="italic text-muted-foreground">No answer provided</span>}
+                                  </div>
+                                </div>
+                                {sq.answer && (
+                                  <div className="rounded-md border border-green-100 bg-green-50/30 p-3">
+                                    <div className="text-xs font-semibold uppercase text-green-700 mb-1">Correct Answer / Reference</div>
+                                    <div className="text-sm whitespace-pre-wrap">{sq.answer}</div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
                         <div className="space-y-3">
                           <div className="rounded-md bg-muted p-3">
                             <div className="text-xs font-semibold uppercase text-muted-foreground mb-1">Student's Answer</div>
@@ -207,6 +250,7 @@ export function AdminSubmissionScoringPage() {
                             </div>
                           )}
                         </div>
+                        )}
                       </CardContent>
                     </Card>
                   )
