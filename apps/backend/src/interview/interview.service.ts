@@ -337,23 +337,23 @@ export class InterviewService {
 
   /**
    * Creates the Calendar event (Meet link) for a booked interview, then sends the
-   * scheduled emails. Returns false and leaves the row pending when Google fails;
-   * syncPendingInterviews retries it.
+   * scheduled emails. Returns 'failed' and leaves the row pending when Google fails;
+   * syncPendingInterviews retries it. 'skipped' means there was nothing to do.
    */
-  async trySyncCalendar(interviewId: string): Promise<boolean> {
+  async trySyncCalendar(interviewId: string): Promise<'synced' | 'skipped' | 'failed'> {
     const interview = await this.prisma.interview.findUnique({
       where: { id: interviewId },
       include: { student: true, interviewer: true, slot: true },
     });
     // googleEventId set = an event already exists (e.g. booked by the pre-migration revision)
-    if (!interview || interview.calendarSyncedAt || interview.googleEventId || interview.status !== InterviewStatus.SCHEDULED) return false;
+    if (!interview || interview.calendarSyncedAt || interview.googleEventId || interview.status !== InterviewStatus.SCHEDULED) return 'skipped';
 
     // Claim the attempt: if the request path and the worker race, only one creates the event
     const claimed = await this.prisma.interview.updateMany({
       where: { id: interviewId, calendarSyncedAt: null, calendarSyncAttempts: interview.calendarSyncAttempts },
       data: { calendarSyncAttempts: { increment: 1 } },
     });
-    if (claimed.count === 0) return false;
+    if (claimed.count === 0) return 'skipped';
 
     let event: { meetLink: string | null | undefined; eventId: string | null | undefined };
     try {
@@ -367,7 +367,7 @@ export class InterviewService {
       });
     } catch (error: any) {
       this.logger.error(`Calendar sync failed for interview ${interviewId} (attempt ${interview.calendarSyncAttempts + 1}): ${error?.message ?? error}`);
-      return false;
+      return 'failed';
     }
 
     await this.prisma.interview.update({
@@ -395,7 +395,7 @@ export class InterviewService {
     } catch (error: any) {
       this.logger.error(`Failed to send interview scheduled emails for ${interviewId}: ${error?.message ?? error}`);
     }
-    return true;
+    return 'synced';
   }
 
   /** Retries Calendar sync for bookings made while Google was failing. Called by the email worker. */
@@ -409,13 +409,15 @@ export class InterviewService {
         slot: { endTime: { gt: new Date() } },
       },
       select: { id: true },
-      orderBy: { createdAt: 'asc' },
+      // Fewest attempts first, so one row that keeps failing can't hold up newer bookings
+      orderBy: [{ calendarSyncAttempts: 'asc' }, { createdAt: 'asc' }],
       take: 10,
     });
     let synced = 0;
     for (const { id } of pending) {
-      if (await this.trySyncCalendar(id)) synced++;
-      else break; // Google is still failing; don't burn attempts on the rest this tick
+      const outcome = await this.trySyncCalendar(id);
+      if (outcome === 'synced') synced++;
+      else if (outcome === 'failed') break; // Google is still failing; don't burn attempts on the rest this tick
     }
     return { pending: pending.length, synced };
   }

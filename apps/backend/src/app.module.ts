@@ -18,7 +18,7 @@ import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
 import { CrmModule } from './crm/crm.module';
 import { SettingsModule } from './settings/settings.module';
 import { MaintenanceGuard } from './settings/maintenance.guard';
-import { ClientThrottlerGuard } from './common/guards/client-throttler.guard';
+import { ClientThrottlerGuard, PER_EMAIL_THROTTLER } from './common/guards/client-throttler.guard';
 
 @Module({
   imports: [
@@ -30,6 +30,7 @@ import { ClientThrottlerGuard } from './common/guards/client-throttler.guard';
         ttl: 60000,
         limit: 60,
       },
+      PER_EMAIL_THROTTLER,
     ]),
     AuthModule,
     MailModule,

@@ -34,7 +34,7 @@ function build(over: { calendarFails?: boolean; synced?: boolean; claimLost?: bo
 describe('InterviewService calendar sync', () => {
   it('saves the Meet link and emails both sides once the event is created', async () => {
     const { svc, prisma, mail } = build();
-    await expect(svc.trySyncCalendar('i1')).resolves.toBe(true);
+    await expect(svc.trySyncCalendar('i1')).resolves.toBe('synced');
     expect(prisma.interview.update).toHaveBeenCalledWith({
       where: { id: 'i1' },
       data: expect.objectContaining({ meetLink: 'https://meet.google.com/abc', googleEventId: 'evt1', calendarSyncedAt: expect.any(Date) }),
@@ -44,7 +44,7 @@ describe('InterviewService calendar sync', () => {
 
   it('leaves the booking pending and sends no email when Google fails', async () => {
     const { svc, prisma, mail } = build({ calendarFails: true });
-    await expect(svc.trySyncCalendar('i1')).resolves.toBe(false);
+    await expect(svc.trySyncCalendar('i1')).resolves.toBe('failed');
     expect(prisma.interview.updateMany).toHaveBeenCalled(); // attempt counted
     expect(prisma.interview.update).not.toHaveBeenCalled();
     expect(mail.sendInterviewScheduled).not.toHaveBeenCalled();
@@ -53,7 +53,7 @@ describe('InterviewService calendar sync', () => {
   it('does nothing when another caller already claimed the attempt or it is already synced', async () => {
     for (const over of [{ claimLost: true }, { synced: true }]) {
       const { svc, calendar } = build(over);
-      await expect(svc.trySyncCalendar('i1')).resolves.toBe(false);
+      await expect(svc.trySyncCalendar('i1')).resolves.toBe('skipped');
       expect(calendar.createInterviewEvent).not.toHaveBeenCalled();
     }
   });
@@ -62,5 +62,12 @@ describe('InterviewService calendar sync', () => {
     const { svc, calendar } = build({ calendarFails: true });
     await expect(svc.syncPendingInterviews()).resolves.toEqual({ pending: 2, synced: 0 });
     expect(calendar.createInterviewEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves past rows that turn out to need nothing', async () => {
+    const { svc, prisma, calendar } = build({ claimLost: true });
+    await expect(svc.syncPendingInterviews()).resolves.toEqual({ pending: 2, synced: 0 });
+    expect(prisma.interview.updateMany).toHaveBeenCalledTimes(2);
+    expect(calendar.createInterviewEvent).not.toHaveBeenCalled();
   });
 });

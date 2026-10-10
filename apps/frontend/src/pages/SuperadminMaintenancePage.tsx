@@ -22,7 +22,7 @@ export function SuperadminMaintenancePage() {
   }, [])
 
   async function save(enabled: boolean) {
-    if (enabled && !window.confirm('Turn on maintenance mode? Everyone except superadmins will be locked out until you turn it off.')) {
+    if (enabled && !settings?.enabled && !window.confirm('Turn on maintenance mode? Everyone except superadmins will be locked out until you turn it off.')) {
       return
     }
     setIsSaving(true)
