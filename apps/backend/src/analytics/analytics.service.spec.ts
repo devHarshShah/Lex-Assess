@@ -41,12 +41,20 @@ describe('deriveStage', () => {
     ).toBe('CANCELLED_ACTIVE'));
   it('coupon access (accessEndsAt set, nothing charged) is a trial', () => {
     const end = new Date(Date.now() + 86400000);
-    expect(deriveStage({ ...base, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end })).toBe('TRIAL');
+    expect(
+      deriveStage({ ...base, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end, directCouponTrial: true }),
+    ).toBe('TRIAL');
+  });
+  it('mandate-based trial with autopay cancelled stays cancelled-active', () => {
+    const end = new Date(Date.now() + 86400000);
+    expect(
+      deriveStage({ ...base, razorpaySubscriptionId: 'sub_1', hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end }),
+    ).toBe('CANCELLED_ACTIVE');
   });
   it('coupon access that ran out is not active', () => {
     const end = new Date(Date.now() - 86400000);
     expect(
-      deriveStage({ ...base, hasProfile: true, profileComplete: true, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end }),
+      deriveStage({ ...base, hasProfile: true, profileComplete: true, hasActiveSubscription: true, trialEndsAt: end, accessEndsAt: end, directCouponTrial: true }),
     ).toBe('PROFILE_COMPLETE');
   });
   it('access end passed counts as lapsed', () =>

@@ -19,14 +19,17 @@ export interface StageInput {
   accessEndsAt?: Date | null;
   trialEndsAt: Date | null;
   capturedPayments: number;
+  // Coupon redeemed directly (no Razorpay mandate), as opposed to the older mandate-based trial
+  directCouponTrial?: boolean;
 }
 
 // Highest stage reached. Students only; other roles are reported separately.
 export function deriveStage(u: StageInput): FunnelStage {
   if (u.role !== 'USER') return 'NON_STUDENT';
   const active = hasAccess(u);
-  // Coupon access is granted with accessEndsAt set and nothing charged: still a trial.
-  if (active && u.trialEndsAt && u.capturedPayments === 0) return 'TRIAL';
+  // Direct coupon access is granted with accessEndsAt set and nothing charged: still a trial.
+  // Older mandate-based trials whose autopay was cancelled stay CANCELLED_ACTIVE below.
+  if (active && u.directCouponTrial && u.capturedPayments === 0) return 'TRIAL';
   if (active && u.accessEndsAt) return 'CANCELLED_ACTIVE';
   if (u.capturedPayments > 0) return active ? 'PAID' : 'LAPSED';
   if (active) return u.trialEndsAt ? 'TRIAL' : 'PAID';
@@ -100,6 +103,7 @@ export class AnalyticsService {
         accessEndsAt: u.accessEndsAt,
         trialEndsAt: u.trialEndsAt,
         capturedPayments: captured.length,
+        directCouponTrial: u.couponRedemptions.some((r) => !r.razorpaySubscriptionId),
       });
       const last = captured.reduce<Date | null>(
         (acc, t) => (!acc || t.createdAt > acc ? t.createdAt : acc),
