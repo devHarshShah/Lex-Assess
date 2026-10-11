@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { fetchInterviewers, createInterviewer, deleteInterviewer, resendInterviewerWelcome, createSlot, deleteSlot, adminBulkAddSlots, type Interviewer } from '@/lib/interview';
+import { fetchInterviewers, createInterviewer, deleteInterviewer, resendInterviewerWelcome, createSlot, deleteSlot, adminBulkAddSlots, fetchScheduledInterviews, type Interviewer, type Interview } from '@/lib/interview';
+import { ReassignInterviewDialog } from '@/components/ReassignInterviewDialog';
 import { fetchProfileOptions } from '@/lib/auth';
-import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat, Mail } from 'lucide-react';
+import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat, Mail, ArrowRightLeft } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
@@ -35,6 +36,8 @@ export function AdminInterviewerManagementPage() {
   const [deletingInterviewerId, setDeletingInterviewerId] = React.useState<string | null>(null);
   const [deletingSlotId, setDeletingSlotId] = React.useState<string | null>(null);
   const [resendingInterviewerId, setResendingInterviewerId] = React.useState<string | null>(null);
+  const [scheduledInterviews, setScheduledInterviews] = React.useState<Interview[]>([]);
+  const [reassigning, setReassigning] = React.useState<Interview | null>(null);
 
   const days = [
     { label: 'Sun', value: 0 },
@@ -47,7 +50,7 @@ export function AdminInterviewerManagementPage() {
   ];
 
   React.useEffect(() => {
-    Promise.all([loadInterviewers(), loadOptions()]);
+    Promise.all([loadInterviewers(), loadOptions(), loadScheduledInterviews()]);
   }, []);
 
   const loadInterviewers = async () => {
@@ -58,6 +61,14 @@ export function AdminInterviewerManagementPage() {
       toast.error('Failed to load interviewers');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadScheduledInterviews = async () => {
+    try {
+      setScheduledInterviews(await fetchScheduledInterviews());
+    } catch (error) {
+      toast.error('Failed to load upcoming interviews');
     }
   };
 
@@ -292,6 +303,46 @@ export function AdminInterviewerManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Upcoming Interviews</CardTitle>
+          <CardDescription>Reassign a booked interview if its interviewer becomes unavailable.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {scheduledInterviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No upcoming interviews booked.</p>
+          ) : (
+            <div className="divide-y max-h-[320px] overflow-y-auto">
+              {scheduledInterviews.map((interview) => (
+                <div key={interview.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {interview.student?.name}
+                      {interview.student?.profile?.specialization && (
+                        <Badge variant="secondary" className="ml-2 text-[10px]">{interview.student.profile.specialization}</Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(interview.slot.startTime), 'MMM d, h:mm a')} · with {interview.interviewer?.name}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setReassigning(interview)}>
+                    <ArrowRightLeft className="h-4 w-4 mr-2" /> Reassign
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ReassignInterviewDialog
+        interview={reassigning}
+        interviewers={interviewers}
+        onOpenChange={(open) => { if (!open) setReassigning(null); }}
+        onDone={() => { loadInterviewers(); loadScheduledInterviews(); }}
+      />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {interviewers.map((interviewer) => (

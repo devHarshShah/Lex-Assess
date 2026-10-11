@@ -1,11 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, ConflictException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { GoogleCalendarService } from '../mail/google-calendar.service';
-import { Role, InterviewStatus, AttemptStatus } from '@prisma/client';
+import { Prisma, Role, InterviewStatus, AttemptStatus } from '@prisma/client';
 import { randomBytes, createHash } from 'crypto';
 import { interviewEnd, DEFAULT_INTERVIEW_MS } from './interview-end';
-import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto } from './dto/interview.dto';
+import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto, ReassignInterviewDto } from './dto/interview.dto';
 
 @Injectable()
 export class InterviewService {
@@ -512,6 +512,122 @@ export class InterviewService {
         notes: data.notes ?? companyInterview.notes,
       },
     });
+  }
+
+  /** Upcoming booked LexAssess interviews, for admins to reassign when an interviewer drops out. */
+  async getScheduledInterviews() {
+    return this.prisma.interview.findMany({
+      where: { status: InterviewStatus.SCHEDULED, slot: { endTime: { gt: new Date() } } },
+      include: {
+        student: { select: { id: true, name: true, email: true, profile: { select: { specialization: true } } } },
+        interviewer: { select: { id: true, name: true, email: true } },
+        slot: true,
+      },
+      orderBy: { slot: { startTime: 'asc' } },
+    });
+  }
+
+  /**
+   * Moves a booked interview to another interviewer. Without slotId the booking keeps its
+   * time (the slot itself changes hands); with slotId it moves into one of the new
+   * interviewer's open slots and the old slot is removed, since its interviewer is unavailable.
+   */
+  async reassignInterview(interviewId: string, data: ReassignInterviewDto) {
+    const interview = await this.prisma.interview.findUnique({
+      where: { id: interviewId },
+      include: { slot: true },
+    });
+    if (!interview) throw new NotFoundException('Interview not found');
+    if (interview.status !== InterviewStatus.SCHEDULED || interview.slot.endTime <= new Date()) {
+      throw new BadRequestException('Only upcoming scheduled interviews can be reassigned');
+    }
+    if (data.newInterviewerId === interview.interviewerId) {
+      throw new BadRequestException('The interview is already assigned to this interviewer');
+    }
+    const newInterviewer = await this.prisma.user.findUnique({ where: { id: data.newInterviewerId } });
+    if (!newInterviewer || newInterviewer.role !== Role.INTERVIEWER) {
+      throw new NotFoundException('Interviewer not found');
+    }
+
+    // Guarded so a concurrent reassignment/feedback can't be silently overwritten
+    const repoint = async (tx: Prisma.TransactionClient, extra: { slotId?: string } = {}) => {
+      const moved = await tx.interview.updateMany({
+        where: { id: interviewId, interviewerId: interview.interviewerId, slotId: interview.slotId, status: InterviewStatus.SCHEDULED },
+        data: { interviewerId: newInterviewer.id, ...extra },
+      });
+      if (moved.count === 0) throw new ConflictException('This interview was changed by someone else. Please refresh and try again.');
+    };
+
+    if (data.slotId) {
+      const slotId = data.slotId;
+      await this.prisma.$transaction(async (tx) => {
+        const claimed = await tx.interviewSlot.updateMany({
+          where: { id: slotId, interviewerId: newInterviewer.id, isBooked: false, startTime: { gt: new Date() } },
+          data: { isBooked: true },
+        });
+        if (claimed.count === 0) throw new BadRequestException('Slot is no longer available');
+        await repoint(tx, { slotId });
+        // Only after re-pointing: deleting a slot cascades to the interview booked into it
+        await tx.interviewSlot.delete({ where: { id: interview.slotId } });
+      });
+    } else {
+      const { startTime, endTime } = interview.slot;
+      const overlap = { interviewerId: newInterviewer.id, startTime: { lt: endTime }, endTime: { gt: startTime } };
+      await this.prisma.$transaction(async (tx) => {
+        const clash = await tx.interviewSlot.findFirst({ where: { ...overlap, isBooked: true } });
+        if (clash) throw new BadRequestException(`${newInterviewer.name} already has an interview booked at this time`);
+        // Their free availability at this time is now taken by this booking
+        await tx.interviewSlot.deleteMany({ where: { ...overlap, isBooked: false } });
+        await tx.interviewSlot.update({ where: { id: interview.slotId }, data: { interviewerId: newInterviewer.id } });
+        await repoint(tx);
+      });
+    }
+
+    const updated = await this.prisma.interview.findUniqueOrThrow({
+      where: { id: interviewId },
+      include: { interviewer: true, student: true, slot: true },
+    });
+
+    // Not synced yet: the normal sync creates the event and emails with the new details
+    if (!updated.calendarSyncedAt && !updated.googleEventId) {
+      await this.trySyncCalendar(interviewId);
+      return updated;
+    }
+
+    if (updated.googleEventId) {
+      try {
+        await this.calendarService.updateEvent(updated.googleEventId, {
+          startTime: updated.slot.startTime,
+          endTime: updated.slot.endTime,
+          summary: `Interview: ${updated.student.name} & ${updated.interviewer.name}`,
+          attendees: [
+            { email: updated.student.email, displayName: updated.student.name },
+            { email: updated.interviewer.email, displayName: updated.interviewer.name },
+          ],
+        });
+      } catch (error: any) {
+        this.logger.error(`Failed to update calendar event for reassigned interview ${interviewId}: ${error?.message ?? error}`);
+      }
+    }
+
+    try {
+      await Promise.all(
+        [updated.student.email, updated.interviewer.email].map((to) =>
+          this.mailService.sendInterviewScheduled(
+            to,
+            updated.student.name,
+            updated.interviewer.name,
+            updated.slot.startTime,
+            updated.meetLink ?? '',
+            true,
+          ),
+        ),
+      );
+    } catch (error: any) {
+      this.logger.error(`Failed to send interview updated emails for ${interviewId}: ${error?.message ?? error}`);
+    }
+
+    return updated;
   }
 
   async getInterviewerSessions(interviewerId: string) {

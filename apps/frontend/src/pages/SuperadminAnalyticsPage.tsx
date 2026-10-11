@@ -18,9 +18,7 @@ import { fetchCrmMeta, type CrmMeta } from '@/lib/crm'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-
-// One hue for magnitude (funnel, signups); text stays in ink tokens, never the series color.
-const BAR = '#d97706'
+import { BAR, Bars, CountList, Tile, fmtDate, inr } from '@/components/analytics/shared'
 
 const STAGES: { value: string; label: string }[] = [
   { value: '', label: 'All stages' },
@@ -34,22 +32,6 @@ const STAGES: { value: string; label: string }[] = [
   { value: 'LAPSED', label: 'Paid, now inactive' },
   { value: 'NON_STUDENT', label: 'Non-student account' },
 ]
-
-const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
-const fmtDate = (s: string | null) =>
-  s ? new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'
-
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1 text-2xl font-bold tabular-nums">{value}</p>
-        {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
-      </CardContent>
-    </Card>
-  )
-}
 
 function Funnel({ data }: { data: AnalyticsOverview['funnel'] }) {
   const top = Math.max(data[0]?.count ?? 0, 1)
@@ -106,25 +88,6 @@ function SignupsChart({ data, noun = 'signup' }: { data: { date: string; count: 
       </svg>
       <p className="text-xs text-muted-foreground">Peak: {max} in a day</p>
     </div>
-  )
-}
-
-function Bars({ items }: { items: { label: string; count: number }[] }) {
-  const top = Math.max(...items.map((i) => i.count), 1)
-  return (
-    <ul className="space-y-2">
-      {items.map((i) => (
-        <li key={i.label} title={`${i.label}: ${i.count}`}>
-          <div className="flex justify-between gap-3 text-sm">
-            <span className="truncate">{i.label}</span>
-            <span className="tabular-nums">{i.count}</span>
-          </div>
-          <div className="mt-1 h-2 w-full rounded bg-muted">
-            <div className="h-2 rounded-r" style={{ width: `${(i.count / top) * 100}%`, background: BAR }} />
-          </div>
-        </li>
-      ))}
-    </ul>
   )
 }
 
@@ -218,31 +181,16 @@ function CompanyInterviewSection({ data }: { data: CompanyInterviewAnalytics }) 
   )
 }
 
-function CountList({ title, items }: { title: string; items: { label: string; count: number }[] }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data</p>
-        ) : (
-          <ul className="space-y-1 text-sm">
-            {items.map((i) => (
-              <li key={i.label} className="flex justify-between gap-3">
-                <span className="truncate">{i.label}</span>
-                <span className="tabular-nums">{i.count}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  )
+export type AnalyticsView = 'overview' | 'crm' | 'interviews' | 'users'
+
+const VIEW_COPY: Record<AnalyticsView, { title: string; subtitle: string }> = {
+  overview: { title: 'Overview', subtitle: 'Registrations and the payment funnel.' },
+  crm: { title: 'Sales (CRM)', subtitle: 'Outreach to students and what it led to.' },
+  interviews: { title: 'Company interviews', subtitle: 'Interviews scheduled by companies and the LexAssess team.' },
+  users: { title: 'Users', subtitle: 'Every account with stage, coupon, payments and CRM status.' },
 }
 
-export function SuperadminAnalyticsPage() {
+export function SuperadminAnalyticsPage({ view = 'overview' }: { view?: AnalyticsView }) {
   const [from, setFrom] = React.useState('')
   const [to, setTo] = React.useState('')
   const [stage, setStage] = React.useState('')
@@ -273,32 +221,39 @@ export function SuperadminAnalyticsPage() {
   }, [filters])
 
   React.useEffect(() => {
+    if (view !== 'users') return
     fetchCrmMeta().then(setCrmMeta).catch(() => undefined)
-  }, [])
+  }, [view])
 
   // Outreach sections only depend on the date range
   React.useEffect(() => {
     let cancelled = false
-    Promise.all([fetchCrmAnalytics({ from, to }), fetchCompanyInterviewAnalytics({ from, to })])
-      .then(([c, i]) => {
-        if (cancelled) return
-        setCrm(c)
-        setInterviews(i)
-      })
-      .catch(() => undefined)
+    if (view === 'crm') {
+      fetchCrmAnalytics({ from, to })
+        .then((c) => !cancelled && setCrm(c))
+        .catch(() => toast.error('Could not load CRM analytics'))
+    } else if (view === 'interviews') {
+      fetchCompanyInterviewAnalytics({ from, to })
+        .then((i) => !cancelled && setInterviews(i))
+        .catch(() => toast.error('Could not load interview analytics'))
+    }
     return () => {
       cancelled = true
     }
-  }, [from, to])
+  }, [from, to, view])
 
   React.useEffect(() => {
+    if (view !== 'overview' && view !== 'users') return
     let cancelled = false
     setLoading(true)
-    Promise.all([fetchAnalyticsOverview(filters), fetchAnalyticsUsers(filters, page)])
+    Promise.all([
+      view === 'overview' ? fetchAnalyticsOverview(filters) : Promise.resolve(null),
+      view === 'users' ? fetchAnalyticsUsers(filters, page) : Promise.resolve(null),
+    ])
       .then(([o, u]) => {
         if (cancelled) return
-        setOverview(o)
-        setUsers(u)
+        if (o) setOverview(o)
+        if (u) setUsers(u)
       })
       .catch(() => {
         if (!cancelled) toast.error('Could not load analytics')
@@ -309,7 +264,7 @@ export function SuperadminAnalyticsPage() {
     return () => {
       cancelled = true
     }
-  }, [filters, page])
+  }, [filters, page, view])
 
   async function handleDownload() {
     setDownloading(true)
@@ -330,8 +285,8 @@ export function SuperadminAnalyticsPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">Analytics</h1>
-          <p className="text-sm text-muted-foreground">Registrations, payment funnel, CRM outreach and company interviews.</p>
+          <h1 className="text-xl font-semibold">{VIEW_COPY[view].title}</h1>
+          <p className="text-sm text-muted-foreground">{VIEW_COPY[view].subtitle}</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="text-xs text-muted-foreground">
@@ -342,14 +297,16 @@ export function SuperadminAnalyticsPage() {
             To
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
+          {view === 'users' && (
           <Button onClick={handleDownload} disabled={downloading}>
             {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
             Download Excel
           </Button>
+          )}
         </div>
       </div>
 
-      {t && (
+      {view === 'overview' && t && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <Tile label="Registered users" value={String(t.users)} hint={`${t.students} students, ${t.otherRoles} other`} />
           <Tile
@@ -364,7 +321,7 @@ export function SuperadminAnalyticsPage() {
         </div>
       )}
 
-      {overview && (
+      {view === 'overview' && overview && (
         <div className="grid gap-3 lg:grid-cols-2">
           <Card>
             <CardHeader className="pb-2">
@@ -393,9 +350,10 @@ export function SuperadminAnalyticsPage() {
         </div>
       )}
 
-      {crm && <CrmSection data={crm} />}
-      {interviews && <CompanyInterviewSection data={interviews} />}
+      {view === 'crm' && crm && <CrmSection data={crm} />}
+      {view === 'interviews' && interviews && <CompanyInterviewSection data={interviews} />}
 
+      {view === 'users' && (
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Users {users ? `(${users.total})` : ''}</CardTitle>
@@ -489,6 +447,7 @@ export function SuperadminAnalyticsPage() {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   )
 }

@@ -27,6 +27,7 @@ export interface Interview {
     id: string;
     name: string;
     email: string;
+    profile?: { specialization?: string | null } | null;
   };
   interviewerId: string;
   interviewer?: Interviewer;
@@ -138,4 +139,14 @@ export const deleteSlot = async (slotId: string) => {
 
 export const addFeedback = async (interviewId: string, data: { marks: number; notes: string }) => {
   return api.post<Interview>(`/interviews/${interviewId}/feedback`, data);
+};
+
+
+export const fetchScheduledInterviews = async () => {
+  return api.get<Interview[]>('/interviews/scheduled');
+};
+
+// Without slotId the interview keeps its time; with it, it moves into that open slot of the new interviewer
+export const reassignInterview = async (interviewId: string, data: { newInterviewerId: string; slotId?: string }) => {
+  return api.post<Interview>(`/interviews/${interviewId}/reassign`, data);
 };

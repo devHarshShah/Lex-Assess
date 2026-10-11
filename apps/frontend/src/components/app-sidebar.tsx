@@ -132,7 +132,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: 'Analytics',
         url: '/dashboard/analytics',
         icon: BarChart3,
-        items: [{ title: 'User & Payment Funnel', url: '/dashboard/analytics' }],
+        items: [
+          { title: 'Overview', url: '/dashboard/analytics' },
+          { title: 'Email Campaigns', url: '/dashboard/analytics/email' },
+          { title: 'Templates', url: '/dashboard/analytics/templates' },
+          { title: 'Coupons & Trials', url: '/dashboard/analytics/coupons' },
+          { title: 'Sales (CRM)', url: '/dashboard/analytics/crm' },
+          { title: 'Interviews', url: '/dashboard/analytics/interviews' },
+          { title: 'Users', url: '/dashboard/analytics/users' },
+        ],
       },
       {
         title: 'Maintenance',

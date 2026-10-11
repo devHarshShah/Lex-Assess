@@ -127,11 +127,12 @@ export class MailService {
     return this.sendMail(email, subject, html, text);
   }
 
-  async sendInterviewScheduled(to: string, userName: string, interviewerName: string, startTime: Date, meetLink: string) {
+  // updated = the interview was moved to another interviewer and/or time after booking
+  async sendInterviewScheduled(to: string, userName: string, interviewerName: string, startTime: Date, meetLink: string, updated = false) {
     const formattedDate = formatIstDateTime(startTime);
 
-    const subject = `Interview Scheduled: ${interviewerName} & ${userName}`;
-    const { html, text } = await this.renderEmail(InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink }));
+    const subject = `Interview ${updated ? 'Updated' : 'Scheduled'}: ${interviewerName} & ${userName}`;
+    const { html, text } = await this.renderEmail(InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink, updated }));
 
     return this.sendMail(to, subject, html, text);
   }

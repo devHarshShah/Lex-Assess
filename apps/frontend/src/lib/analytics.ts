@@ -138,3 +138,102 @@ export async function downloadAnalyticsXlsx(f: AnalyticsFilters): Promise<void> 
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+// ---- email campaign analytics ----------------------------------------------------------
+
+export interface EmailRates {
+  advancedPct: number
+  convertedPct: number
+  unsubPct: number
+  revenuePer1000: number
+  smallSample: boolean
+}
+
+export interface EmailOverview {
+  totals: {
+    campaigns: number
+    audience: number
+    sent: number
+    failed: number
+    skipped: number
+    tracked: number
+    advanced: number
+    converted: number
+    revenueInr: number
+    couponRedemptions: number
+    unsubscribes: number
+    deliveryPct: number
+  } & EmailRates
+  perDay: { date: string; sent: number }[]
+  quota: { sentToday: number; sentLastHour: number }
+}
+
+export interface EmailCampaignRow extends EmailRates {
+  id: string
+  name: string
+  subject: string
+  templateKey: string | null
+  templateName: string
+  status: string
+  createdAt: string
+  audienceSize: number
+  sent: number
+  failed: number
+  skipped: number
+  tracked: number
+  advanced: number
+  converted: number
+  revenueInr: number
+  couponRedemptions: number
+  unsubscribes: number
+  deliveryPct: number
+}
+
+export interface TemplateRow extends EmailRates {
+  key: string
+  name: string
+  campaigns: number
+  sent: number
+  tracked: number
+  advanced: number
+  converted: number
+  revenueInr: number
+  unsubscribes: number
+}
+
+export interface TemplateAnalytics {
+  templates: TemplateRow[]
+  byStage: {
+    stage: string
+    stageLabel: string
+    options: { key: string; name: string; sent: number; converted: number; convertedPct: number; smallSample: boolean }[]
+  }[]
+  minSample: number
+}
+
+export interface CouponAnalyticsRow {
+  code: string
+  freeDays: number
+  isActive: boolean
+  redeemed: number
+  inRange: number
+  trial: number
+  paid: number
+  cancelledActive: number
+  lapsed: number
+  paidEver: number
+  trialToPaidPct: number
+  revenueInr: number
+}
+
+export const fetchEmailOverview = (f: AnalyticsFilters) =>
+  api.get<EmailOverview>(`/superadmin/analytics/email/overview${qs({ from: f.from, to: f.to })}`)
+
+export const fetchEmailCampaignStats = (f: AnalyticsFilters) =>
+  api.get<EmailCampaignRow[]>(`/superadmin/analytics/email/campaigns${qs({ from: f.from, to: f.to })}`)
+
+export const fetchTemplateAnalytics = (f: AnalyticsFilters) =>
+  api.get<TemplateAnalytics>(`/superadmin/analytics/email/templates${qs({ from: f.from, to: f.to })}`)
+
+export const fetchCouponAnalytics = (f: AnalyticsFilters) =>
+  api.get<CouponAnalyticsRow[]>(`/superadmin/analytics/coupons${qs({ from: f.from, to: f.to })}`)

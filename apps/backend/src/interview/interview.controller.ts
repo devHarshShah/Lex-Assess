@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, UseGuards, Query, Param, Request, Delete } from '@nestjs/common';
 import { InterviewService } from './interview.service';
-import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto, ScheduleCompanyInterviewDto, CompleteCompanyInterviewDto } from './dto/interview.dto';
+import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto, ScheduleCompanyInterviewDto, CompleteCompanyInterviewDto, ReassignInterviewDto } from './dto/interview.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -124,6 +124,19 @@ export class InterviewController {
   @Roles(Role.USER)
   getStudentInterviews(@Request() req: any) {
     return this.interviewService.getStudentInterviews(req.user.id);
+  }
+
+  // ADMIN: Upcoming booked interviews, and moving one to another interviewer
+  @Get('scheduled')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  getScheduledInterviews() {
+    return this.interviewService.getScheduledInterviews();
+  }
+
+  @Post(':id/reassign')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  reassignInterview(@Param('id') id: string, @Body() data: ReassignInterviewDto) {
+    return this.interviewService.reassignInterview(id, data);
   }
 
   // INTERVIEWER: My sessions

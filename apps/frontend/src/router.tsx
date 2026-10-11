@@ -27,7 +27,15 @@ import { dashboardMaintenanceRoute } from './routes/dashboard-maintenance'
 import { dashboardCouponsRoute } from './routes/dashboard-coupons'
 import { dashboardEmailCampaignsRoute } from './routes/dashboard-email-campaigns'
 import { unsubscribeRoute } from './routes/unsubscribe'
-import { dashboardAnalyticsRoute } from './routes/dashboard-analytics'
+import {
+  dashboardAnalyticsRoute,
+  dashboardAnalyticsEmailRoute,
+  dashboardAnalyticsTemplatesRoute,
+  dashboardAnalyticsCouponsRoute,
+  dashboardAnalyticsCrmRoute,
+  dashboardAnalyticsInterviewsRoute,
+  dashboardAnalyticsUsersRoute,
+} from './routes/dashboard-analytics'
 import { dashboardCompanyInterviewsRoute } from './routes/dashboard-company-interviews'
 import { dashboardCrmRoute } from './routes/dashboard-crm'
 import { dashboardInterviewersRoute } from './routes/dashboard-interviewers'
@@ -74,6 +82,12 @@ const routeTree = rootRoute.addChildren([
     dashboardCouponsRoute,
     dashboardEmailCampaignsRoute,
     dashboardAnalyticsRoute,
+    dashboardAnalyticsEmailRoute,
+    dashboardAnalyticsTemplatesRoute,
+    dashboardAnalyticsCouponsRoute,
+    dashboardAnalyticsCrmRoute,
+    dashboardAnalyticsInterviewsRoute,
+    dashboardAnalyticsUsersRoute,
     dashboardCompanyInterviewsRoute,
     dashboardCrmRoute,
     dashboardInterviewersRoute as any,

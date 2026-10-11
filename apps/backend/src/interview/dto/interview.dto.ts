@@ -96,3 +96,14 @@ export class CompleteCompanyInterviewDto {
   @IsString()
   notes?: string;
 }
+
+export class ReassignInterviewDto {
+  @IsString()
+  @IsNotEmpty()
+  newInterviewerId!: string;
+
+  // One of the new interviewer's open slots; omitted = keep the current time
+  @IsOptional()
+  @IsString()
+  slotId?: string;
+}

@@ -226,6 +226,7 @@ export class GoogleCalendarService {
     changes: {
       startTime: Date;
       endTime: Date;
+      summary?: string;
       description?: string;
       attendees?: { email: string; displayName?: string }[];
     },
@@ -241,6 +242,7 @@ export class GoogleCalendarService {
         requestBody: {
           start: { dateTime: changes.startTime.toISOString(), timeZone: 'Asia/Kolkata' },
           end: { dateTime: changes.endTime.toISOString(), timeZone: 'Asia/Kolkata' },
+          ...(changes.summary !== undefined ? { summary: changes.summary } : {}),
           ...(changes.description !== undefined ? { description: changes.description } : {}),
           ...(this.usingRealGoogleAccount && changes.attendees ? { attendees: changes.attendees } : {}),
         },

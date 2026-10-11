@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Role } from '../auth/roles';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsExportService } from './analytics-export.service';
+import { EmailAnalyticsService } from './email-analytics.service';
 import { OutreachAnalyticsService } from './outreach-analytics.service';
 
 interface UsersQuery {
@@ -26,7 +27,28 @@ export class SuperadminAnalyticsController {
     private readonly analytics: AnalyticsService,
     private readonly exporter: AnalyticsExportService,
     private readonly outreach: OutreachAnalyticsService,
+    private readonly email: EmailAnalyticsService,
   ) {}
+
+  @Get('email/overview')
+  emailOverview(@Query() q: UsersQuery) {
+    return this.email.overview({ from: q.from, to: q.to });
+  }
+
+  @Get('email/campaigns')
+  emailCampaigns(@Query() q: UsersQuery) {
+    return this.email.campaigns({ from: q.from, to: q.to });
+  }
+
+  @Get('email/templates')
+  emailTemplates(@Query() q: UsersQuery) {
+    return this.email.templates({ from: q.from, to: q.to });
+  }
+
+  @Get('coupons')
+  coupons(@Query() q: UsersQuery) {
+    return this.email.coupons({ from: q.from, to: q.to });
+  }
 
   @Get('crm')
   crm(@Query() q: UsersQuery) {

@@ -6,13 +6,19 @@ interface InterviewScheduledEmailProps {
   interviewerName: string;
   formattedDate: string;
   meetLink: string;
+  updated?: boolean;
 }
 
-export function InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink }: InterviewScheduledEmailProps) {
+export function InterviewScheduledEmail({ userName, interviewerName, formattedDate, meetLink, updated }: InterviewScheduledEmailProps) {
+  const heading = updated ? 'Interview Updated' : 'Interview Confirmed';
   return (
-    <Layout previewText="Interview Confirmed" heading="Interview Confirmed">
+    <Layout previewText={heading} heading={heading}>
       <Text>Hello,</Text>
-      <Text>An interview has been successfully scheduled.</Text>
+      <Text>
+        {updated
+          ? 'The details of this interview have changed. Please note the updated interviewer and time below.'
+          : 'An interview has been successfully scheduled.'}
+      </Text>
       <Section style={infoBoxStyle}>
         <Text style={infoLineStyle}>
           <strong>Student:</strong> {userName}
