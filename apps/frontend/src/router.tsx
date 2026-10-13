@@ -35,6 +35,7 @@ import {
   dashboardAnalyticsCrmRoute,
   dashboardAnalyticsInterviewsRoute,
   dashboardAnalyticsUsersRoute,
+  dashboardAnalyticsGrowthRoute,
 } from './routes/dashboard-analytics'
 import { dashboardCompanyInterviewsRoute } from './routes/dashboard-company-interviews'
 import { dashboardCrmRoute } from './routes/dashboard-crm'
@@ -88,6 +89,7 @@ const routeTree = rootRoute.addChildren([
     dashboardAnalyticsCrmRoute,
     dashboardAnalyticsInterviewsRoute,
     dashboardAnalyticsUsersRoute,
+    dashboardAnalyticsGrowthRoute,
     dashboardCompanyInterviewsRoute,
     dashboardCrmRoute,
     dashboardInterviewersRoute as any,

@@ -134,6 +134,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: BarChart3,
         items: [
           { title: 'Overview', url: '/dashboard/analytics' },
+          { title: 'Revenue & Growth', url: '/dashboard/analytics/growth' },
           { title: 'Email Campaigns', url: '/dashboard/analytics/email' },
           { title: 'Templates', url: '/dashboard/analytics/templates' },
           { title: 'Coupons & Trials', url: '/dashboard/analytics/coupons' },

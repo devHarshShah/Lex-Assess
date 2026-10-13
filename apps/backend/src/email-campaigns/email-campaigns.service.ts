@@ -9,6 +9,7 @@ import { computeCampaignMetrics } from './campaign-metrics';
 import { renderCampaignEmail } from './render';
 import { sanitizeBody } from './sanitize';
 import { BUILT_IN_TEMPLATES } from './templates';
+import { signClickToken } from './click-token';
 import { signUnsubscribeToken } from './unsubscribe-token';
 import { CAMPAIGN_VARIABLES, checkVariables, sampleValues } from './variables';
 
@@ -64,6 +65,14 @@ export class EmailCampaignsService {
     return this.config.getOrThrow<string>('JWT_SECRET');
   }
 
+  // Real sends route through /email/click so clicks are counted; previews and test sends stay plain.
+  // Without API_PUBLIC_URL the plain link is used and clicks simply aren't tracked.
+  private trackedLink(recipientId: string | undefined, linkKey: string, plain: string): string {
+    const api = this.config.get<string>('API_PUBLIC_URL')?.replace(/\/$/, '');
+    if (!recipientId || !api) return plain;
+    return `${api}/email/click/${signClickToken(recipientId, linkKey, this.secret)}`;
+  }
+
   private unsubscribeLinks(userId: string) {
     const token = signUnsubscribeToken(userId, this.secret);
     const api = this.config.get<string>('API_PUBLIC_URL')?.replace(/\/$/, '');
@@ -111,6 +120,7 @@ export class EmailCampaignsService {
   private valuesFor(
     user: { email: string; name: string; trialEndsAt: Date | null; accessEndsAt: Date | null; profile: { fullName: string; college: string } | null },
     coupon: { code: string; freeDays: number; expiresAt: Date | null } | null,
+    recipientId?: string,
   ): Record<string, string> {
     const fullName = (user.profile?.fullName || user.name || '').trim();
     const origin = this.frontendOrigin;
@@ -123,9 +133,9 @@ export class EmailCampaignsService {
       couponCode: coupon?.code ?? '',
       couponFreeDays: coupon ? String(coupon.freeDays) : '',
       couponExpiry: formatDate(coupon?.expiresAt),
-      subscribeUrl: `${origin}/dashboard`,
-      profileUrl: `${origin}/dashboard/setup`,
-      dashboardUrl: `${origin}/dashboard`,
+      subscribeUrl: this.trackedLink(recipientId, 'subscribe', `${origin}/dashboard`),
+      profileUrl: this.trackedLink(recipientId, 'profile', `${origin}/dashboard/setup`),
+      dashboardUrl: this.trackedLink(recipientId, 'dashboard', `${origin}/dashboard`),
       trialEndsAt: formatDate(user.trialEndsAt),
       accessEndsAt: formatDate(user.accessEndsAt),
     };
@@ -468,14 +478,14 @@ export class EmailCampaignsService {
         subject: campaign.subject,
         preheader: campaign.preheader,
         bodyHtml: campaign.bodyHtml,
-        values: this.valuesFor(user, coupon),
+        values: this.valuesFor(user, coupon, recipient.id),
         unsubscribeUrl: links.url,
         frontendOrigin: this.frontendOrigin,
       });
-      await this.mail.sendCampaignMail(user.email, mail, links);
+      const info = await this.mail.sendCampaignMail(user.email, mail, links);
       await this.prisma.emailCampaignRecipient.update({
         where: { id: recipient.id },
-        data: { status: 'SENT', sentAt: new Date(), error: null, leasedUntil: null },
+        data: { status: 'SENT', sentAt: new Date(), error: null, leasedUntil: null, messageId: typeof info?.messageId === 'string' ? info.messageId : null, linksTracked: !!this.config.get<string>('API_PUBLIC_URL') },
       });
       return 'sent';
     } catch (e) {

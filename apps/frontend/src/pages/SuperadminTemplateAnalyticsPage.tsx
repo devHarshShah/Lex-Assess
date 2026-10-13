@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { fetchTemplateAnalytics } from '@/lib/analytics'
+import { fetchSubjectComparison, fetchTemplateAnalytics } from '@/lib/analytics'
 import { DateRangeBar, PageHeader, SampleFlag, inr, useDateRange } from '@/components/analytics/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +11,7 @@ export function SuperadminTemplateAnalyticsPage() {
     queryKey: ['analytics', 'email', 'templates', range],
     queryFn: () => fetchTemplateAnalytics(range),
   })
+  const subjects = useQuery({ queryKey: ['analytics', 'email', 'subjects', range], queryFn: () => fetchSubjectComparison(range) })
   const best = data?.templates.find((t) => !t.smallSample && t.sent > 0)
 
   return (
@@ -40,7 +41,7 @@ export function SuperadminTemplateAnalyticsPage() {
               <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="bg-muted/50 text-xs text-muted-foreground">
                   <tr>
-                    {['Template', 'Campaigns', 'Sent', 'Moved fwd', 'Converted', 'Revenue', 'Per 1,000', 'Unsub'].map((h) => (
+                    {['Template', 'Campaigns', 'Sent', 'Clicked', 'Converted', 'Revenue', 'Per 1,000', 'Unsub'].map((h) => (
                       <th key={h} className="px-3 py-2 font-medium">
                         {h}
                       </th>
@@ -53,7 +54,7 @@ export function SuperadminTemplateAnalyticsPage() {
                       <td className="px-3 py-2 font-medium">{t.name}</td>
                       <td className="px-3 py-2 tabular-nums">{t.campaigns}</td>
                       <td className="px-3 py-2 tabular-nums">{t.sent}</td>
-                      <td className="px-3 py-2 tabular-nums">{t.advancedPct}%</td>
+                      <td className="px-3 py-2 tabular-nums">{t.clickTracked ? `${t.ctrPct}%` : '-'}</td>
                       <td className="px-3 py-2 tabular-nums">
                         {t.converted} ({t.convertedPct}%)
                         <SampleFlag small={t.smallSample} />
@@ -75,6 +76,39 @@ export function SuperadminTemplateAnalyticsPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {subjects.data && subjects.data.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-base font-semibold">Subject lines compared</h2>
+            <p className="text-sm text-muted-foreground">Templates sent with more than one subject, best click rate first.</p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {subjects.data.map((g) => (
+              <Card key={g.key}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{g.name}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2 text-sm">
+                    {g.subjects.map((x) => (
+                      <li key={x.subject} className="flex justify-between gap-3">
+                        <span className="truncate" title={x.subject}>
+                          {x.subject}
+                          <SampleFlag small={x.smallSample} />
+                        </span>
+                        <span className="whitespace-nowrap tabular-nums">
+                          {x.ctrPct}% clicked <span className="text-xs text-muted-foreground">({x.sent} sent)</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
       )}
 
       {data && data.byStage.length > 0 && (

@@ -142,6 +142,9 @@ export async function downloadAnalyticsXlsx(f: AnalyticsFilters): Promise<void> 
 // ---- email campaign analytics ----------------------------------------------------------
 
 export interface EmailRates {
+  ctrPct: number
+  clickTracked: boolean
+  clickConvertedPct: number
   advancedPct: number
   convertedPct: number
   unsubPct: number
@@ -162,6 +165,11 @@ export interface EmailOverview {
     revenueInr: number
     couponRedemptions: number
     unsubscribes: number
+    clicked: number
+    clicks: number
+    clickConverted: number
+    students: number
+    trackable: number
     deliveryPct: number
   } & EmailRates
   perDay: { date: string; sent: number }[]
@@ -186,6 +194,10 @@ export interface EmailCampaignRow extends EmailRates {
   revenueInr: number
   couponRedemptions: number
   unsubscribes: number
+  clicked: number
+  clicks: number
+  clickConverted: number
+  trackable: number
   deliveryPct: number
 }
 
@@ -199,6 +211,9 @@ export interface TemplateRow extends EmailRates {
   converted: number
   revenueInr: number
   unsubscribes: number
+  clicked: number
+  clickConverted: number
+  trackable: number
 }
 
 export interface TemplateAnalytics {
@@ -237,3 +252,59 @@ export const fetchTemplateAnalytics = (f: AnalyticsFilters) =>
 
 export const fetchCouponAnalytics = (f: AnalyticsFilters) =>
   api.get<CouponAnalyticsRow[]>(`/superadmin/analytics/coupons${qs({ from: f.from, to: f.to })}`)
+
+export interface SendTimes {
+  minSample: number
+  cells: { day: number; hour: number; sent: number; clicked: number; ctrPct: number }[]
+}
+
+export interface SubjectComparison {
+  key: string
+  name: string
+  subjects: { subject: string; sent: number; ctrPct: number; convertedPct: number; smallSample: boolean }[]
+}
+
+export interface FatigueBucket {
+  label: string
+  students: number
+  unsubscribed: number
+  unsubPct: number
+}
+
+export interface RevenueAnalytics {
+  revenue30: number
+  revenuePrev30: number
+  revenueTotal: number
+  payments30: number
+  arpuInr: number
+  payingNow: number
+  cancelledStillActive: number
+  lapsed: number
+  churnPct: number
+  trialToPaidPct: number
+  trialists: number
+  failedPayments30: number
+  perDay: { date: string; count: number }[]
+}
+
+export interface FunnelTiming {
+  medianDaysToFirstPayment: number | null
+  payersInWindow: number
+  signups: number
+  withinDayPct: number
+  withinWeekPct: number
+  cohorts: { week: string; size: number; paidByWeek: (number | null)[] }[]
+  weeks: number
+}
+
+export const fetchSendTimes = (f: AnalyticsFilters) =>
+  api.get<SendTimes>(`/superadmin/analytics/email/send-times${qs({ from: f.from, to: f.to })}`)
+
+export const fetchSubjectComparison = (f: AnalyticsFilters) =>
+  api.get<SubjectComparison[]>(`/superadmin/analytics/email/subjects${qs({ from: f.from, to: f.to })}`)
+
+export const fetchFatigue = () => api.get<FatigueBucket[]>('/superadmin/analytics/email/fatigue')
+
+export const fetchRevenueAnalytics = () => api.get<RevenueAnalytics>('/superadmin/analytics/revenue')
+
+export const fetchFunnelTiming = (weeks = 8) => api.get<FunnelTiming>(`/superadmin/analytics/funnel-timing${qs({ weeks })}`)

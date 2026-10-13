@@ -5,8 +5,11 @@ import { Link } from '@tanstack/react-router'
 import {
   fetchEmailCampaignStats,
   fetchEmailOverview,
+  fetchFatigue,
+  fetchSendTimes,
   type EmailCampaignRow,
 } from '@/lib/analytics'
+import { SendTimeHeatmap } from '@/components/analytics/SendTimeHeatmap'
 import {
   DailyChart,
   DateRangeBar,
@@ -20,13 +23,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 
-type SortKey = 'createdAt' | 'sent' | 'convertedPct' | 'revenueInr' | 'unsubPct' | 'revenuePer1000'
+type SortKey = 'createdAt' | 'ctrPct' | 'sent' | 'convertedPct' | 'revenueInr' | 'unsubPct' | 'revenuePer1000'
 
 const SORTS: { key: SortKey; label: string }[] = [
   { key: 'createdAt', label: 'Newest' },
   { key: 'convertedPct', label: 'Conversion %' },
   { key: 'revenueInr', label: 'Revenue' },
   { key: 'revenuePer1000', label: 'Revenue per 1,000 mails' },
+  { key: 'ctrPct', label: 'Click rate' },
   { key: 'sent', label: 'Mails sent' },
   { key: 'unsubPct', label: 'Unsubscribe %' },
 ]
@@ -43,6 +47,8 @@ export function SuperadminEmailAnalyticsPage() {
   const overview = useQuery({ queryKey: ['analytics', 'email', 'overview', range], queryFn: () => fetchEmailOverview(range) })
   const campaigns = useQuery({ queryKey: ['analytics', 'email', 'campaigns', range], queryFn: () => fetchEmailCampaignStats(range) })
 
+  const sendTimes = useQuery({ queryKey: ['analytics', 'email', 'send-times', range], queryFn: () => fetchSendTimes(range) })
+  const fatigue = useQuery({ queryKey: ['analytics', 'email', 'fatigue'], queryFn: fetchFatigue })
   const t = overview.data?.totals
   const q = overview.data?.quota
 
@@ -55,11 +61,12 @@ export function SuperadminEmailAnalyticsPage() {
       {overview.isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : t ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-          <Tile label="Mails sent" value={t.sent.toLocaleString('en-IN')} hint={`${t.campaigns} campaigns`} />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          <Tile label="Mails sent" value={t.sent.toLocaleString('en-IN')} hint={`${t.campaigns} campaigns, ${t.students} students`} />
           <Tile label="Delivered" value={`${t.deliveryPct}%`} hint={`${t.failed} failed, ${t.skipped} skipped`} />
-          <Tile label="Converted" value={String(t.converted)} hint={`${t.convertedPct}% of ${t.tracked} tracked`} />
-          <Tile label="Moved forward" value={`${t.advancedPct}%`} hint={`${t.advanced} students`} />
+          <Tile label="Click rate" value={t.clickTracked ? `${t.ctrPct}%` : '-'} hint={t.clickTracked ? `${t.clicked} of ${t.trackable} students clicked` : 'No tracked mails yet'} />
+          <Tile label="Converted after click" value={String(t.clickConverted)} hint={`${t.clickConvertedPct}% of clickers, within 7 days`} />
+          <Tile label="Converted (any)" value={String(t.converted)} hint={`${t.convertedPct}% of ${t.tracked} students moved to trial/paid`} />
           <Tile label="Revenue after send" value={inr(t.revenueInr)} hint={`${inr(t.revenuePer1000)} per 1,000 mails`} />
           <Tile label="Unsubscribed" value={`${t.unsubPct}%`} hint={`${t.unsubscribes} students`} />
         </div>
@@ -84,9 +91,38 @@ export function SuperadminEmailAnalyticsPage() {
             </p>
             <p className="text-muted-foreground">{q?.sentLastHour ?? 0} in the last hour</p>
             <p className="pt-2 text-xs text-muted-foreground">
-              Conversion counts students who moved from a non-paying stage to trial or paid after the mail. It shows
-              correlation, not proof the mail caused it.
+              Click rate and click conversion only cover mails sent after click tracking went live. &quot;Converted (any)&quot;
+              counts students who reached trial or paid after the mail, which is correlation, not proof.
             </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Best send times (click rate, IST)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SendTimeHeatmap data={sendTimes.data} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Unsubscribes by mail number (last 30 days)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2 text-sm">
+              {(fatigue.data ?? []).map((b) => (
+                <li key={b.label} className="flex justify-between gap-3">
+                  <span>After the {b.label}</span>
+                  <span className="tabular-nums">
+                    {b.unsubPct}% unsubscribed <span className="text-xs text-muted-foreground">({b.unsubscribed}/{b.students})</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="pt-2 text-xs text-muted-foreground">Share of students who unsubscribed straight after that mail. A rising rate on later mails means we are mailing too often.</p>
           </CardContent>
         </Card>
       </div>
@@ -112,7 +148,7 @@ export function SuperadminEmailAnalyticsPage() {
             <table className="w-full min-w-[960px] text-left text-sm">
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
-                  {['Campaign', 'Template', 'Sent', 'Delivered', 'Moved fwd', 'Converted', 'Revenue', 'Per 1,000', 'Unsub'].map((h) => (
+                  {['Campaign', 'Template', 'Sent', 'Delivered', 'Clicked', 'Converted', 'Revenue', 'Per 1,000', 'Unsub'].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium">
                       {h}
                     </th>
@@ -138,7 +174,7 @@ export function SuperadminEmailAnalyticsPage() {
                     <td className="px-3 py-2">{c.templateName}</td>
                     <td className="px-3 py-2 tabular-nums">{c.sent}</td>
                     <td className="px-3 py-2 tabular-nums">{c.deliveryPct}%</td>
-                    <td className="px-3 py-2 tabular-nums">{c.advancedPct}%</td>
+                    <td className="px-3 py-2 tabular-nums">{c.clickTracked ? `${c.ctrPct}%` : '-'}</td>
                     <td className="px-3 py-2 tabular-nums">
                       {c.converted} ({c.convertedPct}%)
                       <SampleFlag small={c.smallSample} />

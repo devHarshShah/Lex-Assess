@@ -3,11 +3,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsExportService } from './analytics-export.service';
 import { EmailAnalyticsService } from './email-analytics.service';
+import { GrowthAnalyticsService } from './growth-analytics.service';
 import { OutreachAnalyticsService } from './outreach-analytics.service';
 import { SuperadminAnalyticsController } from './superadmin-analytics.controller';
 
 @Module({
-  providers: [AnalyticsService, AnalyticsExportService, OutreachAnalyticsService, EmailAnalyticsService, PrismaService],
+  providers: [AnalyticsService, AnalyticsExportService, OutreachAnalyticsService, EmailAnalyticsService, GrowthAnalyticsService, PrismaService],
   controllers: [SuperadminAnalyticsController],
   exports: [AnalyticsService],
 })

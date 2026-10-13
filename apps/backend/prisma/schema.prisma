@@ -669,9 +669,26 @@ model EmailCampaign {
   startedAt   DateTime?
   completedAt DateTime?
   recipients  EmailCampaignRecipient[]
+  clicks      EmailLinkClick[]
 
   @@index([status])
   @@index([createdAt])
+}
+
+// One real click on a tracked link in a campaign mail (bots and scanner prefetches are not stored)
+model EmailLinkClick {
+  id          String                 @id @default(cuid())
+  campaignId  String
+  campaign    EmailCampaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  recipientId String
+  recipient   EmailCampaignRecipient @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+  userId      String
+  linkKey     String
+  clickedAt   DateTime               @default(now())
+
+  @@index([campaignId, clickedAt])
+  @@index([recipientId])
+  @@index([userId, clickedAt])
 }
 
 model EmailCampaignRecipient {
@@ -691,6 +708,14 @@ model EmailCampaignRecipient {
   stageAtSend String?
   // True when stageAtSend was reconstructed after the fact (backfill) rather than snapshotted
   stageEstimated Boolean            @default(false)
+  // SMTP message id, so delivery events can be matched back to a send
+  messageId   String?
+  // True when this mail's links went through the click tracker (needs API_PUBLIC_URL at send time)
+  linksTracked Boolean             @default(false)
+  // Real (non-bot) clicks on the tracked links in the mail
+  firstClickedAt DateTime?
+  clickCount  Int                  @default(0)
+  clicks      EmailLinkClick[]
   createdAt   DateTime             @default(now())
 
   // A student can't be queued twice in one campaign

@@ -4,6 +4,7 @@ import { SuperadminAnalyticsPage } from '@/pages/SuperadminAnalyticsPage'
 import { SuperadminEmailAnalyticsPage } from '@/pages/SuperadminEmailAnalyticsPage'
 import { SuperadminTemplateAnalyticsPage } from '@/pages/SuperadminTemplateAnalyticsPage'
 import { SuperadminCouponAnalyticsPage } from '@/pages/SuperadminCouponAnalyticsPage'
+import { SuperadminGrowthAnalyticsPage } from '@/pages/SuperadminGrowthAnalyticsPage'
 import { getActiveRole } from '@/lib/auth'
 
 const superadminOnly = ({ context }: { context: { user: Parameters<typeof getActiveRole>[0] } }) => {
@@ -22,3 +23,4 @@ export const dashboardAnalyticsCouponsRoute = page('/analytics/coupons', Superad
 export const dashboardAnalyticsCrmRoute = page('/analytics/crm', () => <SuperadminAnalyticsPage view="crm" />)
 export const dashboardAnalyticsInterviewsRoute = page('/analytics/interviews', () => <SuperadminAnalyticsPage view="interviews" />)
 export const dashboardAnalyticsUsersRoute = page('/analytics/users', () => <SuperadminAnalyticsPage view="users" />)
+export const dashboardAnalyticsGrowthRoute = page('/analytics/growth', SuperadminGrowthAnalyticsPage)

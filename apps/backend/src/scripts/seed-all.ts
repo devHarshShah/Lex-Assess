@@ -25,6 +25,7 @@ const prisma = new PrismaClient({ adapter });
 // (it does, at app boot) before this script is run.
 const SEED_SCRIPTS = [
   'seed-maritime',
+  'seed-capital-markets',
   'seed-taxation',
   'seed-ipr',
   'seed-labour',
