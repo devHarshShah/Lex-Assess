@@ -8,7 +8,8 @@ LB_IP=$(md lb-ip); DB_IP=$(md db-ip); APP_PASS=$(md app-pass); JWT_SECRET=$(md j
 ADMIN_PASS=$(md admin-pass); BUCKET=$(md bucket); PROJECT=$(md project)
 REPO_URL=$(md repo-url); REPO_REF=$(md repo-ref)
 
-fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+[ -f /swapfile ] || { fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile; }
+swapon /swapfile 2>/dev/null || true
 apt-get update -y
 apt-get install -y nginx git curl build-essential ca-certificates
 systemctl stop nginx   # keep the load balancer health check red until the app is really built
@@ -16,7 +17,7 @@ curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 corepack enable
 
-git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /opt/la
+git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /opt/la || { echo "LA-WEB-FAILED: git clone $REPO_URL"; exit 1; }
 cd /opt/la
 pnpm install --frozen-lockfile --filter backend... --filter frontend...
 

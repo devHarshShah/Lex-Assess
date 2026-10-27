@@ -129,6 +129,9 @@ for pair in "la-web-ig-a:$ZONE_A:la-web-1" "la-web-ig-b:$ZONE_B:la-web-2"; do
     gcloud compute instance-groups unmanaged add-instances "$ig" --zone="$z" --instances="$vm"
     gcloud compute instance-groups set-named-ports "$ig" --zone="$z" --named-ports=http:80
   }
+  # A recreated VM is not in its group any more: add it back.
+  gcloud compute instance-groups unmanaged list-instances "$ig" --zone="$z" --format='value(instance.basename())' | grep -qx "$vm" || \
+    gcloud compute instance-groups unmanaged add-instances "$ig" --zone="$z" --instances="$vm"
 done
 has gcloud compute health-checks describe la-web-hc || \
   gcloud compute health-checks create http la-web-hc --port=80 --request-path=/ \
