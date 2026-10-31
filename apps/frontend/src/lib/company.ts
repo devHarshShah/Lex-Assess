@@ -3,18 +3,27 @@ import { api } from './api-client'
 export type CompanyWorkflowStatus = 'NEW' | 'SHORTLISTED' | 'CONTACTED' | 'INTERVIEWING' | 'OFFERED' | 'REJECTED'
 export type CompanyActionStatus = Exclude<CompanyWorkflowStatus, 'NEW'>
 
+export interface CompanyQuestionScore {
+  section: string | null
+  question: string
+  scored: number
+  max: number
+}
+
 export interface CompanyCandidateRecord {
   attemptId: string
-  studentId: string
   practiceArea: string
-  campaign: string
-  versionName: string
-  marks: number
-  questionScores: Record<string, number>
-  interviewMarks: number | null
-  interviewerComments: string | null
+  college: string | null
+  degree: string | null
+  currentYear: string | null
+  internshipGoal: string | null
   internshipDuration: string | null
   internshipPeriod: string | null
+  marks: number
+  maxMarks: number | null
+  questionBreakdown: CompanyQuestionScore[]
+  interviewMarks: number | null
+  interviewerComments: string | null
   workflowStatus: CompanyWorkflowStatus
   notes: string | null
   decisionId: string | null
@@ -28,7 +37,6 @@ export interface UpdateCompanyCandidateInput {
 
 export async function fetchCompanyCandidates(filters?: {
   search?: string
-  campaign?: string
   domain?: string
   status?: CompanyWorkflowStatus
   internshipDuration?: string
@@ -36,7 +44,6 @@ export async function fetchCompanyCandidates(filters?: {
 }): Promise<CompanyCandidateRecord[]> {
   const params = new URLSearchParams()
   if (filters?.search) params.set('search', filters.search)
-  if (filters?.campaign) params.set('campaign', filters.campaign)
   if (filters?.domain) params.set('domain', filters.domain)
   if (filters?.status) params.set('status', filters.status)
   if (filters?.internshipDuration) params.set('internshipDuration', filters.internshipDuration)

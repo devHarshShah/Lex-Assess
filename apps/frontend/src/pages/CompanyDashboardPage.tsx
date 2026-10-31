@@ -56,6 +56,18 @@ function formatStatus(status: CompanyWorkflowStatus) {
   return status.replace('_', ' ')
 }
 
+function academicLine(candidate: CompanyCandidateRecord) {
+  return [candidate.degree, candidate.currentYear].filter(Boolean).join(' · ')
+}
+
+function internshipLine(candidate: CompanyCandidateRecord) {
+  return [candidate.internshipDuration, candidate.internshipPeriod].filter(Boolean).join(' · ')
+}
+
+function formatScore(candidate: CompanyCandidateRecord) {
+  return candidate.maxMarks ? `${candidate.marks} / ${candidate.maxMarks}` : `${candidate.marks}`
+}
+
 function buildDrafts(candidates: CompanyCandidateRecord[]) {
   return candidates.reduce<DraftState>((acc, candidate) => {
     acc[candidate.attemptId] = {
@@ -73,7 +85,6 @@ export function CompanyDashboardPage() {
   const queryClient = useQueryClient()
 
   const [search, setSearch] = useState('')
-  const [campaign, setCampaign] = useState('all')
   const [practiceArea, setPracticeArea] = useState('all')
   const [status, setStatus] = useState<CompanyWorkflowStatus | 'all'>('all')
   const [internshipDuration, setInternshipDuration] = useState('all')
@@ -89,11 +100,10 @@ export function CompanyDashboardPage() {
   const isCompany = role === 'COMPANY'
 
   const query = useQuery({
-    queryKey: ['company-candidates', { search, campaign, practiceArea, status, internshipDuration, internshipPeriod }],
+    queryKey: ['company-candidates', { search, practiceArea, status, internshipDuration, internshipPeriod }],
     queryFn: () =>
       fetchCompanyCandidates({
         search: search.trim() || undefined,
-        campaign: campaign === 'all' ? undefined : campaign,
         domain: practiceArea === 'all' ? undefined : practiceArea,
         status: status === 'all' ? undefined : status,
         internshipDuration: internshipDuration === 'all' ? undefined : internshipDuration,
@@ -111,20 +121,17 @@ export function CompanyDashboardPage() {
   const visibleCandidates = query.data ?? emptyCandidates
 
   const filterOptions = useMemo(() => {
-    const campaigns = new Set<string>()
     const domains = new Set<string>()
     const durations = new Set<string>()
     const periods = new Set<string>()
 
     visibleCandidates.forEach((candidate) => {
-      campaigns.add(candidate.campaign)
       domains.add(candidate.practiceArea)
       if (candidate.internshipDuration) durations.add(candidate.internshipDuration)
       if (candidate.internshipPeriod) periods.add(candidate.internshipPeriod)
     })
 
     return {
-      campaigns: Array.from(campaigns).sort((left, right) => left.localeCompare(right)),
       domains: Array.from(domains).sort((left, right) => left.localeCompare(right)),
       durations: Array.from(durations).sort((left, right) => left.localeCompare(right)),
       periods: Array.from(periods).sort((left, right) => left.localeCompare(right)),
@@ -166,8 +173,8 @@ export function CompanyDashboardPage() {
   })
 
   const scheduleMutation = useMutation({
-    mutationFn: async (payload: { studentId: string; scheduledAt: string; notes?: string }) =>
-      companyScheduleInterview(payload.studentId, payload.scheduledAt, payload.notes),
+    mutationFn: async (payload: { attemptId: string; scheduledAt: string; notes?: string }) =>
+      companyScheduleInterview(payload.attemptId, payload.scheduledAt, payload.notes),
     onSuccess: () => {
       toast.success('Interview scheduled successfully')
       setIsScheduleOpen(false)
@@ -200,7 +207,7 @@ export function CompanyDashboardPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Candidate directory</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Review assessed students by student ID, marks, and practice area. Use shortlist workflow states to keep the hiring pipeline organized.
+              Review assessed students by college, degree, internship preferences, scores and practice area. Use shortlist workflow states to keep the hiring pipeline organized.
             </p>
           </div>
         </div>
@@ -234,7 +241,7 @@ export function CompanyDashboardPage() {
       </div>
 
       <Card>
-        <CardContent className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-6">
+        <CardContent className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="grid gap-2">
             <Label htmlFor="search">Search</Label>
             <div className="relative">
@@ -243,27 +250,10 @@ export function CompanyDashboardPage() {
                 id="search"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder="Student ID or campaign"
+                placeholder="College, degree or practice area"
                 className="pl-9"
               />
             </div>
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Campaign</Label>
-            <Select value={campaign} onValueChange={setCampaign}>
-              <SelectTrigger>
-                <SelectValue placeholder="All campaigns" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All campaigns</SelectItem>
-                {filterOptions.campaigns.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="grid gap-2">
@@ -356,10 +346,10 @@ export function CompanyDashboardPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Student ID</TableHead>
+                    <TableHead>Candidate</TableHead>
                     <TableHead>Practice Area</TableHead>
-                    <TableHead>Campaign</TableHead>
-                    <TableHead className="text-right">Marks</TableHead>
+                    <TableHead>Internship</TableHead>
+                    <TableHead className="text-right">Score</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead className="text-right">Action</TableHead>
@@ -375,12 +365,20 @@ export function CompanyDashboardPage() {
                     const canSave = Boolean(draft.status) && !saveMutation.isPending
                     return (
                       <TableRow key={candidate.attemptId}>
-                        <TableCell className="font-mono text-sm">{candidate.studentId}</TableCell>
+                        <TableCell className="min-w-[200px]">
+                          <div className="font-medium">{candidate.college ?? 'College not provided'}</div>
+                          <div className="text-xs text-muted-foreground">{academicLine(candidate) || '—'}</div>
+                        </TableCell>
                         <TableCell>{candidate.practiceArea}</TableCell>
-                        <TableCell>{candidate.campaign}</TableCell>
+                        <TableCell className="min-w-[160px]">
+                          <div>{internshipLine(candidate) || 'No preference'}</div>
+                          {candidate.internshipGoal && (
+                            <div className="text-xs text-muted-foreground">{candidate.internshipGoal}</div>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-semibold">
                           <div className="flex items-center justify-end gap-2">
-                            {candidate.marks}
+                            <span className="whitespace-nowrap">{formatScore(candidate)}</span>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -508,7 +506,7 @@ export function CompanyDashboardPage() {
           <DialogHeader>
             <DialogTitle>Candidate Profile Details</DialogTitle>
             <DialogDescription>
-              Detailed performance metrics for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
+              {selectedCandidate ? [selectedCandidate.college, academicLine(selectedCandidate)].filter(Boolean).join(' · ') : ''}
             </DialogDescription>
           </DialogHeader>
           
@@ -518,7 +516,7 @@ export function CompanyDashboardPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Total Assessment Score</div>
-                  <div className="text-2xl font-bold">{selectedCandidate?.marks}</div>
+                  <div className="text-2xl font-bold">{selectedCandidate ? formatScore(selectedCandidate) : ''}</div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground uppercase tracking-wider font-medium">Domain</div>
@@ -528,18 +526,26 @@ export function CompanyDashboardPage() {
               
               <div className="mt-2">
                 <div className="text-sm text-muted-foreground mb-2">Question-wise Breakdown</div>
-                <div className="rounded-md border p-4 max-h-40 overflow-y-auto">
-                  {selectedCandidate && Object.entries(selectedCandidate.questionScores).length > 0 ? (
-                    <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                      {Object.entries(selectedCandidate.questionScores).map(([qId, score], idx) => (
-                        <div key={qId} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Question {idx + 1}</span>
-                          <span className="font-mono font-medium">{score} marks</span>
+                <div className="rounded-md border max-h-72 overflow-y-auto divide-y">
+                  {selectedCandidate && selectedCandidate.questionBreakdown.length > 0 ? (
+                    selectedCandidate.questionBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex items-start justify-between gap-4 p-3 text-sm">
+                        <div className="min-w-0">
+                          {item.section && (
+                            <div className="text-xs uppercase tracking-wider text-muted-foreground">{item.section}</div>
+                          )}
+                          <div>
+                            <span className="text-muted-foreground">Q{idx + 1}. </span>
+                            {item.question || 'Untitled question'}
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        <span className="shrink-0 font-mono font-medium">
+                          {item.scored} / {item.max}
+                        </span>
+                      </div>
+                    ))
                   ) : (
-                    <div className="text-sm text-muted-foreground italic">No detailed breakdown available</div>
+                    <div className="p-4 text-sm text-muted-foreground italic">No detailed breakdown available</div>
                   )}
                 </div>
               </div>
@@ -582,7 +588,7 @@ export function CompanyDashboardPage() {
           <DialogHeader>
             <DialogTitle>Schedule Interview</DialogTitle>
             <DialogDescription>
-              Schedule your own hiring interview for Student ID: <span className="font-mono font-bold">{selectedCandidate?.studentId}</span>
+              Schedule your own hiring interview with this candidate{selectedCandidate?.college ? ` from ${selectedCandidate.college}` : ''}.
             </DialogDescription>
           </DialogHeader>
 
@@ -615,7 +621,7 @@ export function CompanyDashboardPage() {
               onClick={() => {
                 if (selectedCandidate && scheduledAt) {
                   scheduleMutation.mutate({
-                    studentId: selectedCandidate.studentId,
+                    attemptId: selectedCandidate.attemptId,
                     scheduledAt: new Date(scheduledAt).toISOString(),
                     notes: scheduleNotes.trim() || undefined,
                   })

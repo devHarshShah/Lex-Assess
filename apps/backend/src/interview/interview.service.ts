@@ -7,6 +7,20 @@ import { randomBytes, createHash } from 'crypto';
 import { interviewEnd, DEFAULT_INTERVIEW_MS } from './interview-end';
 import { CreateInterviewerDto, CreateSlotDto, ScheduleInterviewDto, AddFeedbackDto, BulkCreateSlotsDto, ReassignInterviewDto } from './dto/interview.dto';
 
+// What a company may see of its own interview: no student id or calendar internals.
+function toCompanyFacingInterview(interview: {
+  id: string;
+  scheduledAt: Date;
+  endTime: Date | null;
+  notes: string | null;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+}) {
+  const { id, scheduledAt, endTime, notes, status, createdAt, updatedAt } = interview;
+  return { id, scheduledAt, endTime, notes, status, createdAt, updatedAt };
+}
+
 @Injectable()
 export class InterviewService {
   private readonly logger = new Logger(InterviewService.name);
@@ -427,18 +441,21 @@ export class InterviewService {
    * used to generate rank. A company may only schedule this once it has shortlisted
    * the candidate (a CompanyCandidateDecision exists) and the candidate has completed
    * both the test and the LexAssess interview.
+   *
+   * Companies identify candidates by test attempt, never by student id, so the
+   * student is resolved here from the company's own decision on that attempt.
    */
-  async scheduleCompanyInterview(companyId: string, studentId: string, data: { scheduledAt: string; notes?: string }) {
-    const relationship = await this.prisma.companyCandidateDecision.findFirst({
-      where: {
-        companyId,
-        attempt: { userId: studentId },
-      },
+  async scheduleCompanyInterview(companyId: string, attemptId: string, data: { scheduledAt: string; notes?: string }) {
+    const relationship = await this.prisma.companyCandidateDecision.findUnique({
+      where: { companyId_attemptId: { companyId, attemptId } },
+      select: { attempt: { select: { userId: true } } },
     });
 
     if (!relationship) {
       throw new ForbiddenException('You are not authorized to schedule an interview for this candidate');
     }
+
+    const studentId = relationship.attempt.userId;
 
     const completedLexAssessInterview = await this.prisma.interview.findFirst({
       where: { studentId, status: InterviewStatus.COMPLETED },
@@ -485,13 +502,14 @@ export class InterviewService {
       }
     }
 
-    return companyInterview;
+    return toCompanyFacingInterview(companyInterview);
   }
 
   async getCompanyInterviews(companyId: string) {
+    // No student identity or contact details for companies; introductions go through LexAssess
     return this.prisma.companyInterview.findMany({
       where: { companyId },
-      include: { student: { select: { id: true, name: true, email: true } } },
+      select: { id: true, scheduledAt: true, endTime: true, notes: true, status: true, createdAt: true, updatedAt: true },
       orderBy: { scheduledAt: 'desc' },
     });
   }
@@ -505,13 +523,14 @@ export class InterviewService {
       throw new NotFoundException('Company interview not found');
     }
 
-    return this.prisma.companyInterview.update({
+    const updated = await this.prisma.companyInterview.update({
       where: { id: companyInterviewId },
       data: {
         status: 'COMPLETED',
         notes: data.notes ?? companyInterview.notes,
       },
     });
+    return toCompanyFacingInterview(updated);
   }
 
   /** Upcoming booked LexAssess interviews, for admins to reassign when an interviewer drops out. */

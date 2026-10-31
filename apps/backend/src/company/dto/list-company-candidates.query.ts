@@ -7,6 +7,8 @@ export class ListCompanyCandidatesQueryDto {
   @MaxLength(200)
   search?: string;
 
+  // No longer used for filtering; still accepted so an older frontend build sending it
+  // doesn't get a 400 from forbidNonWhitelisted while frontend and backend deploy separately.
   @IsOptional()
   @IsString()
   @MaxLength(200)

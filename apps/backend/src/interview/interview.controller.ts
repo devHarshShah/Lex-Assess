@@ -94,14 +94,14 @@ export class InterviewController {
   }
 
   // COMPANY: Own hiring-stage interview, separate from the LexAssess interview
-  @Post('company-schedule/:studentId')
+  @Post('company-schedule/:attemptId')
   @Roles(Role.COMPANY)
   companyScheduleInterview(
     @Request() req: any,
-    @Param('studentId') studentId: string,
+    @Param('attemptId') attemptId: string,
     @Body() data: ScheduleCompanyInterviewDto,
   ) {
-    return this.interviewService.scheduleCompanyInterview(req.user.id, studentId, data);
+    return this.interviewService.scheduleCompanyInterview(req.user.id, attemptId, data);
   }
 
   @Get('company-interviews')

@@ -73,16 +73,14 @@ export const scheduleInterview = async (slotId: string) => {
 
 export interface CompanyInterview {
   id: string;
-  companyId: string;
-  studentId: string;
-  student?: { id: string; name: string; email: string };
   scheduledAt: string;
+  endTime?: string | null;
   notes?: string | null;
   status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 }
 
-export const companyScheduleInterview = async (studentId: string, scheduledAt: string, notes?: string) => {
-  return api.post<CompanyInterview>(`/interviews/company-schedule/${studentId}`, { scheduledAt, notes });
+export const companyScheduleInterview = async (attemptId: string, scheduledAt: string, notes?: string) => {
+  return api.post<CompanyInterview>(`/interviews/company-schedule/${attemptId}`, { scheduledAt, notes });
 };
 
 export const fetchCompanyInterviews = async () => {

@@ -2,42 +2,48 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AttemptStatus, Prisma, CandidateWorkflowStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { activeAccessWhere } from '../payments/access';
-import { MailService } from '../mail/mail.service';
+import { computeVersionMarks, type SectionQuestionMark, type SectionRule } from '../ranking/scoring.util';
 import { CompanyCandidateFilterStatus, UpdateCompanyCandidateDto } from './dto/update-company-candidate.dto';
 
 type CandidateListQuery = {
   search?: string;
-  campaign?: string;
   domain?: string;
   status?: CompanyCandidateFilterStatus;
   internshipDuration?: string;
   internshipPeriod?: string;
 };
 
-type CandidateAttempt = Prisma.TestAttemptGetPayload<{
-  include: {
-    user: {
-      select: {
-        id: true;
-        profile: {
-          select: {
-            internshipDuration: true;
-            internshipPeriod: true;
-          };
-        };
-      };
-    };
-    version: {
-      include: {
-        paper: {
-          include: {
-            specialization: true;
-          };
-        };
-      };
-    };
-  };
-}>;
+// Companies see a candidate's academic background and internship preferences only.
+// Identity and contact details (name, email, phone, LinkedIn, resume, photo, roll number)
+// are never selected here; introductions go through LexAssess.
+const candidateAttemptInclude = {
+  user: {
+    select: {
+      id: true,
+      profile: {
+        select: {
+          college: true,
+          degree: true,
+          currentYear: true,
+          internshipGoal: true,
+          internshipDuration: true,
+          internshipPeriod: true,
+        },
+      },
+    },
+  },
+  version: {
+    include: {
+      paper: {
+        include: {
+          specialization: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.TestAttemptInclude;
+
+type CandidateAttempt = Prisma.TestAttemptGetPayload<{ include: typeof candidateAttemptInclude }>;
 
 type CandidateDecision = Prisma.CompanyCandidateDecisionGetPayload<{
   select: {
@@ -50,12 +56,42 @@ type CandidateDecision = Prisma.CompanyCandidateDecisionGetPayload<{
   };
 }>;
 
+type QuestionBreakdownItem = {
+  section: string | null;
+  question: string;
+  scored: number;
+  max: number;
+};
+
+type VersionScoring = {
+  // Main (parent) questions in paper order, with the ids whose scores roll up into each
+  questions: Array<{
+    id: string;
+    sectionId: string | null;
+    section: string | null;
+    question: string;
+    max: number;
+    scoreIds: string[];
+  }>;
+  sectionRules: Map<string, SectionRule>;
+};
+
+const QUESTION_PREVIEW_LENGTH = 140;
+
+// First meaningful line of a markdown question, without heading/emphasis markers.
+function questionPreview(text: string): string {
+  const firstLine = text
+    .split('\n')
+    .map((line) => line.replace(/^[#>\-*\s]+/, '').replace(/[*_`]/g, '').trim())
+    .find((line) => line.length > 0) ?? '';
+  return firstLine.length > QUESTION_PREVIEW_LENGTH
+    ? `${firstLine.slice(0, QUESTION_PREVIEW_LENGTH - 1).trimEnd()}…`
+    : firstLine;
+}
+
 @Injectable()
 export class CompanyCandidatesService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * A candidate is only visible/actionable by companies once they've completed
@@ -73,9 +109,85 @@ export class CompanyCandidatesService {
     return new Set(completedInterviews.map((interview) => interview.studentId));
   }
 
+  /** Questions (with marks and section) for each version, so scores can be shown with context. */
+  private async getVersionScoring(versionIds: string[]): Promise<Map<string, VersionScoring>> {
+    const result = new Map<string, VersionScoring>();
+    if (versionIds.length === 0) return result;
+
+    const [questions, sections] = await Promise.all([
+      this.prisma.question.findMany({
+        where: { versionId: { in: versionIds } },
+        select: { id: true, versionId: true, sectionId: true, parentId: true, text: true, marks: true, order: true },
+        orderBy: [{ order: 'asc' }, { createdAt: 'asc' }],
+      }),
+      this.prisma.paperSection.findMany({
+        where: { versionId: { in: versionIds } },
+        select: { id: true, title: true, rules: true, order: true },
+        orderBy: { order: 'asc' },
+      }),
+    ]);
+
+    const sectionById = new Map(sections.map((section) => [section.id, section]));
+    const sectionOrder = new Map(sections.map((section, index) => [section.id, index]));
+    const subIdsByParent = new Map<string, string[]>();
+    for (const question of questions) {
+      if (!question.parentId) continue;
+      const list = subIdsByParent.get(question.parentId) ?? [];
+      list.push(question.id);
+      subIdsByParent.set(question.parentId, list);
+    }
+
+    for (const versionId of versionIds) {
+      const parents = questions
+        .filter((question) => question.versionId === versionId && !question.parentId)
+        .sort((left, right) => {
+          const leftSection = left.sectionId ? sectionOrder.get(left.sectionId) ?? 0 : -1;
+          const rightSection = right.sectionId ? sectionOrder.get(right.sectionId) ?? 0 : -1;
+          return leftSection - rightSection || left.order - right.order;
+        });
+
+      result.set(versionId, {
+        questions: parents.map((question) => ({
+          id: question.id,
+          sectionId: question.sectionId,
+          section: question.sectionId ? sectionById.get(question.sectionId)?.title ?? null : null,
+          question: questionPreview(question.text),
+          max: question.marks,
+          scoreIds: [question.id, ...(subIdsByParent.get(question.id) ?? [])],
+        })),
+        sectionRules: new Map(
+          sections.map((section) => [section.id, (section.rules as SectionRule | null) ?? {}]),
+        ),
+      });
+    }
+
+    return result;
+  }
+
+  private scoreAttempt(attempt: CandidateAttempt, scoring: VersionScoring | undefined) {
+    if (!scoring) return { maxMarks: null, questionBreakdown: [] as QuestionBreakdownItem[] };
+
+    const scores = (attempt.questionScores as Record<string, number> | null) ?? {};
+    const questionBreakdown = scoring.questions.map((question) => ({
+      section: question.section,
+      question: question.question,
+      // A main question's marks are the sum of its own score and its sub-questions' scores
+      scored: question.scoreIds.reduce((sum, id) => sum + (Number(scores[id]) || 0), 0),
+      max: question.max,
+    }));
+
+    const sectionMarks: SectionQuestionMark[] = scoring.questions.map((question) => ({
+      questionId: question.id,
+      sectionId: question.sectionId,
+      marks: question.max,
+    }));
+    const { maxMarks } = computeVersionMarks(sectionMarks, scoring.sectionRules);
+
+    return { maxMarks: maxMarks > 0 ? maxMarks : null, questionBreakdown };
+  }
+
   async listCandidates(companyId: string, query: CandidateListQuery) {
     const search = query.search?.trim().toLowerCase();
-    const campaign = query.campaign?.trim().toLowerCase();
     const domain = query.domain?.trim().toLowerCase();
     const internshipDuration = query.internshipDuration?.trim().toLowerCase();
     const internshipPeriod = query.internshipPeriod?.trim().toLowerCase();
@@ -86,43 +198,21 @@ export class CompanyCandidatesService {
         // Students who stopped paying are no longer shown to companies.
         user: activeAccessWhere(),
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                internshipDuration: true,
-                internshipPeriod: true,
-              },
-            },
-          },
-        },
-        version: {
-          include: {
-            paper: {
-              include: {
-                specialization: true,
-              },
-            },
-          },
-        },
-      },
+      include: candidateAttemptInclude,
       orderBy: [{ score: 'desc' }, { updatedAt: 'desc' }],
     });
 
     const filteredAttempts = attempts.filter((attempt) => {
+      const profile = attempt.user.profile;
       const haystacks = [
-        attempt.user.id,
-        attempt.version.paper.title,
         attempt.version.paper.specialization.name,
-      ].map((value) => value.toLowerCase());
+        profile?.college,
+        profile?.degree,
+      ]
+        .filter((value): value is string => Boolean(value))
+        .map((value) => value.toLowerCase());
 
       if (search && !haystacks.some((value) => value.includes(search))) {
-        return false;
-      }
-
-      if (campaign && !attempt.version.paper.title.toLowerCase().includes(campaign)) {
         return false;
       }
 
@@ -130,11 +220,11 @@ export class CompanyCandidatesService {
         return false;
       }
 
-      if (internshipDuration && attempt.user.profile?.internshipDuration?.toLowerCase() !== internshipDuration) {
+      if (internshipDuration && profile?.internshipDuration?.toLowerCase() !== internshipDuration) {
         return false;
       }
 
-      if (internshipPeriod && attempt.user.profile?.internshipPeriod?.toLowerCase() !== internshipPeriod) {
+      if (internshipPeriod && profile?.internshipPeriod?.toLowerCase() !== internshipPeriod) {
         return false;
       }
 
@@ -160,20 +250,23 @@ export class CompanyCandidatesService {
 
     const interviewsByStudentId = new Map(interviews.map(i => [i.studentId, i]));
 
-    const decisions = await this.prisma.companyCandidateDecision.findMany({
-      where: {
-        companyId,
-        attemptId: { in: eligibleAttempts.map((attempt) => attempt.id) },
-      },
-      select: {
-        id: true,
-        attemptId: true,
-        status: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    });
+    const [decisions, scoringByVersionId] = await Promise.all([
+      this.prisma.companyCandidateDecision.findMany({
+        where: {
+          companyId,
+          attemptId: { in: eligibleAttempts.map((attempt) => attempt.id) },
+        },
+        select: {
+          id: true,
+          attemptId: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.getVersionScoring(Array.from(new Set(eligibleAttempts.map((attempt) => attempt.versionId)))),
+    ]);
 
     const decisionByAttemptId = new Map(decisions.map((decision) => [decision.attemptId, decision]));
 
@@ -181,7 +274,8 @@ export class CompanyCandidatesService {
       .map((attempt) => this.toCandidateRecord(
         attempt,
         decisionByAttemptId.get(attempt.id) ?? null,
-        interviewsByStudentId.get(attempt.user.id) ?? null
+        interviewsByStudentId.get(attempt.user.id) ?? null,
+        scoringByVersionId.get(attempt.versionId),
       ))
       .filter((candidate) => {
         if (!query.status) {
@@ -203,28 +297,7 @@ export class CompanyCandidatesService {
         status: AttemptStatus.SUBMITTED,
         user: activeAccessWhere(),
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            profile: {
-              select: {
-                internshipDuration: true,
-                internshipPeriod: true,
-              },
-            },
-          },
-        },
-        version: {
-          include: {
-            paper: {
-              include: {
-                specialization: true,
-              },
-            },
-          },
-        },
-      },
+      include: candidateAttemptInclude,
     });
 
     if (!attempt) {
@@ -263,37 +336,46 @@ export class CompanyCandidatesService {
       },
     });
 
-    const interview = await this.prisma.interview.findFirst({
-      where: {
-        studentId: attempt.user.id,
-        status: 'COMPLETED',
-      },
-      select: {
-        marks: true,
-        notes: true,
-      }
-    });
+    const [interview, scoringByVersionId] = await Promise.all([
+      this.prisma.interview.findFirst({
+        where: {
+          studentId: attempt.user.id,
+          status: 'COMPLETED',
+        },
+        select: {
+          marks: true,
+          notes: true,
+        }
+      }),
+      this.getVersionScoring([attempt.versionId]),
+    ]);
 
-    return this.toCandidateRecord(attempt, decision, interview);
+    return this.toCandidateRecord(attempt, decision, interview, scoringByVersionId.get(attempt.versionId));
   }
 
   private toCandidateRecord(
-    attempt: CandidateAttempt, 
+    attempt: CandidateAttempt,
     decision: CandidateDecision | null,
-    interview?: { marks: number | null, notes: string | null } | null
+    interview: { marks: number | null, notes: string | null } | null,
+    scoring: VersionScoring | undefined,
   ) {
+    const profile = attempt.user.profile;
+    const { maxMarks, questionBreakdown } = this.scoreAttempt(attempt, scoring);
+
     return {
       attemptId: attempt.id,
-      studentId: attempt.user.id,
       practiceArea: attempt.version.paper.specialization.name,
-      campaign: attempt.version.paper.title,
-      versionName: attempt.version.versionName,
+      college: profile?.college ?? null,
+      degree: profile?.degree ?? null,
+      currentYear: profile?.currentYear ?? null,
+      internshipGoal: profile?.internshipGoal ?? null,
+      internshipDuration: profile?.internshipDuration ?? null,
+      internshipPeriod: profile?.internshipPeriod ?? null,
       marks: attempt.score ?? 0,
-      questionScores: attempt.questionScores ?? {},
+      maxMarks,
+      questionBreakdown,
       interviewMarks: interview?.marks ?? null,
       interviewerComments: interview?.notes ?? null,
-      internshipDuration: attempt.user.profile?.internshipDuration ?? null,
-      internshipPeriod: attempt.user.profile?.internshipPeriod ?? null,
       workflowStatus: decision?.status ?? CompanyCandidateFilterStatus.NEW,
       notes: decision?.notes ?? null,
       decisionId: decision?.id ?? null,
