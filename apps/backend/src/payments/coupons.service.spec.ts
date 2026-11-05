@@ -24,7 +24,7 @@ const base = { id: 'c1', code: 'FREE1', freeDays: 30, isActive: true, redemption
 describe('CouponsService', () => {
   it('validates a good coupon case-insensitively', async () => {
     const { service, prisma } = setup(base);
-    await expect(service.validate('u1', ' free1 ')).resolves.toEqual({ valid: true, code: 'FREE1', freeDays: 30 });
+    await expect(service.validate('u1', ' free1 ')).resolves.toEqual({ valid: true, code: 'FREE1', freeDays: 30, pricePaise: null });
     expect(prisma.coupon.findUnique).toHaveBeenCalledWith({ where: { code: 'FREE1' } });
   });
 

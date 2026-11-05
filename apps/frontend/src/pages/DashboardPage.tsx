@@ -23,7 +23,7 @@ import {
   Briefcase,
 } from 'lucide-react'
 import { useRazorpay } from 'react-razorpay'
-import { createSubscription, redeemCoupon, validateCoupon, verifyPayment } from '@/lib/payments'
+import { createCouponOrder, createSubscription, redeemCoupon, validateCoupon, verifyCouponPayment, verifyPayment } from '@/lib/payments'
 import { cycleLabel, formatPrice, usePricing, validityLabel } from '@/lib/pricing'
 import { toast } from 'sonner'
 import { CompanyDashboardPage } from './CompanyDashboardPage'
@@ -56,7 +56,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [subscribing, setSubscribing] = React.useState(false)
   const [acceptedTerms, setAcceptedTerms] = React.useState(false)
   const [couponInput, setCouponInput] = React.useState('')
-  const [appliedCoupon, setAppliedCoupon] = React.useState<{ code: string; freeDays: number } | null>(null)
+  const [appliedCoupon, setAppliedCoupon] = React.useState<{ code: string; freeDays: number; pricePaise: number | null } | null>(null)
   const [applyingCoupon, setApplyingCoupon] = React.useState(false)
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const { Razorpay } = useRazorpay()
@@ -82,7 +82,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
     try {
       setApplyingCoupon(true)
       const res = await validateCoupon(couponInput.trim())
-      setAppliedCoupon({ code: res.code, freeDays: res.freeDays })
+      setAppliedCoupon({ code: res.code, freeDays: res.freeDays, pricePaise: res.pricePaise ?? null })
       toast.success('Coupon applied')
     } catch (err) {
       setAppliedCoupon(null)
@@ -105,7 +105,61 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
     }
   }
 
+  // Paid coupon: a one-time Razorpay order (no autopay); access unlocks for the coupon's days.
+  const handlePaidCoupon = async (code: string) => {
+    try {
+      setSubscribing(true)
+      const order = await createCouponOrder(code, TERMS_VERSION)
+      const options = {
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'Lex-Assess',
+        description: `Coupon ${order.code}: ${order.freeDays} days of access`,
+        handler: async function (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) {
+          try {
+            await verifyCouponPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+            })
+          } catch (err) {
+            console.error('Coupon payment verification failed:', err)
+            toast.error(
+              'Payment received but verification failed. Your access has not been activated yet — please contact support with your payment ID: ' +
+                response.razorpay_payment_id,
+            )
+            return
+          }
+          toast.success('Payment successful! Your tests are now unlocked.')
+          sessionStorage.setItem(
+            'lex_payment_receipt',
+            JSON.stringify({
+              paymentId: response.razorpay_payment_id,
+              amount: formatPrice(order.amount, { alwaysDecimals: true }),
+              plan: `Lex-Assess Pass (${order.code})`,
+              validity: `${order.freeDays} Days`,
+              date: new Date().toISOString(),
+            }),
+          )
+          // Hard navigate so beforeLoad re-fetches a fresh user with access
+          window.location.href = '/dashboard/payment-success'
+        },
+        theme: { color: '#d97706' },
+      }
+      const rzp = new Razorpay(options as any)
+      rzp.open()
+    } catch (error) {
+      console.error(error)
+      // api-client already showed the server's reason (e.g. coupon expired)
+    } finally {
+      setSubscribing(false)
+    }
+  }
+
   const handleSubscribe = async () => {
+    if (appliedCoupon?.pricePaise != null) return handlePaidCoupon(appliedCoupon.code)
     if (appliedCoupon) return handleRedeemCoupon(appliedCoupon.code)
     try {
       setSubscribing(true)
@@ -401,9 +455,11 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                   </div>
                   {appliedCoupon && (
                     <p className="text-xs font-semibold text-emerald-700">
-                      {appliedCoupon.freeDays} days of free access until{' '}
+                      {appliedCoupon.freeDays} days of {appliedCoupon.pricePaise != null ? '' : 'free '}access until{' '}
                       {new Date(Date.now() + appliedCoupon.freeDays * 86400000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.
-                      No payment or autopay needed.
+                      {appliedCoupon.pricePaise != null
+                        ? ` One-time payment of ${formatPrice(appliedCoupon.pricePaise)}. No autopay.`
+                        : ' No payment or autopay needed.'}
                     </p>
                   )}
                 </div>
@@ -446,17 +502,21 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        {appliedCoupon ? 'Unlocking...' : 'Initializing Secure Payment...'}
+                        {appliedCoupon && appliedCoupon.pricePaise == null ? 'Unlocking...' : 'Initializing Secure Payment...'}
                       </span>
                     ) : (
                       <span className="flex items-center gap-2">
                         <Sparkles className="h-4 w-4" />
-                        {appliedCoupon ? `Start ${appliedCoupon.freeDays}-day free access` : 'Unlock Instant Access'}
+                        {appliedCoupon
+                          ? appliedCoupon.pricePaise != null
+                            ? `Pay ${formatPrice(appliedCoupon.pricePaise)} for ${appliedCoupon.freeDays} days`
+                            : `Start ${appliedCoupon.freeDays}-day free access`
+                          : 'Unlock Instant Access'}
                         <ArrowRight className="h-4 w-4" />
                       </span>
                     )}
                   </Button>
-                  {!appliedCoupon && (
+                  {(!appliedCoupon || appliedCoupon.pricePaise != null) && (
                     <div className="flex items-center justify-center gap-1.5 opacity-50">
                       <p className="text-[10px] uppercase font-bold tracking-widest">Powered by</p>
                       <span className="text-xs font-black tracking-tighter italic">Razorpay</span>

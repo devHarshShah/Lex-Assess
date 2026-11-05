@@ -20,6 +20,9 @@ export function SuperadminCouponsPage() {
   const [freeDays, setFreeDays] = React.useState('30')
   const [maxRedemptions, setMaxRedemptions] = React.useState('')
   const [expiresAt, setExpiresAt] = React.useState('')
+  const [price, setPrice] = React.useState('')
+  const [editingPriceId, setEditingPriceId] = React.useState<string | null>(null)
+  const [editPrice, setEditPrice] = React.useState('')
   const [isAdding, setIsAdding] = React.useState(false)
   const [busyId, setBusyId] = React.useState<string | null>(null)
   const { pricing } = usePricing()
@@ -36,8 +39,20 @@ export function SuperadminCouponsPage() {
     void load()
   }, [])
 
+  // '' = free coupon. Returns paise, null for free, or undefined when invalid.
+  function parsePrice(value: string): number | null | undefined {
+    if (!value.trim()) return null
+    const paise = Math.round(Number(value) * 100)
+    return Number.isFinite(paise) && paise >= 100 ? paise : undefined
+  }
+
   async function handleAdd() {
     if (!code.trim()) return
+    const pricePaise = parsePrice(price)
+    if (pricePaise === undefined) {
+      toast.error('Price must be at least ₹1, or leave it empty for a free coupon')
+      return
+    }
     setIsAdding(true)
     try {
       await createCoupon({
@@ -45,8 +60,10 @@ export function SuperadminCouponsPage() {
         freeDays: Number(freeDays),
         maxRedemptions: maxRedemptions ? Number(maxRedemptions) : null,
         expiresAt: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
+        pricePaise,
       })
       setCode('')
+      setPrice('')
       setMaxRedemptions('')
       setExpiresAt('')
       await load()
@@ -76,13 +93,16 @@ export function SuperadminCouponsPage() {
       <CardHeader>
         <CardTitle>Coupons</CardTitle>
         <p className="text-sm text-muted-foreground">
-          A coupon delays the first charge by the free days, then {formatPrice(pricing.amountPaise)} is charged every {cycleLabel(pricing.cycleMonths)}. One use per student.
+          <strong>No price:</strong> the coupon unlocks the platform free for its days. <strong>With a price:</strong> the student pays
+          that amount once (no autopay) and gets access for the days. Either way the paywall comes back afterwards, where the regular plan is{' '}
+          {formatPrice(pricing.amountPaise)} every {cycleLabel(pricing.cycleMonths)}. One use per student.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-2 sm:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="CODE" maxLength={32} />
-          <Input type="number" min={1} max={365} value={freeDays} onChange={(e) => setFreeDays(e.target.value)} placeholder="Free days" />
+          <Input type="number" min={1} max={365} value={freeDays} onChange={(e) => setFreeDays(e.target.value)} placeholder="Access days" aria-label="Access days" />
+          <Input type="number" min={1} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Price ₹ (empty = free)" aria-label="One-time price" />
           <Input type="number" min={1} value={maxRedemptions} onChange={(e) => setMaxRedemptions(e.target.value)} placeholder="Max uses (optional)" />
           <Input type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} aria-label="Expiry date" />
           <Button disabled={isAdding} onClick={handleAdd}>
@@ -100,12 +120,56 @@ export function SuperadminCouponsPage() {
                   {c.code} {!c.isActive && <span className="text-xs font-normal text-muted-foreground">(inactive)</span>}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {c.freeDays} days free · used {c.redemptionCount}
+                  {c.pricePaise != null ? `${formatPrice(c.pricePaise)} one-time for ${c.freeDays} days` : `${c.freeDays} days free`} · used {c.redemptionCount}
                   {c.maxRedemptions != null ? ` / ${c.maxRedemptions}` : ''}
                   {c.expiresAt ? ` · expires ${new Date(c.expiresAt).toLocaleDateString('en-IN')}` : ''}
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {editingPriceId === c.id ? (
+                  <>
+                    <Input
+                      className="h-8 w-36"
+                      type="number"
+                      min={1}
+                      step="0.01"
+                      value={editPrice}
+                      onChange={(e) => setEditPrice(e.target.value)}
+                      placeholder="Empty = free"
+                      aria-label={`Price for ${c.code}`}
+                      autoFocus
+                    />
+                    <Button
+                      size="sm"
+                      disabled={busyId === c.id}
+                      onClick={() => {
+                        const pricePaise = parsePrice(editPrice)
+                        if (pricePaise === undefined) {
+                          toast.error('Price must be at least ₹1, or leave it empty for a free coupon')
+                          return
+                        }
+                        void run(c.id, () => updateCoupon(c.id, { pricePaise }), 'Price updated').then(() => setEditingPriceId(null))
+                      }}
+                    >
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingPriceId(null)}>
+                      Cancel
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busyId === c.id}
+                    onClick={() => {
+                      setEditingPriceId(c.id)
+                      setEditPrice(c.pricePaise != null ? String(c.pricePaise / 100) : '')
+                    }}
+                  >
+                    Edit price
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

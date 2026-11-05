@@ -174,8 +174,10 @@ model Coupon {
   id              String   @id @default(cuid())
   // Always stored uppercase
   code            String   @unique
-  // Days before the first charge (free period)
+  // Free coupon: days of free access. Paid coupon: days of access the one-time payment buys.
   freeDays        Int      @default(30)
+  // One-time price in paise; null = free coupon. Paid coupons never set up autopay.
+  pricePaise      Int?
   maxRedemptions  Int?
   redemptionCount Int      @default(0)
   expiresAt       DateTime?
@@ -194,6 +196,8 @@ model CouponRedemption {
   userId                 String
   user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   razorpaySubscriptionId String?
+  // Paid coupons: the Razorpay order the student is paying (one-time, no mandate)
+  razorpayOrderId        String?   @unique
   // Null while the student has only opened checkout; set once the mandate/payment succeeds.
   confirmedAt            DateTime?
   createdAt              DateTime @default(now())

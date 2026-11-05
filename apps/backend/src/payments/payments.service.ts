@@ -212,6 +212,22 @@ export class PaymentsService {
 
     const event = payload.event;
 
+    // One-time coupon pass paid (fallback for a student who closed the tab before client verification)
+    if (event === 'order.paid') {
+      const order = payload.payload?.order?.entity;
+      const payment = payload.payload?.payment?.entity;
+      if (order?.notes?.kind === 'COUPON_PASS' && payment?.id) {
+        const result = await this.coupons.confirmPaidRedemption(order.id, {
+          id: payment.id,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+        });
+        this.logger.log(`order.paid for coupon order ${order.id}: ${result.granted ? 'access granted' : result.reason}`);
+      }
+      return;
+    }
+
     // During a coupon free period no charge happens, so Razorpay only sends
     // `authenticated` (mandate approved). Treat that as activation, but only
     // when the first charge is scheduled in the future; otherwise an
@@ -379,6 +395,73 @@ export class PaymentsService {
     }
 
     throw new BadRequestException('Subscription is not active');
+  }
+
+  // ---- Paid coupons: one-time Razorpay order, no subscription or mandate ----
+
+  async createCouponOrder(userId: string, code: string, termsVersion: string) {
+    const { coupon } = await this.coupons.preparePaidRedemption(userId, code, termsVersion);
+    let order: any;
+    try {
+      order = await this.razorpay.orders.create({
+        amount: coupon.pricePaise,
+        currency: 'INR',
+        receipt: `cpn_${coupon.code}_${Date.now()}`.slice(0, 40),
+        notes: { userId, couponId: coupon.id, couponCode: coupon.code, kind: 'COUPON_PASS' },
+      });
+    } catch (error: any) {
+      this.logger.error('Failed to create Razorpay order for coupon', error?.error || error);
+      throw new InternalServerErrorException('Payment gateway error');
+    }
+    await this.coupons.attachOrder(userId, coupon.id, order.id);
+    return {
+      orderId: order.id as string,
+      amount: coupon.pricePaise,
+      currency: 'INR',
+      keyId: this.keyId,
+      code: coupon.code,
+      freeDays: coupon.freeDays,
+    };
+  }
+
+  async verifyCouponPayment(userId: string, data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) {
+    const { razorpay_order_id: orderId, razorpay_payment_id: paymentId, razorpay_signature: signature } = data ?? ({} as any);
+    if (!orderId || !paymentId || !signature) throw new BadRequestException('Missing payment details');
+
+    const redemption = await this.coupons.findRedemptionByOrder(orderId);
+    if (!redemption || redemption.userId !== userId) throw new BadRequestException('Order does not belong to this user');
+
+    // Razorpay signature for orders: HMAC_SHA256(order_id + '|' + payment_id, key_secret)
+    const expected = crypto.createHmac('sha256', this.keySecret).update(`${orderId}|${paymentId}`).digest('hex');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    const receivedBuf = Buffer.from(String(signature), 'utf8');
+    if (expectedBuf.length !== receivedBuf.length || !crypto.timingSafeEqual(expectedBuf, receivedBuf)) {
+      throw new BadRequestException('Payment signature verification failed');
+    }
+
+    // Defense in depth: confirm the payment really captured for this order before granting access.
+    let payment: any;
+    try {
+      payment = await this.razorpay.payments.fetch(paymentId);
+      if (payment?.status === 'authorized') {
+        payment = await this.razorpay.payments.capture(paymentId, payment.amount, payment.currency);
+      }
+    } catch (error: any) {
+      this.logger.error('Failed to fetch/capture coupon payment from Razorpay', error?.error || error);
+      throw new BadRequestException('Unable to verify payment status');
+    }
+    if (payment?.order_id !== orderId || payment?.status !== 'captured') {
+      throw new BadRequestException('Payment is not complete');
+    }
+
+    const result = await this.coupons.confirmPaidRedemption(orderId, {
+      id: payment.id,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
+    });
+    if (result.granted) this.logger.log(`Coupon pass activated for user ${userId} via payment verification (order ${orderId})`);
+    return { success: true };
   }
 
   async getBillingHistory(userId: string) {

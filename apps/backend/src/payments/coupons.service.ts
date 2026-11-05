@@ -10,7 +10,18 @@ export interface CouponInput {
   maxRedemptions?: number | null;
   expiresAt?: string | null;
   isActive?: boolean;
+  // One-time price in paise; null makes it a free coupon
+  pricePaise?: number | null;
 }
+
+export interface CouponPassPayment {
+  id: string;
+  amount: number;
+  currency: string;
+  status: string;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class CouponsService {
@@ -43,7 +54,7 @@ export class CouponsService {
 
   async validate(userId: string, code: string) {
     const coupon = await this.findUsable(userId, code);
-    return { valid: true, code: coupon.code, freeDays: coupon.freeDays };
+    return { valid: true, code: coupon.code, freeDays: coupon.freeDays, pricePaise: coupon.pricePaise ?? null };
   }
 
   // Grants free access for the coupon's freeDays straight away, with no Razorpay
@@ -55,8 +66,9 @@ export class CouponsService {
     if (hasAccess(user)) throw new BadRequestException('You already have access');
 
     const coupon = await this.findUsable(userId, code);
+    if (coupon.pricePaise != null) throw new BadRequestException('This coupon requires payment');
     const now = new Date();
-    const accessEndsAt = new Date(now.getTime() + coupon.freeDays * 24 * 60 * 60 * 1000);
+    const accessEndsAt = new Date(now.getTime() + coupon.freeDays * DAY_MS);
 
     await this.prisma.$transaction(async (tx) => {
       // Re-check the cap inside the transaction; a few concurrent redeems may still
@@ -133,6 +145,74 @@ export class CouponsService {
     });
   }
 
+  // ---- Paid coupons (one-time payment, no autopay) ----
+
+  // Checks a paid coupon can be used and records consent. The caller then creates the
+  // Razorpay order and links it with attachOrder().
+  async preparePaidRedemption(userId: string, code: string, termsVersion: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+    if (hasAccess(user)) throw new BadRequestException('You already have access');
+    const coupon = await this.findUsable(userId, code);
+    if (coupon.pricePaise == null) throw new BadRequestException('This coupon is free; redeem it instead');
+    await this.prisma.termsAcceptance.create({ data: { userId, version: termsVersion, context: 'COUPON' } });
+    return { coupon: { id: coupon.id, code: coupon.code, freeDays: coupon.freeDays, pricePaise: coupon.pricePaise } };
+  }
+
+  // Pending claim tied to the order. A later attempt (abandoned checkout) replaces the order id.
+  attachOrder(userId: string, couponId: string, razorpayOrderId: string) {
+    return this.prisma.couponRedemption.upsert({
+      where: { couponId_userId: { couponId, userId } },
+      create: { couponId, userId, razorpayOrderId },
+      update: { razorpayOrderId, razorpaySubscriptionId: null },
+    });
+  }
+
+  findRedemptionByOrder(razorpayOrderId: string) {
+    return this.prisma.couponRedemption.findUnique({ where: { razorpayOrderId } });
+  }
+
+  // Grants access for the coupon's days once the order is paid. Shared by client verification
+  // and the order.paid webhook, so it is idempotent: only the first call does anything.
+  // If the cap filled up meanwhile we still grant access, since the student has paid.
+  async confirmPaidRedemption(razorpayOrderId: string, payment: CouponPassPayment) {
+    return this.prisma.$transaction(async (tx) => {
+      const redemption = await tx.couponRedemption.findUnique({
+        where: { razorpayOrderId },
+        include: { coupon: { select: { code: true, freeDays: true } } },
+      });
+      if (!redemption) return { granted: false as const, reason: 'unknown-order' as const };
+
+      const now = new Date();
+      const marked = await tx.couponRedemption.updateMany({
+        where: { id: redemption.id, confirmedAt: null },
+        data: { confirmedAt: now },
+      });
+      if (marked.count === 0) return { granted: false as const, reason: 'already-confirmed' as const };
+
+      const accessEndsAt = new Date(now.getTime() + redemption.coupon.freeDays * DAY_MS);
+      await tx.coupon.update({ where: { id: redemption.couponId }, data: { redemptionCount: { increment: 1 } } });
+      await tx.user.update({
+        where: { id: redemption.userId },
+        data: { hasActiveSubscription: true, accessEndsAt, trialEndsAt: null },
+      });
+      await tx.transaction.upsert({
+        where: { razorpayPaymentId: payment.id },
+        update: { status: payment.status },
+        create: {
+          userId: redemption.userId,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          razorpayPaymentId: payment.id,
+          razorpayOrderId,
+          description: `Coupon ${redemption.coupon.code} one-time pass (${redemption.coupon.freeDays} days)`,
+        },
+      });
+      return { granted: true as const, userId: redemption.userId, accessEndsAt };
+    });
+  }
+
   // ---- Admin ----
 
   list() {
@@ -145,6 +225,7 @@ export class CouponsService {
       maxRedemptions?: number | null;
       expiresAt?: Date | null;
       isActive?: boolean;
+      pricePaise?: number | null;
     } = {};
 
     if (input.freeDays !== undefined) {
@@ -169,6 +250,12 @@ export class CouponsService {
       }
     }
     if (input.isActive !== undefined) data.isActive = !!input.isActive;
+    if (input.pricePaise !== undefined) {
+      if (input.pricePaise !== null && (!Number.isInteger(input.pricePaise) || input.pricePaise < 100 || input.pricePaise > 10_000_000)) {
+        throw new BadRequestException('Price must be between ₹1 and ₹1,00,000');
+      }
+      data.pricePaise = input.pricePaise;
+    }
     return data;
   }
 

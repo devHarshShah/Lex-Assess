@@ -14,8 +14,31 @@ export async function redeemCoupon(code: string, termsVersion: string): Promise<
   return api.post('/payments/redeem-coupon', { code, termsVersion });
 }
 
-export async function validateCoupon(code: string): Promise<{ valid: boolean; code: string; freeDays: number }> {
+// pricePaise set = paid coupon: a one-time payment (no autopay) that unlocks access for freeDays
+export async function validateCoupon(code: string): Promise<{ valid: boolean; code: string; freeDays: number; pricePaise: number | null }> {
   return api.post('/payments/validate-coupon', { code });
+}
+
+export interface CouponOrderResponse {
+  orderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  code: string;
+  freeDays: number;
+}
+
+// Paid coupons: a one-time Razorpay order, no subscription or mandate.
+export async function createCouponOrder(code: string, termsVersion: string): Promise<CouponOrderResponse> {
+  return api.post<CouponOrderResponse>('/payments/coupon-order', { code, termsVersion });
+}
+
+export async function verifyCouponPayment(data: {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}): Promise<{ success: boolean }> {
+  return api.post<{ success: boolean }>('/payments/verify-coupon-payment', data);
 }
 
 export async function verifyPayment(data: {
@@ -34,6 +57,7 @@ export interface Coupon {
   redemptionCount: number;
   expiresAt: string | null;
   isActive: boolean;
+  pricePaise: number | null;
   createdAt: string;
 }
 
@@ -43,6 +67,7 @@ export interface CouponInput {
   maxRedemptions?: number | null;
   expiresAt?: string | null;
   isActive?: boolean;
+  pricePaise?: number | null;
 }
 
 export const fetchCoupons = () => api.get<Coupon[]>('/superadmin/coupons');

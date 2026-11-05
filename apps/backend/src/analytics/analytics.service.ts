@@ -21,6 +21,8 @@ export interface StageInput {
   capturedPayments: number;
   // Coupon redeemed directly (no Razorpay mandate), as opposed to the older mandate-based trial
   directCouponTrial?: boolean;
+  // Paid once for a coupon pass (a captured payment outside any subscription)
+  oneTimePass?: boolean;
 }
 
 // Highest stage reached. Students only; other roles are reported separately.
@@ -30,6 +32,8 @@ export function deriveStage(u: StageInput): FunnelStage {
   // Direct coupon access is granted with accessEndsAt set and nothing charged: still a trial.
   // Older mandate-based trials whose autopay was cancelled stay CANCELLED_ACTIVE below.
   if (active && u.directCouponTrial && u.capturedPayments === 0) return 'TRIAL';
+  // A paid coupon pass sets accessEndsAt (fixed period, no autopay) but is a paying customer.
+  if (active && u.oneTimePass) return 'PAID';
   if (active && u.accessEndsAt) return 'CANCELLED_ACTIVE';
   if (u.capturedPayments > 0) return active ? 'PAID' : 'LAPSED';
   if (active) return u.trialEndsAt ? 'TRIAL' : 'PAID';
@@ -85,7 +89,7 @@ export class AnalyticsService {
       orderBy: { createdAt: 'desc' },
       include: {
         profile: true,
-        transactions: { select: { amount: true, status: true, createdAt: true } },
+        transactions: { select: { amount: true, status: true, createdAt: true, razorpaySubscriptionId: true } },
         couponRedemptions: { where: { confirmedAt: { not: null } }, include: { coupon: { select: { code: true } } } },
         crmLead: { select: { status: true, lastContactedAt: true } },
         _count: { select: { companyInterviewsAsStudent: true } },
@@ -104,6 +108,7 @@ export class AnalyticsService {
         trialEndsAt: u.trialEndsAt,
         capturedPayments: captured.length,
         directCouponTrial: u.couponRedemptions.some((r) => !r.razorpaySubscriptionId),
+        oneTimePass: captured.some((t) => !t.razorpaySubscriptionId),
       });
       const last = captured.reduce<Date | null>(
         (acc, t) => (!acc || t.createdAt > acc ? t.createdAt : acc),

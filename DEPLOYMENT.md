@@ -221,6 +221,11 @@ Until step 3, payment webhooks will fail signature verification — everything e
 price, the billing cycle and the plan name in **Superadmin > Pricing**. Saving a new price or cycle creates a new
 Razorpay plan there, so no redeploy is needed. Existing subscribers keep the plan they signed up on.
 
+**Paid coupons** (a coupon with a price: one-time payment, no autopay) use Razorpay *orders*. Enable the
+`order.paid` event on the webhook in the Razorpay dashboard (live and test mode). Access normally unlocks
+straight after checkout via client verification; `order.paid` is the fallback for a student who closes the
+tab before that runs.
+
 ## 7. Seeding question papers
 
 Each `apps/backend/src/scripts/seed-*.ts` seeds one practice-area's paper. They **look up** their

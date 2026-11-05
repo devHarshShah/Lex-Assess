@@ -36,6 +36,25 @@ export class PaymentsController {
     return this.couponsService.redeem(req.user.id, body?.code ?? '', parseTermsVersion(body?.termsVersion));
   }
 
+  // Paid coupons: one-time Razorpay order (no autopay); access unlocks once it's paid.
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('coupon-order')
+  async createCouponOrder(@Request() req: any, @Body() body: { code?: string; termsVersion?: string }) {
+    return this.paymentsService.createCouponOrder(req.user.id, body?.code ?? '', parseTermsVersion(body?.termsVersion));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('verify-coupon-payment')
+  @HttpCode(HttpStatus.OK)
+  async verifyCouponPayment(
+    @Request() req: any,
+    @Body() body: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string },
+  ) {
+    return this.paymentsService.verifyCouponPayment(req.user.id, body);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('validate-coupon')
