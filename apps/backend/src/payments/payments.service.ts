@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException, InternalServerErrorException }
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { CouponsService } from './coupons.service';
+import { PricingService, totalCountFor } from './pricing.service';
 import { computeAccessEndOnCancel, hasAccess, shouldIgnoreCancel } from './access';
 import Razorpay from 'razorpay';
 import * as crypto from 'crypto';
@@ -10,63 +11,28 @@ import * as crypto from 'crypto';
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private razorpay: any;
-  private planId: string;
   private readonly webhookSecret: string;
   private readonly keyId: string;
   private readonly keySecret: string;
-  private planInitializationPromise: Promise<void>;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly coupons: CouponsService,
+    private readonly pricing: PricingService,
   ) {
     this.keyId = this.configService.getOrThrow<string>('RAZORPAY_KEY_ID');
     this.keySecret = this.configService.getOrThrow<string>('RAZORPAY_KEY_SECRET');
 
-    this.planId = this.configService.get<string>('RAZORPAY_PLAN_ID') || '';
     this.webhookSecret = this.configService.getOrThrow<string>('RAZORPAY_WEBHOOK_SECRET');
 
     this.razorpay = new Razorpay({
       key_id: this.keyId,
       key_secret: this.keySecret,
     });
-    
-    this.planInitializationPromise = this.initializePlan();
-  }
-
-  // Helper to ensure we have a plan for "499 every 3 months" (new-customer
-  // promotional price; only runs when RAZORPAY_PLAN_ID isn't already set to
-  // a real plan, which is the case in production, so this is a dev/test path)
-  private async initializePlan() {
-    if (this.planId && !this.planId.includes('your_razorpay_plan_id')) return;
-
-    this.logger.log('No valid Razorpay Plan ID found. Attempting to create one dynamically...');
-    try {
-      // Try to find if we already created a plan or we can just create one dynamically for test
-      const plan = await this.razorpay.plans.create({
-        period: 'monthly',
-        interval: 3,
-        item: {
-          name: 'Lex-Assess 3-Month Subscription',
-          amount: 49900, // Amount in paise (499 * 100)
-          currency: 'INR',
-          description: 'Unlock all tests on Lex-Assess'
-        },
-        notes: {
-          purpose: 'Lex-Assess Subscription'
-        }
-      });
-      // @ts-ignore
-      this.planId = plan.id;
-      this.logger.log(`Created Razorpay Plan dynamically: ${this.planId}`);
-    } catch (error: any) {
-      this.logger.error('Failed to initialize Razorpay plan', error?.response || error);
-    }
   }
 
   async createSubscription(userId: string, termsVersion: string) {
-    await this.planInitializationPromise;
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { profile: true }
@@ -137,14 +103,14 @@ export class PaymentsService {
     }
 
     try {
-      this.logger.log(`Creating subscription for user ${user.id} with planId: "${this.planId}" and customerId: "${customerId}"`);
-      if (!this.planId) {
-        throw new BadRequestException('Razorpay Plan ID is not initialized. Please check backend logs for initialization errors.');
-      }
+      // Pricing is set by the superadmin; existing subscribers stay on the plan they signed up with
+      const pricing = await this.pricing.getPricing();
+      const planId = await this.pricing.getActivePlanId();
+      this.logger.log(`Creating subscription for user ${user.id} with planId: "${planId}" and customerId: "${customerId}"`);
 
       const subscriptionParams: any = {
-        plan_id: this.planId,
-        total_count: 60, // 60 cycles of 3 months = 15 years
+        plan_id: planId,
+        total_count: totalCountFor(pricing.cycleMonths),
         quantity: 1,
         customer_notify: 1,
         notes: {
@@ -326,7 +292,7 @@ export class PaymentsService {
           lastPaymentAt: lastCaptured?.createdAt ?? null,
           trialEndsAt: user.trialEndsAt,
           existingAccessEndsAt: user.accessEndsAt,
-        });
+        }, await this.pricing.cycleMonthsForPlan(subscription.plan_id));
         await this.prisma.user.update({
           where: { id: user.id },
           data: { hasActiveSubscription: accessEndsAt.getTime() > Date.now(), accessEndsAt },

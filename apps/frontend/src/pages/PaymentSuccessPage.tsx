@@ -2,6 +2,7 @@ import React from 'react'
 import { CheckCircle2, ChevronRight, Sparkles, Printer, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { storeUser, fetchCurrentUser } from '@/lib/auth'
+import { formatPrice, usePricing, validityLabel } from '@/lib/pricing'
 
 interface ReceiptData {
   paymentId: string
@@ -30,6 +31,8 @@ function formatDate(iso: string) {
 export function PaymentSuccessPage() {
   const [loading, setLoading] = React.useState(false)
   const [receipt, setReceipt] = React.useState<ReceiptData | null>(null)
+  const { pricing } = usePricing()
+  const fallbackAmount = formatPrice(pricing.amountPaise, { alwaysDecimals: true })
 
   React.useEffect(() => {
     try {
@@ -53,9 +56,9 @@ export function PaymentSuccessPage() {
 
   const rows = [
     ...(receipt?.paymentId ? [{ label: 'Transaction ID', value: receipt.paymentId, mono: true }] : []),
-    { label: 'Product', value: receipt?.plan ?? 'Lex-Assess Premium' },
-    { label: 'Amount Paid', value: receipt?.amount ?? '₹499.00' },
-    { label: 'Validity', value: receipt?.validity ?? '3 Months', green: true },
+    { label: 'Product', value: receipt?.plan ?? pricing.planName },
+    { label: 'Amount Paid', value: receipt?.amount ?? fallbackAmount },
+    { label: 'Validity', value: receipt?.validity ?? validityLabel(pricing.cycleMonths), green: true },
     ...(receipt?.date ? [{ label: 'Date & Time', value: formatDate(receipt.date) }] : []),
     { label: 'Status', badge: true },
   ]
@@ -102,7 +105,7 @@ export function PaymentSuccessPage() {
 
         <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px dashed #e5e7eb', display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '18px' }}>
           <span>Total Amount</span>
-          <span style={{ color: '#92400e' }}>{receipt?.amount ?? '₹499.00'}</span>
+          <span style={{ color: '#92400e' }}>{receipt?.amount ?? fallbackAmount}</span>
         </div>
 
         <div style={{ marginTop: '40px', fontSize: '12px', color: '#9ca3af', textAlign: 'center' }}>
@@ -168,7 +171,7 @@ export function PaymentSuccessPage() {
             <div className="flex justify-between items-center px-4 py-4 border-t border-dashed border-amber-200 bg-amber-50/80">
               <span className="text-sm font-bold text-amber-900">Total Charged</span>
               <span className="text-xl font-black text-amber-900">
-                {receipt?.amount ?? '₹499.00'}
+                {receipt?.amount ?? fallbackAmount}
               </span>
             </div>
           </div>

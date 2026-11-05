@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { useRazorpay } from 'react-razorpay'
 import { createSubscription, redeemCoupon, validateCoupon, verifyPayment } from '@/lib/payments'
+import { cycleLabel, formatPrice, usePricing, validityLabel } from '@/lib/pricing'
 import { toast } from 'sonner'
 import { CompanyDashboardPage } from './CompanyDashboardPage'
 import { InterviewerDashboardPage } from './InterviewerDashboardPage'
@@ -59,6 +60,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
   const [applyingCoupon, setApplyingCoupon] = React.useState(false)
   const [profile, setProfile] = React.useState<UserProfile | null>(null)
   const { Razorpay } = useRazorpay()
+  const { pricing } = usePricing()
 
   const role = getActiveRole(user)
   const isStudent = role === 'USER'
@@ -113,7 +115,7 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
         key: res.keyId,
         subscription_id: res.subscriptionId,
         name: 'Lex-Assess',
-        description: 'Lex-Assess Subscription',
+        description: pricing.planName,
         handler: async function (response: {
           razorpay_payment_id: string
           razorpay_subscription_id: string
@@ -156,9 +158,9 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
             JSON.stringify({
               paymentId: response.razorpay_payment_id,
               subscriptionId: response.razorpay_subscription_id,
-              amount: '₹499.00',
-              plan: 'Lex-Assess Premium',
-              validity: '3 Months',
+              amount: formatPrice(pricing.amountPaise, { alwaysDecimals: true }),
+              plan: pricing.planName,
+              validity: validityLabel(pricing.cycleMonths),
               date: new Date().toISOString(),
             })
           )
@@ -359,11 +361,17 @@ function StudentDashboardPage({ user }: { user: AuthUser }) {
                       Subscription Plan
                     </p>
                     <p className="text-2xl font-black text-foreground mt-0.5 flex items-baseline gap-2">
-                      <span className="text-base font-semibold text-muted-foreground line-through">₹1,999</span>
-                      <span>₹499</span>
-                      <span className="text-sm font-normal text-muted-foreground"> / 3 months</span>
+                      {pricing.compareAtPaise != null && (
+                        <span className="text-base font-semibold text-muted-foreground line-through">
+                          {formatPrice(pricing.compareAtPaise)}
+                        </span>
+                      )}
+                      <span>{formatPrice(pricing.amountPaise)}</span>
+                      <span className="text-sm font-normal text-muted-foreground"> / {cycleLabel(pricing.cycleMonths)}</span>
                     </p>
-                    <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">New customer offer</p>
+                    {pricing.offerTag && (
+                      <p className="text-[10px] font-semibold text-emerald-700 mt-0.5">{pricing.offerTag}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="flex items-center gap-1 justify-end mb-0.5">

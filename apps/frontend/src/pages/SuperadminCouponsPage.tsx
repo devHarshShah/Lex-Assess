@@ -9,6 +9,7 @@ import {
   updateCoupon,
   type Coupon,
 } from '@/lib/payments'
+import { cycleLabel, formatPrice, usePricing } from '@/lib/pricing'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -21,6 +22,7 @@ export function SuperadminCouponsPage() {
   const [expiresAt, setExpiresAt] = React.useState('')
   const [isAdding, setIsAdding] = React.useState(false)
   const [busyId, setBusyId] = React.useState<string | null>(null)
+  const { pricing } = usePricing()
 
   async function load() {
     try {
@@ -74,7 +76,7 @@ export function SuperadminCouponsPage() {
       <CardHeader>
         <CardTitle>Coupons</CardTitle>
         <p className="text-sm text-muted-foreground">
-          A coupon delays the first charge by the free days, then ₹499 is charged every 3 months. One use per student.
+          A coupon delays the first charge by the free days, then {formatPrice(pricing.amountPaise)} is charged every {cycleLabel(pricing.cycleMonths)}. One use per student.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

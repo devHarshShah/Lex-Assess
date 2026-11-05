@@ -124,6 +124,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: Bell,
         items: [
           { title: 'Notifications', url: '/dashboard/notifications' },
+          { title: 'Pricing', url: '/dashboard/pricing' },
           { title: 'Coupons', url: '/dashboard/coupons' },
           { title: 'Email Campaigns', url: '/dashboard/email-campaigns' },
         ],

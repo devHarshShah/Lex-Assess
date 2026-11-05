@@ -122,7 +122,7 @@ The workflow references these — set them under repo Settings → Secrets and v
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Calendar integration service account email |
 | `GCS_BUCKET` | `terraform output bucket_name` |
 | `RAZORPAY_KEY_ID` | Razorpay key ID |
-| `RAZORPAY_PLAN_ID` | Razorpay plan ID |
+| `RAZORPAY_PLAN_ID` | Initial Razorpay plan ID (Superadmin > Pricing takes over after the first save) |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_SECURE`, `SMTP_FROM` | SMTP config |
 
 The CI/CD deployer service account (`GCP_SERVICE_ACCOUNT`) also needs `roles/iam.serviceAccountUser`
@@ -216,6 +216,10 @@ the first successful deploy. Once the service is up:
    ```
 
 Until step 3, payment webhooks will fail signature verification — everything else works.
+
+`RAZORPAY_PLAN_ID` is only the starting plan. After that, a superadmin changes the price, the strike-through
+price, the billing cycle and the plan name in **Superadmin > Pricing**. Saving a new price or cycle creates a new
+Razorpay plan there, so no redeploy is needed. Existing subscribers keep the plan they signed up on.
 
 ## 7. Seeding question papers
 
