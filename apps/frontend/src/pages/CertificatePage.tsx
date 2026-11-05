@@ -56,7 +56,7 @@ export function CertificatePage() {
             <Row label="Name" value={certificate.fullName} />
             {certificate.rollNumber && <Row label="Roll No." value={certificate.rollNumber} />}
             <Row label="Practice Area" value={certificate.practiceArea} />
-            <Row label="Common Score" value={certificate.commonScore.toFixed(1)} />
+            {certificate.commonScore != null && <Row label="Common Score" value={certificate.commonScore.toFixed(1)} />}
             <Row label="Issued" value={new Date(certificate.issuedAt).toLocaleDateString()} />
             {standing && <RankRow standing={standing} />}
 

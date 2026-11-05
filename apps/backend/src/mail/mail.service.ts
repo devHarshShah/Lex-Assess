@@ -29,6 +29,7 @@ export interface SendMailOptions {
   headers?: Record<string, string>;
   replyTo?: string;
   retryDelaysMs?: number[];
+  attachments?: { filename: string; content: Buffer; contentType: string }[];
 }
 
 @Injectable()
@@ -85,6 +86,7 @@ export class MailService {
           html,
           ...(options.headers ? { headers: options.headers } : {}),
           ...(options.replyTo ? { replyTo: options.replyTo } : {}),
+          ...(options.attachments?.length ? { attachments: options.attachments } : {}),
         });
 
         if (isStream) {
@@ -159,10 +161,22 @@ export class MailService {
 
   async sendCertificateReady(email: string, name: string, rollNumber: string, practiceArea: string) {
     const subject = 'Your LexAssess Certificate Is Ready';
-    const certificateUrl = `${this.configService.get('FRONTEND_ORIGIN')}/certificate`;
+    const origin = (this.configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173').split(',')[0]!.trim();
+    const certificateUrl = `${origin}/dashboard/certificate`;
     const { html, text } = await this.renderEmail(CertificateReadyEmail({ name, rollNumber, practiceArea, certificateUrl }));
 
     return this.sendMail(email, subject, html, text);
+  }
+
+  // Certificate issued by a superadmin: the PDF is attached, the button opens the public verification page.
+  async sendCertificateIssued(email: string, name: string, rollNumber: string, practiceArea: string, verifyUrl: string, pdf: Buffer) {
+    const subject = 'Your LexAssess Certificate';
+    const { html, text } = await this.renderEmail(
+      CertificateReadyEmail({ name, rollNumber, practiceArea, certificateUrl: verifyUrl, attached: true }),
+    );
+    return this.sendMail(email, subject, html, text, {
+      attachments: [{ filename: 'LexAssess-Certificate.pdf', content: pdf, contentType: 'application/pdf' }],
+    });
   }
 
   // Bulk/marketing mail: one quick retry (the campaign worker does its own retrying) and the

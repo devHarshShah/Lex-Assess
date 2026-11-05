@@ -42,16 +42,55 @@ export interface CertificateDto {
   fullName: string;
   rollNumber: string | null;
   practiceArea: string;
-  commonScore: number;
+  commonScore: number | null;
   pdfUrl: string | null;
   issuedAt: Date;
 }
 
 export interface CertificateVerifyDto extends CertificateDto {
-  // Rank as of the latest admin release; PENDING until the candidate is included in one.
+  // ASSIGNED: rank set by a superadmin when issuing. Otherwise the rank as of the latest
+  // admin release; PENDING until the candidate is included in one.
   rank:
+    | { status: 'ASSIGNED'; rank: number }
     | { status: 'RELEASED'; rank: number; releaseLabel: string; releasedAt: Date }
     | { status: 'PENDING' };
+}
+
+export interface AdminCertificateInput {
+  userId: string;
+  fullName: string;
+  practiceArea: string;
+  commonScore?: number | null;
+  rank?: number | null;
+}
+
+export interface CertificateCandidate {
+  id: string;
+  name: string;
+  email: string;
+  rollNumber: string | null;
+  mobileNumber: string | null;
+  college: string | null;
+  specialization: string | null;
+  hasCertificate: boolean;
+}
+
+export interface IssueDefaults extends CertificateCandidate {
+  fullName: string;
+  // From the live ranking when the student is ranked; otherwise null
+  liveScore: number | null;
+  livePracticeArea: string | null;
+  existing: { verificationCode: string; commonScore: number | null; practiceArea: string; manualRank: number | null; issuedAt: Date } | null;
+}
+
+interface PdfInput {
+  fullName: string;
+  rollNumber: string | null;
+  practiceArea: string;
+  commonScore: number | null;
+  verifyUrl: string;
+  verificationCode: string;
+  issuedAt: Date;
 }
 
 @Injectable()
@@ -98,42 +137,11 @@ export class CertificatesService {
     const fullName = profile?.fullName || user.name;
 
     const existing = await this.prisma.certificate.findUnique({ where: { userId } });
-    const verificationCode = existing?.verificationCode ?? randomUUID();
-
-    const frontendOrigin = this.configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173';
-    const verifyUrl = `${frontendOrigin}/verify/${verificationCode}`;
-
-    const pdfBytes = await this.buildPdf({
+    const { saved } = await this.storeCertificate(userId, existing, {
       fullName,
       rollNumber: profile?.rollNumber ?? null,
       practiceArea: rankEntry.practiceArea,
       commonScore: rankEntry.commonScore,
-      verifyUrl,
-      verificationCode,
-      issuedAt: existing?.issuedAt ?? new Date(),
-    });
-
-    const pdfObjectKey = `certificate/${userId}.pdf`;
-    await this.storageService.uploadFile(pdfObjectKey, Buffer.from(pdfBytes), 'application/pdf');
-
-    const saved = await this.prisma.certificate.upsert({
-      where: { userId },
-      create: {
-        userId,
-        verificationCode,
-        rollNumber: profile?.rollNumber ?? null,
-        fullName,
-        practiceArea: rankEntry.practiceArea,
-        commonScore: rankEntry.commonScore,
-        pdfObjectKey,
-      },
-      update: {
-        rollNumber: profile?.rollNumber ?? null,
-        fullName,
-        practiceArea: rankEntry.practiceArea,
-        commonScore: rankEntry.commonScore,
-        pdfObjectKey,
-      },
     });
 
     if (!existing) {
@@ -146,6 +154,170 @@ export class CertificatesService {
     }
 
     return this.toDto(saved);
+  }
+
+  // ---- Superadmin issuing ----
+
+  async searchCandidates(q: string): Promise<CertificateCandidate[]> {
+    const term = q.trim();
+    const contains = { contains: term, mode: 'insensitive' as const };
+    const users = await this.prisma.user.findMany({
+      where: {
+        role: 'USER',
+        ...(term
+          ? {
+              OR: [
+                { name: contains },
+                { email: contains },
+                { profile: { is: { fullName: contains } } },
+                { profile: { is: { rollNumber: contains } } },
+                { profile: { is: { mobileNumber: contains } } },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        profile: { select: { rollNumber: true, mobileNumber: true, college: true, specialization: true, fullName: true } },
+        certificate: { select: { id: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return users.map((u) => this.toCandidate(u));
+  }
+
+  async getIssueDefaults(userId: string): Promise<IssueDefaults> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        profile: { select: { rollNumber: true, mobileNumber: true, college: true, specialization: true, fullName: true } },
+        certificate: true,
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    const live = await this.rankingService.getLiveEntry(userId);
+    const cert = user.certificate;
+    return {
+      ...this.toCandidate(user),
+      fullName: user.profile?.fullName || user.name,
+      liveScore: live?.commonScore ?? null,
+      livePracticeArea: live?.practiceArea ?? null,
+      existing: cert
+        ? {
+            verificationCode: cert.verificationCode,
+            commonScore: cert.commonScore,
+            practiceArea: cert.practiceArea,
+            manualRank: cert.manualRank,
+            issuedAt: cert.issuedAt,
+          }
+        : null,
+    };
+  }
+
+  // Renders exactly what would be sent, without saving or emailing anything.
+  async previewForAdmin(input: AdminCertificateInput): Promise<Buffer> {
+    const { profile, existing } = await this.loadForAdmin(input.userId);
+    const verificationCode = existing?.verificationCode ?? 'PREVIEW';
+    const pdf = await this.buildPdf({
+      fullName: input.fullName.trim(),
+      rollNumber: profile?.rollNumber ?? null,
+      practiceArea: input.practiceArea.trim(),
+      commonScore: input.commonScore ?? null,
+      verifyUrl: this.verifyUrl(verificationCode),
+      verificationCode,
+      issuedAt: existing?.issuedAt ?? new Date(),
+    });
+    return Buffer.from(pdf);
+  }
+
+  // Generates, saves (replacing any existing certificate, same verification code) and emails it.
+  async issueByAdmin(adminId: string, input: AdminCertificateInput): Promise<{ certificate: CertificateDto; emailed: boolean; email: string }> {
+    const { user, profile, existing } = await this.loadForAdmin(input.userId);
+    const fullName = input.fullName.trim();
+    const practiceArea = input.practiceArea.trim();
+    const { saved, pdf, verifyUrl } = await this.storeCertificate(
+      input.userId,
+      existing,
+      { fullName, rollNumber: profile?.rollNumber ?? null, practiceArea, commonScore: input.commonScore ?? null },
+      { manualRank: input.rank ?? null, issuedById: adminId },
+    );
+
+    let emailed = true;
+    try {
+      await this.mailService.sendCertificateIssued(user.email, fullName, profile?.rollNumber ?? '-', practiceArea, verifyUrl, pdf);
+    } catch (error) {
+      emailed = false;
+      this.logger.error(`Certificate for user ${input.userId} saved but the email failed`, error as Error);
+    }
+    this.logger.log(`Superadmin ${adminId} issued certificate ${saved.verificationCode} to user ${input.userId}`);
+    return { certificate: await this.toDto(saved), emailed, email: user.email };
+  }
+
+  private async loadForAdmin(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true } });
+    if (!user) throw new NotFoundException('User not found');
+    const [profile, existing] = await Promise.all([
+      this.prisma.userProfile.findUnique({ where: { userId }, select: { rollNumber: true } }),
+      this.prisma.certificate.findUnique({ where: { userId } }),
+    ]);
+    return { user, profile, existing };
+  }
+
+  private toCandidate(u: {
+    id: string;
+    name: string;
+    email: string;
+    profile: { rollNumber: string | null; mobileNumber: string | null; college: string; specialization: string; fullName: string } | null;
+    certificate: { id: string } | null;
+  }): CertificateCandidate {
+    return {
+      id: u.id,
+      name: u.profile?.fullName || u.name,
+      email: u.email,
+      rollNumber: u.profile?.rollNumber ?? null,
+      mobileNumber: u.profile?.mobileNumber ?? null,
+      college: u.profile?.college ?? null,
+      specialization: u.profile?.specialization ?? null,
+      hasCertificate: !!u.certificate,
+    };
+  }
+
+  private verifyUrl(verificationCode: string): string {
+    // FRONTEND_ORIGIN may be a comma-separated list; the first one is the public site
+    const origin = (this.configService.get<string>('FRONTEND_ORIGIN') || 'http://localhost:5173').split(',')[0]!.trim();
+    return `${origin}/verify/${verificationCode}`;
+  }
+
+  // Shared by student self-generation and superadmin issuing: build the PDF, upload it and
+  // upsert the record, keeping the verification code (and so the QR) of an existing certificate.
+  private async storeCertificate(
+    userId: string,
+    existing: { verificationCode: string; issuedAt: Date } | null,
+    data: { fullName: string; rollNumber: string | null; practiceArea: string; commonScore: number | null },
+    adminFields?: { manualRank: number | null; issuedById: string },
+  ) {
+    const verificationCode = existing?.verificationCode ?? randomUUID();
+    const verifyUrl = this.verifyUrl(verificationCode);
+    const pdfBytes = await this.buildPdf({ ...data, verifyUrl, verificationCode, issuedAt: existing?.issuedAt ?? new Date() });
+    const pdf = Buffer.from(pdfBytes);
+
+    const pdfObjectKey = `certificate/${userId}.pdf`;
+    await this.storageService.uploadFile(pdfObjectKey, pdf, 'application/pdf');
+
+    // Student regeneration leaves a superadmin-assigned rank alone
+    const fields = { ...data, pdfObjectKey, ...(adminFields ?? {}) };
+    const saved = await this.prisma.certificate.upsert({
+      where: { userId },
+      create: { userId, verificationCode, ...fields },
+      update: fields,
+    });
+    return { saved, pdf, verifyUrl };
   }
 
   async verifyByCode(code: string): Promise<CertificateVerifyDto> {
@@ -161,7 +333,7 @@ export class CertificatesService {
     fullName: string;
     rollNumber: string | null;
     practiceArea: string;
-    commonScore: number;
+    commonScore: number | null;
     pdfObjectKey: string;
     issuedAt: Date;
   }): Promise<CertificateDto> {
@@ -182,11 +354,15 @@ export class CertificatesService {
     fullName: string;
     rollNumber: string | null;
     practiceArea: string;
-    commonScore: number;
+    commonScore: number | null;
+    manualRank: number | null;
     pdfObjectKey: string;
     issuedAt: Date;
   }): Promise<CertificateVerifyDto> {
     const base = await this.toDto(certificate);
+    if (certificate.manualRank != null) {
+      return { ...base, rank: { status: 'ASSIGNED', rank: certificate.manualRank } };
+    }
 
     let rank: CertificateVerifyDto['rank'] = { status: 'PENDING' };
     try {
@@ -201,15 +377,7 @@ export class CertificatesService {
     return { ...base, rank };
   }
 
-  private async buildPdf(input: {
-    fullName: string;
-    rollNumber: string | null;
-    practiceArea: string;
-    commonScore: number;
-    verifyUrl: string;
-    verificationCode: string;
-    issuedAt: Date;
-  }): Promise<Uint8Array> {
+  private async buildPdf(input: PdfInput): Promise<Uint8Array> {
     const doc = await PDFDocument.create();
     doc.registerFontkit(fontkit);
 
@@ -226,8 +394,10 @@ export class CertificatesService {
 
     const page = doc.addPage([PAGE_W, PAGE_H]);
 
-    // Static artwork: frame, watermark, seal and fixed copy.
-    const background = await doc.embedJpg(readFileSync(join(ASSETS_DIR, 'certificate-bg.jpg')));
+    // Static artwork: frame, watermark, seal and fixed copy. Without a score we use a copy of the
+    // artwork with the "COMMON SCORE" pill painted out (blended into the surrounding paper).
+    const backgroundFile = input.commonScore != null ? 'certificate-bg.jpg' : 'certificate-bg-noscore.jpg';
+    const background = await doc.embedJpg(readFileSync(join(ASSETS_DIR, backgroundFile)));
     page.drawImage(background, { x: 0, y: 0, width: PAGE_W, height: PAGE_H });
 
     // Recipient name, shrunk to fit if it is long.
@@ -266,17 +436,19 @@ export class CertificatesService {
     page.drawImage(laurelLeft, { x: areaX - px(21) - laurelW, y: laurelY, width: laurelW, height: laurelH });
     page.drawImage(laurelRight, { x: areaX + areaWidth + px(21), y: laurelY, width: laurelW, height: laurelH });
 
-    // Common score, inside the pill.
-    const score = input.commonScore.toFixed(2);
-    const scoreSize = px(40);
-    const slashSize = px(24);
-    const scoreW = scoreFont.widthOfTextAtSize(score, scoreSize);
-    const slashText = '/ 100';
-    const slashW = slashFont.widthOfTextAtSize(slashText, slashSize);
-    const scoreGap = px(7);
-    const scoreX = px(802) - (scoreW + scoreGap + slashW) / 2;
-    page.drawText(score, { x: scoreX, y: py(735.6), size: scoreSize, font: scoreFont, color: INK });
-    page.drawText(slashText, { x: scoreX + scoreW + scoreGap, y: py(735.6), size: slashSize, font: slashFont, color: SLASH });
+    if (input.commonScore != null) {
+      // Common score, inside the pill.
+      const score = input.commonScore.toFixed(2);
+      const scoreSize = px(40);
+      const slashSize = px(24);
+      const scoreW = scoreFont.widthOfTextAtSize(score, scoreSize);
+      const slashText = '/ 100';
+      const slashW = slashFont.widthOfTextAtSize(slashText, slashSize);
+      const scoreGap = px(7);
+      const scoreX = px(802) - (scoreW + scoreGap + slashW) / 2;
+      page.drawText(score, { x: scoreX, y: py(735.6), size: scoreSize, font: scoreFont, color: INK });
+      page.drawText(slashText, { x: scoreX + scoreW + scoreGap, y: py(735.6), size: slashSize, font: slashFont, color: SLASH });
+    }
 
     // Footer: certificate ID and issue date.
     page.drawText(input.verificationCode, { x: px(218), y: py(904.8), size: px(12.6), font: metaFont, color: MUTED });

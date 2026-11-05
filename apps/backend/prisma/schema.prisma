@@ -567,7 +567,12 @@ model Certificate {
   rollNumber       String?
   fullName         String
   practiceArea     String
-  commonScore      Float
+  // Null when a superadmin issued the certificate without a score (the PDF then hides it)
+  commonScore      Float?
+  // Rank entered by a superadmin; shown on the verification page, not printed on the PDF
+  manualRank       Int?
+  // Superadmin who issued it (null for student self-generated certificates)
+  issuedById       String?
   pdfObjectKey     String
   issuedAt         DateTime @default(now())
   updatedAt        DateTime @updatedAt

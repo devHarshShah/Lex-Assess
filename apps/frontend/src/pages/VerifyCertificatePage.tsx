@@ -48,12 +48,16 @@ export function VerifyCertificatePage() {
                 <Row label="Name" value={certificate.fullName} />
                 {certificate.rollNumber && <Row label="Roll No." value={certificate.rollNumber} />}
                 <Row label="Practice Area" value={certificate.practiceArea} />
-                <Row label="Common Score" value={certificate.commonScore.toFixed(1)} />
+                {certificate.commonScore != null && <Row label="Common Score" value={certificate.commonScore.toFixed(1)} />}
                 <Row label="Issued" value={new Date(certificate.issuedAt).toLocaleDateString()} />
               </dl>
 
               <div className="rounded-md border border-dashed border-border/60 p-3 text-sm">
-                {certificate.rank.status === 'RELEASED' ? (
+                {certificate.rank.status === 'ASSIGNED' ? (
+                  <p>
+                    <span className="font-medium">Rank: #{certificate.rank.rank}</span>
+                  </p>
+                ) : certificate.rank.status === 'RELEASED' ? (
                   <p>
                     <span className="font-medium">Rank: #{certificate.rank.rank}</span>
                     <br />
