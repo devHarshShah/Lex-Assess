@@ -148,6 +148,7 @@ model User {
   interviewsAsStudent     Interview[] @relation("StudentInterviews")
   interviewSlots          InterviewSlot[]
   passwordSetupTokens     PasswordSetupToken[]
+  apiTokens               ApiToken[]
   companyInterviewsAsCompany CompanyInterview[] @relation("CompanyInterviewCompany")
   companyInterviewsAsStudent CompanyInterview[] @relation("CompanyInterviewStudent")
   companyInterviewsScheduled CompanyInterview[] @relation("CompanyInterviewScheduledBy")
@@ -214,6 +215,25 @@ model PasswordSetupToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// Personal API tokens a superadmin issues for the LexAssess MCP connector
+// (admins creating draft papers from their own Claude chat). Only the SHA-256
+// hash is stored; the plaintext is shown once at creation.
+model ApiToken {
+  id         String    @id @default(cuid())
+  name       String
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  // First characters of the token (e.g. "lxa_AbC1"), for telling tokens apart in the panel
+  prefix     String
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([userId])
 }

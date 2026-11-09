@@ -25,6 +25,7 @@ import { dashboardPaymentSuccessRoute } from './routes/dashboard-payment-success
 import { dashboardNotificationsRoute } from './routes/dashboard-notifications'
 import { dashboardMaintenanceRoute } from './routes/dashboard-maintenance'
 import { dashboardCouponsRoute } from './routes/dashboard-coupons'
+import { dashboardApiTokensRoute } from './routes/dashboard-api-tokens'
 import { dashboardPricingRoute } from './routes/dashboard-pricing'
 import { dashboardIssueCertificatesRoute } from './routes/dashboard-issue-certificates'
 import { dashboardEmailCampaignsRoute } from './routes/dashboard-email-campaigns'
@@ -83,6 +84,7 @@ const routeTree = rootRoute.addChildren([
     dashboardNotificationsRoute,
     dashboardMaintenanceRoute,
     dashboardCouponsRoute,
+    dashboardApiTokensRoute,
     dashboardPricingRoute,
     dashboardIssueCertificatesRoute,
     dashboardEmailCampaignsRoute,

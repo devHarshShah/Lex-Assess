@@ -269,6 +269,32 @@ harmless while no `TestAttempt` references those questions, but would orphan or 
 any student who has already attempted that paper. Don't re-run a paper's seed script once real
 attempts exist against it — edit through the admin UI instead.
 
+### Admins creating papers from Claude (MCP connector)
+
+Seed scripts are for papers the developer writes. For everything else, admins can create papers
+themselves from their own Claude chat, through the LexAssess MCP endpoint (`POST /mcp`,
+`apps/backend/src/mcp/`):
+
+1. A superadmin opens **Integrations → API Tokens** (`/dashboard/api-tokens`) and generates a
+   token for the admin (owner email, optional expiry). The plaintext token and a connector URL are
+   shown once; only a SHA-256 hash is stored (`ApiToken`).
+2. The admin adds a custom connector in Claude (Settings → Connectors) with the connector URL
+   `${API_PUBLIC_URL}/mcp/t/<token>`. Clients that can send headers (Claude Desktop, Claude Code)
+   can use `${API_PUBLIC_URL}/mcp` with `Authorization: Bearer <token>` instead.
+3. They attach the paper PDF and ask Claude to create it under a category. The tools are
+   `get_paper_format`, `list_categories`, `list_papers`, `get_paper`, `create_paper_draft` and
+   `update_paper_draft`.
+
+Claude can only create or replace **DRAFT** versions, and not ones students have attempted. There
+is no publish or delete tool: an admin reviews the draft (especially the MCQ answer key, which
+Claude may have worked out itself) in the paper builder and publishes it there.
+
+`API_PUBLIC_URL` must be the backend's own public URL (not the Vercel `/api` proxy), or the
+connector URL shown in the panel is wrong. The path-token URL shows up in Cloud Run request logs,
+which only project members can read. A token stops working when it is revoked, when it expires, or
+when its owner stops being an admin. Each tool call is logged as `mcp_tool_call` with the token
+prefix, never the token.
+
 ### Admin credentials
 
 `PrismaService.seedDefaults()` creates `superadmin@lexassess.com` and `admin@lexassess.com` on

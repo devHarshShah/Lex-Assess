@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Award, BarChart3, PhoneCall, Bell, BookOpen, Building2, ClipboardList, FileText, GraduationCap, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2, Wrench } from 'lucide-react'
+import { Award, BarChart3, PhoneCall, Bell, BookOpen, Building2, ClipboardList, FileText, GraduationCap, KeyRound, ShieldCheck, ShieldUser, SquareTerminal, University, UserCheck, UserCircle2, Wrench } from 'lucide-react'
 import { useRouterState } from '@tanstack/react-router'
 
 import { NavMain } from '@/components/nav-main'
@@ -155,6 +155,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         url: '/dashboard/maintenance',
         icon: Wrench,
         items: [{ title: 'Maintenance Mode', url: '/dashboard/maintenance' }],
+      },
+      {
+        title: 'Integrations',
+        url: '/dashboard/api-tokens',
+        icon: KeyRound,
+        items: [{ title: 'API Tokens (Claude)', url: '/dashboard/api-tokens' }],
       }
     )
   } else if (activeRole === 'ADMIN') {

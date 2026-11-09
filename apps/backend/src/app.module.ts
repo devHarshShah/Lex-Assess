@@ -17,6 +17,8 @@ import { AnalyticsModule } from './analytics/analytics.module';
 import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
 import { CrmModule } from './crm/crm.module';
 import { SettingsModule } from './settings/settings.module';
+import { ApiTokensModule } from './api-tokens/api-tokens.module';
+import { McpModule } from './mcp/mcp.module';
 import { MaintenanceGuard } from './settings/maintenance.guard';
 import { ClientThrottlerGuard, PER_EMAIL_THROTTLER } from './common/guards/client-throttler.guard';
 
@@ -44,6 +46,8 @@ import { ClientThrottlerGuard, PER_EMAIL_THROTTLER } from './common/guards/clien
     EmailCampaignsModule,
     CrmModule,
     SettingsModule,
+    ApiTokensModule,
+    McpModule,
   ],
   controllers: [AppController],
   providers: [
