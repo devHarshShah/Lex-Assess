@@ -78,7 +78,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
       'Competition',
       'Labour',
       'Data Protection',
-      'Technology',
       'Energy and Infrastructure',
       'Media and Entertainment',
     ];

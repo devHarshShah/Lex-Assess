@@ -45,7 +45,7 @@ const FALLBACK_PROFILE_OPTIONS: ProfileOptions = {
     'Competition',
     'Labour',
     'Data Protection',
-    'Technology',
+    'Legal Tech',
   ],
   internshipGoals: ['Law Firms', 'Advocates', 'Corporate Houses', 'NGOs', 'Judiciary', 'Government Bodies', 'Other'],
   internshipDurations: ['1 Month', '2 Months', '3 Months', '6 Months'],

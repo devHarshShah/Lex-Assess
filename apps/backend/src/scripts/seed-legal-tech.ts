@@ -9,11 +9,17 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Starting seeding legal tech law practice area...');
 
-  // Categories are owned by PrismaService.seedProfileDefaults() (the profile
-  // dropdown reads from there), never created here - see DEPLOYMENT.md.
-  const specialization = await prisma.specialization.findUniqueOrThrow({
-    where: { name: 'Technology' },
+  // The Legal Tech category was created by a superadmin through the panel, not
+  // by PrismaService.seedProfileDefaults(), so it is looked up (never created)
+  // and matched case-insensitively. If it is missing, create it in the panel.
+  const specialization = await prisma.specialization.findFirst({
+    where: { name: { equals: 'Legal Tech', mode: 'insensitive' } },
   });
+  if (!specialization) {
+    throw new Error(
+      'Category "Legal Tech" not found - create it in the superadmin panel first.',
+    );
+  }
 
   console.log(
     `Using specialization: ${specialization.name} (${specialization.id})`,
@@ -22,19 +28,18 @@ async function main() {
   const description =
     'Covers the IT Act 2000, DPDP Act 2023, Indian Contract Act 1872 and Companies Act 2013 as they apply to AI, platforms and technology companies.';
 
+  // Looked up by title across all categories (not just Legal Tech) so a copy
+  // first seeded under another category is moved here instead of duplicated.
   const paper = await prisma.questionPaper.upsert({
     where: {
       id:
         (
           await prisma.questionPaper.findFirst({
-            where: {
-              title: 'Legal Tech Law Assessment Examination',
-              specializationId: specialization.id,
-            },
+            where: { title: 'Legal Tech Law Assessment Examination' },
           })
         )?.id || 'placeholder-id-for-create',
     },
-    update: { description },
+    update: { description, specializationId: specialization.id },
     create: {
       specializationId: specialization.id,
       title: 'Legal Tech Law Assessment Examination',
