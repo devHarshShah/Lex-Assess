@@ -34,6 +34,7 @@ const SEED_SCRIPTS = [
   'seed-general-corporate-law',
   'seed-media-entertainment',
   'seed-legal-research-skills',
+  'seed-legal-tech',
 ];
 
 function runSeedScripts(): void {
