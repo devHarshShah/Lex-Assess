@@ -283,7 +283,8 @@ themselves from their own Claude chat, through the LexAssess MCP endpoint (`POST
    can use `${API_PUBLIC_URL}/mcp` with `Authorization: Bearer <token>` instead.
 3. They attach the paper PDF and ask Claude to create it under a category. The tools are
    `get_paper_format`, `list_categories`, `list_papers`, `get_paper`, `create_paper_draft` and
-   `update_paper_draft`.
+   `update_paper_draft`, plus `create_category` for superadmin-owned tokens only. A new category is
+   created hidden from students: turn it on under Practice Areas once its first paper is published.
 
 Claude can only create or replace **DRAFT** versions, and not ones students have attempted. There
 is no publish or delete tool: an admin reviews the draft (especially the MCQ answer key, which

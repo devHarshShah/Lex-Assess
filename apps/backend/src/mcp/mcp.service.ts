@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { PaperStatus } from '@prisma/client';
+import { PaperStatus, Role } from '@prisma/client';
 import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
 import { QuestionPapersService } from '../question-papers/question-papers.service';
@@ -16,7 +16,7 @@ import {
 
 const SERVER_INSTRUCTIONS =
   'LexAssess is a legal assessment platform. Use these tools to turn a question paper (usually a PDF the user attaches) into a DRAFT paper. ' +
-  'Always call get_paper_format first, then list_categories to find the category. Check list_papers for an existing paper with the same title before creating one. ' +
+  'Always call get_paper_format first, then list_categories to find the category (create_category only if the user explicitly asks for a new practice area and the tool is available). Check list_papers for an existing paper with the same title before creating one. ' +
   'Drafts are never visible to students: an admin must review the answer key and publish in the LexAssess panel. You cannot publish or delete.';
 
 function text(value: unknown): CallToolResult {
@@ -120,6 +120,58 @@ export class McpService {
         );
       },
     );
+
+    // Same rule as the panel: only superadmins create practice areas.
+    if (principal.role === Role.SUPERADMIN) {
+      server.registerTool(
+        'create_category',
+        {
+          title: 'Create a practice area',
+          description:
+            'Creates a new practice-area category (superadmin tokens only). Only use when the user explicitly asks for a new ' +
+            'practice area. Check list_categories first. The category is created HIDDEN from students; an admin turns it on in ' +
+            'the panel once it has a published paper.',
+          inputSchema: {
+            name: z
+              .string()
+              .trim()
+              .min(2)
+              .max(80)
+              .describe('Display name, e.g. "Legal Tech"'),
+          },
+        },
+        async ({ name }) => {
+          const existing = await this.prisma.specialization.findFirst({
+            where: { name: { equals: name, mode: 'insensitive' } },
+          });
+          if (existing) {
+            return toolError(
+              `A category named "${existing.name}" already exists (id ${existing.id}). Use it instead of creating a new one.`,
+            );
+          }
+          const last = await this.prisma.specialization.aggregate({
+            _max: { sortOrder: true },
+          });
+          const category = await this.prisma.specialization.create({
+            data: {
+              name,
+              isActive: false,
+              sortOrder: (last._max.sortOrder ?? 0) + 1,
+            },
+          });
+          this.audit(principal, 'create_category', {
+            categoryId: category.id,
+            name,
+          });
+          return text({
+            id: category.id,
+            name: category.name,
+            visibleToStudents: false,
+            note: 'Hidden from students until an admin turns it on in the panel (do this after publishing its first paper).',
+          });
+        },
+      );
+    }
 
     server.registerTool(
       'list_papers',
