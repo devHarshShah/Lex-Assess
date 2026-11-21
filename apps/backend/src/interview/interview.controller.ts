@@ -139,6 +139,19 @@ export class InterviewController {
     return this.interviewService.reassignInterview(id, data);
   }
 
+  // ADMIN: Past interviews still SCHEDULED (missed / no feedback), and reopening booking for one
+  @Get('past-pending')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  getPastPendingInterviews() {
+    return this.interviewService.getPastPendingInterviews();
+  }
+
+  @Post(':id/allow-rebook')
+  @Roles(Role.ADMIN, Role.SUPERADMIN)
+  allowRebook(@Param('id') id: string) {
+    return this.interviewService.allowRebook(id);
+  }
+
   // INTERVIEWER: My sessions
   @Get('sessions')
   @Roles(Role.INTERVIEWER)

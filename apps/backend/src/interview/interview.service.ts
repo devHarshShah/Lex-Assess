@@ -546,6 +546,37 @@ export class InterviewService {
     });
   }
 
+  /** Interviews whose slot has ended but are still SCHEDULED: missed, or feedback not filed yet. */
+  async getPastPendingInterviews() {
+    return this.prisma.interview.findMany({
+      where: { status: InterviewStatus.SCHEDULED, slot: { endTime: { lte: new Date() } } },
+      include: {
+        student: { select: { id: true, name: true, email: true, profile: { select: { specialization: true } } } },
+        interviewer: { select: { id: true, name: true, email: true } },
+        slot: true,
+      },
+      orderBy: { slot: { startTime: 'desc' } },
+    });
+  }
+
+  /**
+   * Marks a missed interview CANCELLED so the student can book a new slot
+   * (scheduleInterview only blocks on SCHEDULED/COMPLETED). Only past,
+   * still-SCHEDULED interviews qualify, so a completed one can't be reopened.
+   */
+  async allowRebook(interviewId: string) {
+    const result = await this.prisma.interview.updateMany({
+      where: { id: interviewId, status: InterviewStatus.SCHEDULED, slot: { endTime: { lte: new Date() } } },
+      data: { status: InterviewStatus.CANCELLED },
+    });
+    if (result.count === 0) {
+      const exists = await this.prisma.interview.findUnique({ where: { id: interviewId } });
+      if (!exists) throw new NotFoundException('Interview not found');
+      throw new BadRequestException('Only past interviews that are still awaiting feedback can be reopened for booking');
+    }
+    return this.prisma.interview.findUniqueOrThrow({ where: { id: interviewId } });
+  }
+
   /**
    * Moves a booked interview to another interviewer. Without slotId the booking keeps its
    * time (the slot itself changes hands); with slotId it moves into one of the new
@@ -651,7 +682,7 @@ export class InterviewService {
 
   async getInterviewerSessions(interviewerId: string) {
     return this.prisma.interview.findMany({
-      where: { interviewerId },
+      where: { interviewerId, status: { not: InterviewStatus.CANCELLED } },
       include: {
         student: {
           select: { id: true, name: true, email: true, profile: true }
@@ -664,7 +695,7 @@ export class InterviewService {
 
   async getStudentInterviews(studentId: string) {
     return this.prisma.interview.findMany({
-      where: { studentId },
+      where: { studentId, status: { not: InterviewStatus.CANCELLED } },
       include: {
         interviewer: {
           select: { id: true, name: true, interviewerProfile: true }
@@ -682,6 +713,9 @@ export class InterviewService {
 
     if (!interview || interview.interviewerId !== interviewerId) {
       throw new ForbiddenException('You are not authorized to provide feedback for this interview');
+    }
+    if (interview.status === InterviewStatus.CANCELLED) {
+      throw new BadRequestException('This interview was cancelled so the student can rebook');
     }
 
     return this.prisma.interview.update({

@@ -5,10 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { fetchInterviewers, createInterviewer, deleteInterviewer, resendInterviewerWelcome, createSlot, deleteSlot, adminBulkAddSlots, fetchScheduledInterviews, type Interviewer, type Interview } from '@/lib/interview';
+import { fetchInterviewers, createInterviewer, deleteInterviewer, resendInterviewerWelcome, createSlot, deleteSlot, adminBulkAddSlots, fetchScheduledInterviews, fetchPastPendingInterviews, allowInterviewRebook, type Interviewer, type Interview } from '@/lib/interview';
 import { ReassignInterviewDialog } from '@/components/ReassignInterviewDialog';
 import { fetchProfileOptions } from '@/lib/auth';
-import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat, Mail, ArrowRightLeft } from 'lucide-react';
+import { UserPlus, Calendar, Loader2, ChevronDown, Trash2, Clock, Repeat, Mail, ArrowRightLeft, RotateCcw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '../components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
@@ -38,6 +38,8 @@ export function AdminInterviewerManagementPage() {
   const [resendingInterviewerId, setResendingInterviewerId] = React.useState<string | null>(null);
   const [scheduledInterviews, setScheduledInterviews] = React.useState<Interview[]>([]);
   const [reassigning, setReassigning] = React.useState<Interview | null>(null);
+  const [pastPendingInterviews, setPastPendingInterviews] = React.useState<Interview[]>([]);
+  const [rebookingId, setRebookingId] = React.useState<string | null>(null);
 
   const days = [
     { label: 'Sun', value: 0 },
@@ -50,7 +52,7 @@ export function AdminInterviewerManagementPage() {
   ];
 
   React.useEffect(() => {
-    Promise.all([loadInterviewers(), loadOptions(), loadScheduledInterviews()]);
+    Promise.all([loadInterviewers(), loadOptions(), loadScheduledInterviews(), loadPastPendingInterviews()]);
   }, []);
 
   const loadInterviewers = async () => {
@@ -69,6 +71,28 @@ export function AdminInterviewerManagementPage() {
       setScheduledInterviews(await fetchScheduledInterviews());
     } catch (error) {
       toast.error('Failed to load upcoming interviews');
+    }
+  };
+
+  const loadPastPendingInterviews = async () => {
+    try {
+      setPastPendingInterviews(await fetchPastPendingInterviews());
+    } catch (error) {
+      toast.error('Failed to load past interviews');
+    }
+  };
+
+  const handleAllowRebook = async (interview: Interview) => {
+    if (!confirm(`Mark ${interview.student?.name ?? 'this student'}'s interview as missed? They will be able to book a new slot.`)) return;
+    setRebookingId(interview.id);
+    try {
+      await allowInterviewRebook(interview.id);
+      toast.success(`${interview.student?.name ?? 'Student'} can now book a new interview slot.`);
+      await loadPastPendingInterviews();
+    } catch {
+      // api-client already shows the error toast
+    } finally {
+      setRebookingId(null);
     }
   };
 
@@ -329,6 +353,40 @@ export function AdminInterviewerManagementPage() {
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setReassigning(interview)}>
                     <ArrowRightLeft className="h-4 w-4 mr-2" /> Reassign
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Past Interviews Awaiting Feedback</CardTitle>
+          <CardDescription>Slot has ended and no feedback was filed. If the student missed it, mark it missed so they can book a new slot.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {pastPendingInterviews.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No past interviews awaiting feedback.</p>
+          ) : (
+            <div className="divide-y max-h-[320px] overflow-y-auto">
+              {pastPendingInterviews.map((interview) => (
+                <div key={interview.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">
+                      {interview.student?.name}
+                      {interview.student?.profile?.specialization && (
+                        <Badge variant="secondary" className="ml-2 text-[10px]">{interview.student.profile.specialization}</Badge>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {format(new Date(interview.slot.startTime), 'MMM d, h:mm a')} · with {interview.interviewer?.name}
+                    </p>
+                  </div>
+                  <Button variant="outline" size="sm" disabled={rebookingId === interview.id} onClick={() => handleAllowRebook(interview)}>
+                    {rebookingId === interview.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+                    Mark missed &amp; allow rebook
                   </Button>
                 </div>
               ))}

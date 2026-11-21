@@ -144,6 +144,16 @@ export const fetchScheduledInterviews = async () => {
   return api.get<Interview[]>('/interviews/scheduled');
 };
 
+// Past interviews still SCHEDULED: missed, or feedback not filed yet
+export const fetchPastPendingInterviews = async () => {
+  return api.get<Interview[]>('/interviews/past-pending');
+};
+
+// Marks a missed interview cancelled so the student can book a new slot
+export const allowInterviewRebook = async (interviewId: string) => {
+  return api.post<Interview>(`/interviews/${interviewId}/allow-rebook`);
+};
+
 // Without slotId the interview keeps its time; with it, it moves into that open slot of the new interviewer
 export const reassignInterview = async (interviewId: string, data: { newInterviewerId: string; slotId?: string }) => {
   return api.post<Interview>(`/interviews/${interviewId}/reassign`, data);
