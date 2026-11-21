@@ -179,6 +179,12 @@ export function TestAttemptPage() {
     try {
       setIsLoading(true)
       const attempt = await startTestAttempt(versionId)
+      // Time ran out while away: the server has already recorded the attempt.
+      if (attempt.status !== 'STARTED') {
+        toast.info('Your test time has ended and your saved answers have been submitted.')
+        void navigate({ to: '/dashboard' })
+        return
+      }
       const startTime = new Date(attempt.startTime).getTime()
       const limitMs = (version?.timeLimitMinutes || 60) * 60 * 1000
       const clockSkew = new Date(attempt.serverNow).getTime() - Date.now()
@@ -1078,10 +1084,11 @@ export function TestAttemptPage() {
               ← Previous
             </button>
 
-            {!(currentIndex === questions.length - 1 && (!currentQuestion.subQuestions || currentSubIndex === currentQuestion.subQuestions.length - 1)) ? (
+            {/* subQuestions is [] (not undefined) for plain questions, so check length */}
+            {!(currentIndex === questions.length - 1 && currentSubIndex >= (currentQuestion.subQuestions?.length ?? 0) - 1) ? (
               <button
                 onClick={() => {
-                  if (currentQuestion.subQuestions && currentSubIndex < currentQuestion.subQuestions.length - 1) {
+                  if (currentSubIndex < (currentQuestion.subQuestions?.length ?? 0) - 1) {
                     handleNavigate(currentIndex, currentSubIndex + 1)
                   } else {
                     handleNavigate(currentIndex + 1, 0)

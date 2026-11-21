@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaperStatus, QuestionType, AttemptStatus } from '@prisma/client';
 
@@ -157,6 +157,8 @@ export class UpdateVersionDto {
 
 @Injectable()
 export class QuestionPapersService {
+  private readonly logger = new Logger(QuestionPapersService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async getPapersBySpecialization(specializationId: string) {
@@ -648,13 +650,11 @@ export class QuestionPapersService {
       
       if (now - startTime < limitMs) {
         return ongoingAttempt;
-      } else {
-        // Mark as expired if time is up
-        return this.prisma.testAttempt.update({
-          where: { id: ongoingAttempt.id },
-          data: { status: AttemptStatus.EXPIRED, endTime: new Date() },
-        });
       }
+      // Time ran out while the candidate was away (window closed, browser
+      // crashed, stuck UI). Record what was autosaved instead of discarding it.
+      this.logger.log(`startAttempt: finalizing overdue attempt ${ongoingAttempt.id} user=${userId}`);
+      return this.finalizeOverdueAttempt(ongoingAttempt, version.timeLimitMinutes);
     }
 
     // Create new attempt
@@ -686,29 +686,62 @@ export class QuestionPapersService {
     }
 
     if (attempt.status === AttemptStatus.EXPIRED) {
-      throw new BadRequestException('Time limit exceeded. Your attempt has expired.');
+      // Older code marked overdue attempts EXPIRED, dropping their autosaved
+      // answers. Recover those the same way as a late submit.
+      if (!attempt.answers) {
+        throw new BadRequestException('Time limit exceeded. Your attempt has expired.');
+      }
+      this.logger.log(`submitAttempt: recovering EXPIRED attempt ${attempt.id} user=${userId}`);
+      return this.finalizeOverdueAttempt(attempt, attempt.version.timeLimitMinutes, data.answers?._proctoringLogs);
     }
 
     const deadline = attempt.startTime.getTime() + attempt.version.timeLimitMinutes * 60 * 1000;
     const isLate = Date.now() > deadline + SUBMIT_GRACE_MS;
+    this.logger.log(`submitAttempt: attempt ${attempt.id} user=${userId} late=${isLate}`);
 
     // A late submit (client timer drifted, tab throttled) still records the
     // attempt, but only with the answers autosaved before the deadline — the
     // late payload is ignored apart from the proctoring logs.
-    const answers = isLate
-      ? { ...((attempt.answers as Record<string, any>) ?? {}), _proctoringLogs: data.answers?._proctoringLogs }
-      : data.answers;
+    if (isLate) {
+      return this.finalizeOverdueAttempt(attempt, attempt.version.timeLimitMinutes, data.answers?._proctoringLogs);
+    }
 
     const updatedAttempt = await this.prisma.testAttempt.update({
       where: { id: attempt.id },
       data: {
         status: AttemptStatus.SUBMITTED,
-        endTime: isLate ? new Date(deadline) : new Date(),
-        answers: answers as any,
+        endTime: new Date(),
+        answers: data.answers as any,
       },
     });
 
     // Auto-calculate score
+    await this.calculateAutoScore(updatedAttempt.id);
+
+    return updatedAttempt;
+  }
+
+  /**
+   * Submit an attempt whose time is up using only its autosaved answers,
+   * ending it at the deadline. Proctoring logs from a late payload are kept.
+   */
+  private async finalizeOverdueAttempt(
+    attempt: { id: string; startTime: Date; answers: unknown },
+    timeLimitMinutes: number,
+    proctoringLogs?: unknown,
+  ) {
+    const saved = (attempt.answers as Record<string, any>) ?? {};
+    const answers = proctoringLogs !== undefined ? { ...saved, _proctoringLogs: proctoringLogs } : saved;
+
+    const updatedAttempt = await this.prisma.testAttempt.update({
+      where: { id: attempt.id },
+      data: {
+        status: AttemptStatus.SUBMITTED,
+        endTime: new Date(attempt.startTime.getTime() + timeLimitMinutes * 60 * 1000),
+        answers: answers as any,
+      },
+    });
+
     await this.calculateAutoScore(updatedAttempt.id);
 
     return updatedAttempt;
